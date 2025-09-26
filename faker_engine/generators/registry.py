@@ -6,7 +6,7 @@ class GeneratorRegistry:
     def __init__(self, module=gens):
         self._module = module
         self._instances: dict[
-            str, BaseGenerator] = {}  # name/alias -> instance
+            str, BaseGenerator] = {}
 
     def load(self):
         for name in getattr(self._module, "__all__", []):
@@ -22,4 +22,4 @@ class GeneratorRegistry:
             if inst:
                 for alias in aliases:
                     self._instances[alias] = inst
-        return self._instances, self._canon
+        return self._instances

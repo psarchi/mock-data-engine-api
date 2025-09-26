@@ -6,7 +6,7 @@ from faker_engine.generators.registry import GeneratorRegistry
 
 class GeneratorCore:
     def __init__(self, module=gens):
-        self._instances, self._canon = GeneratorRegistry(module).load()
+        self._instances = GeneratorRegistry(module).load()
 
     def _sanity_check(self, instance):
         if not callable(getattr(instance, 'configure', None)):
@@ -23,3 +23,4 @@ class GeneratorCore:
             available = ", ".join(sorted(self._instances))
             raise KeyError(
                 f"Unknown generator '{name}'. Available: {available}")
+
