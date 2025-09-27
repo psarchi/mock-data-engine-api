@@ -3,7 +3,7 @@ from faker_engine.generators.context import GenContext
 
 
 class BoolGenerator(BaseGenerator):
-    __slots__: ()
+    __slots__ = ()
     __aliases__ = ('bool',)
 
     def generate(self, ctx: GenContext):

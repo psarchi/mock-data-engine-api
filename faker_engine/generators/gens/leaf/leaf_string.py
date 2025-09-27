@@ -1,13 +1,12 @@
-
 from faker_engine.generators.gens.base import BaseGenerator
 from faker_engine.generators.context import GenContext
 
 
 class StringGenerator(BaseGenerator):
-    __slots__ = ('min_length', 'max_length', 'string_type')
+    __slots__ = ('string_type','min_length', 'max_length')
     __aliases__ = ('string', 'str')
 
-    def __init__(self, min_length=None, max_length=None, string_type=None):
+    def __init__(self, string_type=None, min_length=None, max_length=None):
         self.min_length = min_length
         self.max_length = max_length
         self.string_type = string_type
@@ -38,6 +37,7 @@ class StringGenerator(BaseGenerator):
 
         if not callable(fn):
             raise TypeError(f"Faker attribute '{string_type}' is not callable")
+        return fn
 
     def generate(self, ctx):
         self._sanity_check(ctx)
@@ -50,7 +50,8 @@ class StringGenerator(BaseGenerator):
             return provider()
         else:
             from string import ascii_lowercase
-            length = ctx.randint(self.min_length, self.max_length)
+            length = ctx.rng.randint(self.min_length if self.min_length is not None else 1,
+                                     self.max_length if self.max_length is not None else 100)
             output = "".join(
-                ctx.choice(ascii_lowercase) for _ in range(length))
+                ctx.rng.choice(ascii_lowercase) for _ in range(length))
             return output
