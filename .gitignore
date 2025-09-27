@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.dist-info/
+.build/
+build/
+dist/
+.eggs/
+.pytest_cache/
+.coverage
+.mypy_cache/
+.dmypy.json
+.pyre/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Project
+.env
+EOF
