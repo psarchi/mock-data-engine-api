@@ -7,7 +7,7 @@ class BaseGenerator:
     def generate(self, ctx):
         ...
 
-    def _sanity_check(self,ctx):
+    def _sanity_check(self, ctx):
         # placeholder validation
         ...
 
@@ -20,8 +20,11 @@ class BaseGenerator:
             setattr(cls, "_cached_init_fields", fields)
         return fields
 
-    def configure(self, **kwargs):
+    def configure(self, *args, **kwargs):
         init_names = self._init_fields()
+        for position, value in enumerate(args):
+            if position < len(init_names):
+                setattr(self, init_names[position], value)
         for name, value in kwargs.items():
             if name in init_names:
                 setattr(self, name, value)
