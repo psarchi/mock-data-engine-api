@@ -13,12 +13,12 @@ class GeneratorCore:
             raise TypeError(
                 f"Generator {instance.__class__.__name__} has no configure function")
 
-    def resolve(self, name: str, **kwargs) -> BaseGenerator:
+    def resolve(self, name: str, *args, **kwargs) -> BaseGenerator:
         name = name.strip().lower().replace(" ", "_")
         self._sanity_check(self._instances[name])
 
         try:
-            return self._instances[name].configure(**kwargs)
+            return self._instances[name].configure(*args, **kwargs)
         except KeyError:
             available = ", ".join(sorted(self._instances))
             raise KeyError(
