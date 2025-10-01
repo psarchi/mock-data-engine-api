@@ -12,6 +12,13 @@ class BaseGenerator:
         ...
 
     @classmethod
+    def from_spec(cls, builder, spec):
+        params = dict(spec)
+        params.pop("type", None)
+        inst = cls()
+        return inst.configure(**params)
+
+    @classmethod
     def _init_fields(cls):
         fields = getattr(cls, "_cached_init_fields", None)
         if fields is None:

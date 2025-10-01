@@ -1,3 +1,2 @@
-from faker_engine.generators.gens import *  # noqa: F401,F403
-
-from .factory import GeneratorFactory
+import faker_engine.generators  # noqa
+from faker_engine.generators.registry.factory import GeneratorFactory

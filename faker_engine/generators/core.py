@@ -1,7 +1,7 @@
-import gens
-from faker_engine.generators.gens.base import BaseGenerator
+import faker_engine.generators as gens
+from faker_engine.generators.base import BaseGenerator
 from faker_engine.generators.context import GenContext
-from faker_engine.generators.registry import GeneratorRegistry
+from faker_engine.generators.legacy_registry import GeneratorRegistry
 
 
 class GeneratorCore:

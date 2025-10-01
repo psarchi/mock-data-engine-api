@@ -1,4 +1,4 @@
-from .registry import GeneratorRegistry
+from .registry import GeneratorRegistry # noqa
 
 
 class GeneratorFactory:

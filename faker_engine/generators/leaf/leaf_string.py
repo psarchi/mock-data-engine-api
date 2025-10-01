@@ -1,4 +1,4 @@
-from faker_engine.generators.gens.base import BaseGenerator
+from faker_engine.generators.base import BaseGenerator
 from faker_engine.generators.context import GenContext
 
 
