@@ -1,7 +1,7 @@
 import faker_engine.generators as gens
 from faker_engine.generators.base import BaseGenerator
 # NOTE: kept only for backward-compatibility.
-# New code should use faker_engine.registry.registry
+# New code should use faker_engine.core.core
 # This file will be removed in the next commit.
 
 class GeneratorRegistry:

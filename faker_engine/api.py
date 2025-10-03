@@ -1,15 +1,15 @@
 import random
 
-from faker_engine.generators.context import GenContext
-from faker_engine.generators.registry.registry import GeneratorRegistry
-from faker_engine.generators.registry.factory import GeneratorFactory
+from faker_engine.context import GenContext
+from faker_engine.core.registry import GeneratorRegistry
+from faker_engine.core.factory import GeneratorFactory
 from faker_engine.spec_builder import SpecBuilder
 from faker_engine.generators import (
     IntGenerator, FloatGenerator, StringGenerator, BoolGenerator,
     EnumGenerator,
 )
 
-# bootstrap registry with built-ins
+# bootstrap core with built-ins
 _registry = GeneratorRegistry()
 for cls in (
         IntGenerator, FloatGenerator, StringGenerator, BoolGenerator,

@@ -1,5 +1,5 @@
 from faker_engine.generators.base import BaseGenerator
-from faker_engine.generators.context import GenContext
+from faker_engine.context import GenContext
 
 class IntGenerator(BaseGenerator):
     __slots__ = ('min_value', 'max_value', 'decimal_places')

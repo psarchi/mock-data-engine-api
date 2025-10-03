@@ -1,5 +1,6 @@
+# NOTE: ObjectGenerator not supported yet by legacy core
 from faker_engine.generators.base import BaseGenerator
-from faker_engine.generators.context import GenContext
+from faker_engine.context import GenContext
 
 class ObjectGenerator(BaseGenerator):
     __slots__ = ("fields",)

@@ -1,6 +1,6 @@
-# NOTE: ArrayGenerator not supported yet by legacy registry
+# NOTE: ArrayGenerator not supported yet by legacy core
 from faker_engine.generators.base import BaseGenerator
-from faker_engine.generators.context import GenContext
+from faker_engine.context import GenContext
 
 class ArrayGenerator(BaseGenerator):
     __slots__ = ("min_items", "max_items", "child")
