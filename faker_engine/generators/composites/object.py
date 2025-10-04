@@ -2,6 +2,7 @@
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
 
+
 class ObjectGenerator(BaseGenerator):
     __slots__ = ("fields",)
     __aliases__ = ("object", "dict")

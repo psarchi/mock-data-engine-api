@@ -3,13 +3,20 @@ from faker_engine.context import GenContext
 
 
 class StringGenerator(BaseGenerator):
-    __slots__ = ('string_type','min_length', 'max_length')
+    __slots__ = ('string_type', 'min_length', 'max_length')
     __aliases__ = ('string', 'str')
 
     def __init__(self, string_type=None, min_length=None, max_length=None):
         self.min_length = min_length
         self.max_length = max_length
         self.string_type = string_type
+
+    @classmethod
+    def from_spec(cls, builder, spec: dict):
+        params = {k: v for k, v in spec.items() if k != "type"}
+        if "provider" in params:  # map provider -> string_type
+            params["string_type"] = params.pop("provider")
+        return cls(**params)
 
     def _sanity_check(self, ctx):
         if self.min_length is not None and self.max_length is not None:
@@ -50,8 +57,9 @@ class StringGenerator(BaseGenerator):
             return provider()
         else:
             from string import ascii_lowercase
-            length = ctx.rng.randint(self.min_length if self.min_length is not None else 1,
-                                     self.max_length if self.max_length is not None else 100)
+            length = ctx.rng.randint(
+                self.min_length if self.min_length is not None else 1,
+                self.max_length if self.max_length is not None else 100)
             output = "".join(
                 ctx.rng.choice(ascii_lowercase) for _ in range(length))
             return output

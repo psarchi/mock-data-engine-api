@@ -12,13 +12,6 @@ class BaseGenerator:
         ...
 
     @classmethod
-    def from_spec(cls, builder, spec):
-        params = dict(spec)
-        params.pop("type", None)
-        inst = cls()
-        return inst.configure(**params)
-
-    @classmethod
     def _init_fields(cls):
         fields = getattr(cls, "_cached_init_fields", None)
         if fields is None:
@@ -26,6 +19,12 @@ class BaseGenerator:
             fields = tuple(n for n in sig.parameters if n != "self")
             setattr(cls, "_cached_init_fields", fields)
         return fields
+
+    @classmethod
+    def from_spec(cls, builder, spec: dict):
+        """Default: just forward params into constructor."""
+        params = {k: v for k, v in spec.items() if k != "type"}
+        return cls(**params)
 
     def configure(self, *args, **kwargs):
         init_names = self._init_fields()

@@ -2,6 +2,7 @@
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
 
+
 class ArrayGenerator(BaseGenerator):
     __slots__ = ("min_items", "max_items", "child")
     __aliases__ = ("array", "list")

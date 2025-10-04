@@ -1,8 +1,10 @@
-from .registry import GeneratorRegistry # noqa
+from .registry import GeneratorRegistry
 
 
 class GeneratorFactory:
     def __init__(self, registry):
+        if not isinstance(registry, GeneratorRegistry):
+            raise TypeError("registry must be a GeneratorRegistry")
         self._registry = registry
 
     def resolve(self, name, **kwargs):
