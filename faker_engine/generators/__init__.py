@@ -1,3 +1,4 @@
+from faker_engine.generators.composites.maybe import MaybeGenerator
 from faker_engine.generators.composites.object import ObjectGenerator
 from faker_engine.generators.leafs.enum import EnumGenerator
 from faker_engine.generators.leafs.bool import BoolGenerator
@@ -9,5 +10,5 @@ from faker_engine.generators.leafs.string import StringGenerator
 
 __all__ = ['IntGenerator', 'FloatGenerator', 'StringGenerator',
            'BoolGenerator', 'EnumGenerator', 'ArrayGenerator',
-           'ObjectGenerator']
+           'ObjectGenerator', 'MaybeGenerator']
 
