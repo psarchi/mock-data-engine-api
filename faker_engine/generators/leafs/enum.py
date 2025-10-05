@@ -1,4 +1,5 @@
-from faker_engine.errors import EmptyEnumError, ContextError
+from faker_engine.errors import EmptyEnumError, ContextError, \
+    InvalidParameterError
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
 
@@ -12,12 +13,12 @@ class EnumGenerator(BaseGenerator):
 
     def _sanity_check(self, ctx):
         if not self.list_of_items:
-            raise ValueError(f"No items given for for enum Generator")
+            raise EmptyEnumError("No items given for enum generator")
         if not isinstance(self.list_of_items, list):
-            raise ValueError(f"List given for enum Generator")
+            raise InvalidParameterError("list_of_items must be a list")
         if not isinstance(ctx, GenContext):
-            raise TypeError("ctx must be an instance of random.Random")
+            raise ContextError("ctx must be an instance of GenContext")
 
-    def generate(self, ctx: GenContext):
+    def generate(self, ctx):
         self._sanity_check(ctx)
         return ctx.rng.choice(self.list_of_items)
