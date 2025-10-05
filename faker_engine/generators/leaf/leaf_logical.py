@@ -1,3 +1,4 @@
+from faker_engine.errors import ContextError
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
 

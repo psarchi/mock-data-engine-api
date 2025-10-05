@@ -1,3 +1,4 @@
+from faker_engine.errors import MissingFieldsError, InvalidFieldTypeError, ContextError
 # NOTE: ObjectGenerator not supported yet by legacy core
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
@@ -25,5 +26,5 @@ class ObjectGenerator(BaseGenerator):
 
     def generate(self, ctx):
         if not isinstance(ctx, GenContext):
-            raise TypeError("ctx must be an instance of GenContext")
+            raise ContextError("ctx must be an instance of GenContext")
         return {name: gen.generate(ctx) for name, gen in self.fields.items()}

@@ -1,3 +1,5 @@
+from faker_engine.errors import DuplicateAliasError, UnknownGeneratorError, InvalidRegistrationError
+
 class GeneratorRegistry:
     def __init__(self):
         self._catalog = {}
@@ -14,7 +16,7 @@ class GeneratorRegistry:
 
         for name in names:
             if name in self._catalog and self._catalog[name] is not cls:
-                raise KeyError("Duplicate generator alias: %s" % name)
+                raise DuplicateAliasError("Duplicate generator alias: %s" % name)
             self._catalog[name] = cls
         return self
 
