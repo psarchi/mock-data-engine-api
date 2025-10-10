@@ -1,35 +1,50 @@
-from faker_engine.errors import OutOfBoundsError, ContextError, \
-    InvalidParameterError
+from faker_engine.errors import ContextError, InvalidParameterError
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
 
 
 class IntGenerator(BaseGenerator):
-    __slots__ = ('min_value', 'max_value')
-    __aliases__ = ('int', 'integer')
+    __slots__ = ("min", "max", "step")
+    __aliases__ = ("int",)
 
-    def __init__(self, min_value=None, max_value=None):
-        self.min_value = min_value
-        self.max_value = max_value
+    def __init__(self, min=None, max=None, step=None):
+        self.min = 0 if min is None else int(min)
+        self.max = 100 if max is None else int(max)
+        self.step = 1 if step is None else int(step)
+
+    @classmethod
+    def from_spec(cls, builder, spec):
+        return cls(
+            min=spec.get("min"),
+            max=spec.get("max"),
+            step=spec.get("step"),
+        )
 
     def _sanity_check(self, ctx):
-        if self.min_value is not None and self.max_value is not None:
-            if not isinstance(self.min_value, (int, float)):
-                raise InvalidParameterError('min_value must be int or float')
-            if not isinstance(self.max_value, (int, float)):
-                raise InvalidParameterError('max_value must be int or float')
-            if self.max_value < self.min_value:
-                raise OutOfBoundsError("max_value must be >= min_value")
         if not isinstance(ctx, GenContext):
             raise ContextError("ctx must be an instance of GenContext")
+        if self.step <= 0:
+            raise InvalidParameterError("step must be > 0")
+        if self.min > self.max:
+            raise InvalidParameterError("min must be <= max")
+        span = self.max - self.min
+        if span < 0:
+            raise InvalidParameterError("invalid range")
+
+    def configure(self, min=None, max=None, step=None, **kwargs):
+        if min is not None:
+            self.min = int(min)
+        if max is not None:
+            self.max = int(max)
+        if step is not None:
+            self.step = int(step)
+        return self
 
     def generate(self, ctx):
         self._sanity_check(ctx)
-        if self.min_value is not None and self.max_value is not None:
-            output = ctx.rng.randint(int(self.min_value), int(self.max_value))
-        else:
-            lo = int(self.min_value) if self.min_value is not None else 1
-            hi = int(self.max_value) if self.max_value is not None else 100
-            output = ctx.rng.randint(lo, hi)
-        self.reset()
-        return output
+        # map to discrete steps within [min, max]
+        count = ((self.max - self.min) // self.step) + 1
+        if count <= 0:
+            raise InvalidParameterError("empty range for step")
+        idx = ctx.rng.randint(0, count - 1)
+        return self.min + idx * self.step
