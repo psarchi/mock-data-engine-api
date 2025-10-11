@@ -1,57 +1,99 @@
 from datetime import datetime, timedelta, timezone
-from faker_engine.errors import ContextError, InvalidParameterError
+import re
+
+from faker_engine.errors import InvalidParameterError
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
 
+UTC = timezone.utc
+ISO_DEFAULT = "%Y-%m-%dT%H:%M:%S%z"
+
 
 class DateTimeGenerator(BaseGenerator):
-    __slots__ = ("start", "end", "format")
-    __aliases__ = ("datetime",)
+    __slots__ = ('start', 'end', 'format', 'time_start', 'time_end', 'tz')
+    __aliases__ = ('datetime',)
 
-    def __init__(self, start=None, end=None, format=None):
+    def __init__(self, start=None, end=None, format=None, time_start=None, time_end=None, tz=None):
         self.start = start
         self.end = end
-        self.format = format or "iso8601"  # iso8601|epoch_ms|epoch_us
+        self.format = format or ISO_DEFAULT
+        self.time_start = time_start
+        self.time_end = time_end
+        self.tz = tz
 
     @classmethod
     def from_spec(cls, builder, spec):
-        return cls(start=spec.get("start"), end=spec.get("end"), format=spec.get("format"))
+        return cls(
+            start=spec.get('start'),
+            end=spec.get('end'),
+            format=spec.get('format'),
+            time_start=spec.get('time_start'),
+            time_end=spec.get('time_end'),
+            tz=spec.get('tz'),
+        )
 
-    def _sanity_check(self, ctx):
-        if not isinstance(ctx, GenContext):
-            raise ContextError("ctx must be an instance of GenContext")
-        if self.format not in ("iso8601", "epoch_ms", "epoch_us"):
-            raise InvalidParameterError("format must be iso8601|epoch_ms|epoch_us")
+    def _infer_div(self, n):
+        # numeric epoch → seconds divisor
+        if n >= 1000000000000000:  # micros
+            return 1000000.0
+        if n >= 1000000000000:     # millis
+            return 1000.0
+        return 1.0                 # seconds
 
-    def _parse_dt(self, s, default):
-        if not s:
+    def _parse_moment(self, v, default):
+        if v is None:
             return default
-        try:
-            dt = datetime.fromisoformat(s)
-        except Exception:
-            raise InvalidParameterError("invalid datetime 'start'/'end'")
-        # normalize to UTC-aware
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        else:
-            dt = dt.astimezone(timezone.utc)
-        return dt
+        if isinstance(v, (int, float)):
+            div = self._infer_div(float(v))
+            return datetime.fromtimestamp(float(v) / div, tz=UTC)
+        if isinstance(v, str):
+            try:
+                dt = datetime.fromisoformat(v)
+            except Exception:
+                raise InvalidParameterError('datetime.start/end must be ISO8601 or numeric epoch')
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=UTC)
+            return dt.astimezone(UTC)
+        raise InvalidParameterError('datetime.start/end must be ISO8601 or numeric epoch')
+
+    def _parse_time(self, s):
+        m = re.fullmatch(r'(\d{2}):(\d{2})(?::(\d{2}))?', s or '')
+        if not m:
+            raise InvalidParameterError("time_start/time_end must be 'HH:MM' or 'HH:MM:SS'")
+        h, mnt, sec = int(m.group(1)), int(m.group(2)), int(m.group(3) or 0)
+        if not (0 <= h < 24 and 0 <= mnt < 60 and 0 <= sec < 60):
+            raise InvalidParameterError('time_start/time_end out of range')
+        return h, mnt, sec
+
+    def _apply_tz(self, dt):
+        if not self.tz:
+            return dt
+        m = re.fullmatch(r'([+-])(\d{2}):(\d{2})', self.tz)
+        if not m:
+            raise InvalidParameterError("tz must be like '+04:00' or '-03:30'")
+        sign = 1 if m.group(1) == '+' else -1
+        hh, mm = int(m.group(2)), int(m.group(3))
+        offset = timezone(sign * timedelta(hours=hh, minutes=mm))
+        return dt.astimezone(offset)
 
     def generate(self, ctx):
-        self._sanity_check(ctx)
-        now = datetime.now(timezone.utc)
-        start_dt = self._parse_dt(self.start, now.replace(year=now.year - 1))
-        end_dt = self._parse_dt(self.end, now)
-        if start_dt > end_dt:
-            raise InvalidParameterError("start must be <= end")
+        now = datetime.now(tz=UTC)
+        if self.start is None and self.end is None and (self.time_start or self.time_end):
+            base = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            h1, m1, s1 = self._parse_time(self.time_start or '00:00:00')
+            h2, m2, s2 = self._parse_time(self.time_end or '23:59:59')
+            start_dt = base.replace(hour=h1, minute=m1, second=s1)
+            end_dt = base.replace(hour=h2, minute=m2, second=s2)
+        else:
+            start_dt = self._parse_moment(self.start, now - timedelta(days=365))
+            end_dt = self._parse_moment(self.end, now)
+        if end_dt < start_dt:
+            raise InvalidParameterError('datetime.end must be >= start')
         span = (end_dt - start_dt).total_seconds()
-        r = ctx.rng.random()
-        dt = start_dt + timedelta(seconds=r * span)
-        if self.format == "iso8601":
-            # seconds precision; strip +00:00 for stable tests
-            return dt.replace(microsecond=0, tzinfo=timezone.utc).isoformat().replace("+00:00", "")
-        epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
-        delta = dt - epoch
-        if self.format == "epoch_ms":
-            return int(delta.total_seconds() * 1000)
-        return int(delta.total_seconds() * 1_000_000)
+        pick = ctx.rng.random() * span if span > 0 else 0.0
+        dt = start_dt + timedelta(seconds=pick)
+        dt = self._apply_tz(dt)
+        try:
+            return dt.strftime(self.format)
+        except Exception as e:
+            raise InvalidParameterError('invalid datetime.format: %s' % e)
