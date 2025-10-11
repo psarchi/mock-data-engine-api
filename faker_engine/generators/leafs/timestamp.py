@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from faker_engine.errors import ContextError, InvalidParameterError
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
@@ -15,8 +15,7 @@ class TimestampGenerator(BaseGenerator):
 
     @classmethod
     def from_spec(cls, builder, spec):
-        return cls(start=spec.get("start"), end=spec.get("end"),
-                   unit=spec.get("unit"))
+        return cls(start=spec.get("start"), end=spec.get("end"), unit=spec.get("unit"))
 
     def _sanity_check(self, ctx):
         if not isinstance(ctx, GenContext):
@@ -28,13 +27,18 @@ class TimestampGenerator(BaseGenerator):
         if not s:
             return default
         try:
-            return datetime.fromisoformat(s)
+            dt = datetime.fromisoformat(s)
         except Exception:
             raise InvalidParameterError("invalid timestamp 'start'/'end'")
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt
 
     def generate(self, ctx):
         self._sanity_check(ctx)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         start_dt = self._parse_dt(self.start, now.replace(year=now.year - 1))
         end_dt = self._parse_dt(self.end, now)
         if start_dt > end_dt:
@@ -42,7 +46,7 @@ class TimestampGenerator(BaseGenerator):
         span = (end_dt - start_dt).total_seconds()
         r = ctx.rng.random()
         dt = start_dt + timedelta(seconds=r * span)
-        epoch = datetime(1970, 1, 1)
+        epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
         delta = dt - epoch
         if self.unit == "ms":
             return int(delta.total_seconds() * 1000)

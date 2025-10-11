@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from faker_engine.errors import ContextError, InvalidParameterError
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
@@ -15,27 +15,31 @@ class DateTimeGenerator(BaseGenerator):
 
     @classmethod
     def from_spec(cls, builder, spec):
-        return cls(start=spec.get("start"), end=spec.get("end"),
-                   format=spec.get("format"))
+        return cls(start=spec.get("start"), end=spec.get("end"), format=spec.get("format"))
 
     def _sanity_check(self, ctx):
         if not isinstance(ctx, GenContext):
             raise ContextError("ctx must be an instance of GenContext")
         if self.format not in ("iso8601", "epoch_ms", "epoch_us"):
-            raise InvalidParameterError(
-                "format must be iso8601|epoch_ms|epoch_us")
+            raise InvalidParameterError("format must be iso8601|epoch_ms|epoch_us")
 
     def _parse_dt(self, s, default):
         if not s:
             return default
         try:
-            return datetime.fromisoformat(s)
+            dt = datetime.fromisoformat(s)
         except Exception:
             raise InvalidParameterError("invalid datetime 'start'/'end'")
+        # normalize to UTC-aware
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt
 
     def generate(self, ctx):
         self._sanity_check(ctx)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         start_dt = self._parse_dt(self.start, now.replace(year=now.year - 1))
         end_dt = self._parse_dt(self.end, now)
         if start_dt > end_dt:
@@ -44,9 +48,9 @@ class DateTimeGenerator(BaseGenerator):
         r = ctx.rng.random()
         dt = start_dt + timedelta(seconds=r * span)
         if self.format == "iso8601":
-            # seconds precision for stable diffs
-            return dt.replace(microsecond=0).isoformat()
-        epoch = datetime(1970, 1, 1)
+            # seconds precision; strip +00:00 for stable tests
+            return dt.replace(microsecond=0, tzinfo=timezone.utc).isoformat().replace("+00:00", "")
+        epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
         delta = dt - epoch
         if self.format == "epoch_ms":
             return int(delta.total_seconds() * 1000)

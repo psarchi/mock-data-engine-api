@@ -1,4 +1,4 @@
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from faker_engine.errors import ContextError, InvalidParameterError
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
@@ -26,7 +26,6 @@ class DateGenerator(BaseGenerator):
     def _parse_date(self, s, default):
         if not s:
             return default
-        # accept YYYY-MM-DD or full ISO datetime; take date part
         try:
             if len(s) == 10:
                 return datetime.fromisoformat(s).date()
@@ -46,15 +45,10 @@ class DateGenerator(BaseGenerator):
         d = start_d + timedelta(days=offset)
         if self.format == "iso8601":
             return d.isoformat()
-        epoch = datetime(1970, 1, 1)
-        dt = datetime(d.year, d.month, d.day)
+        # use UTC-aware midnight for epoch math
+        epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        dt = datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
         delta = dt - epoch
         if self.format == "epoch_ms":
             return int(delta.total_seconds() * 1000)
         return int(delta.total_seconds() * 1_000_000)
-
-
-
-
-
-
