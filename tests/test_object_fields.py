@@ -1,11 +1,10 @@
-
 from faker_engine.api import build_generator, generate_one
 
 def test_object_fields_present_and_types():
     spec = {
         "type": "object",
         "fields": {
-            "id": {"type": "int", "min_value": 1, "max_value": 5},
+            "id": {"type": "int", "min": 1, "max": 5},
             "ok": {"type": "bool"},
             "label": {"type": "string", "string_type": "word"}
         }
@@ -15,5 +14,4 @@ def test_object_fields_present_and_types():
     assert set(obj.keys()) == {"id", "ok", "label"}
     assert isinstance(obj["ok"], bool)
     assert isinstance(obj["label"], str) and len(obj["label"]) > 0
-    # numeric bounds (int or float acceptable)
-    assert obj["id"] >= 1 and obj["id"] <= 5
+    assert 1 <= obj["id"] <= 5

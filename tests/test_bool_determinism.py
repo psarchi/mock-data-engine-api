@@ -1,5 +1,5 @@
 
-from faker_engine.generators.leaf.leaf_logical import BoolGenerator
+from faker_engine.generators.leafs.bool import BoolGenerator
 from faker_engine.context import GenContext
 
 def test_bool_deterministic_sequence():
