@@ -6,6 +6,9 @@ from faker_engine.generators.composites.one_of import OneOfGenerator
 from faker_engine.generators.composites.select import SelectGenerator
 from faker_engine.generators.composites.string_or_null import \
     StringOrNullGenerator
+from faker_engine.generators.leafs.date import DateGenerator
+from faker_engine.generators.leafs.datetime import DateTimeGenerator
+from faker_engine.generators.leafs.timestamp import TimestampGenerator
 from faker_engine.generators.leafs.enum import EnumGenerator
 from faker_engine.generators.leafs.bool import BoolGenerator
 from faker_engine.generators.composites.array import ArrayGenerator
@@ -16,4 +19,5 @@ from faker_engine.generators.leafs.string import StringGenerator
 __all__ = ['IntGenerator', 'FloatGenerator', 'StringGenerator',
            'BoolGenerator', 'EnumGenerator', 'ArrayGenerator',
            'ObjectGenerator', 'MaybeGenerator', 'OneOfGenerator',
-           'ObjectOrNullGenerator', 'SelectGenerator', 'StringOrNullGenerator']
+           'ObjectOrNullGenerator', 'SelectGenerator', 'StringOrNullGenerator',
+           'TimestampGenerator', 'DateGenerator', 'DateTimeGenerator']
