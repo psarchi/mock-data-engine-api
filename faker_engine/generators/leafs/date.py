@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import Optional, Union
+
 from datetime import datetime, date, timedelta, timezone
 from faker_engine.errors import ContextError, InvalidParameterError
 from faker_engine.generators.base import BaseGenerator
@@ -8,22 +11,28 @@ class DateGenerator(BaseGenerator):
     __slots__ = ("start", "end", "format")
     __aliases__ = ("date",)
 
-    def __init__(self, start=None, end=None, format=None):
+    def __init__(self, start: Optional[Union[date, str]] = None,
+                 end: Optional[Union[date, str]] = None,
+                 format: Optional[str] = None) -> None:
         self.start = start
         self.end = end
         self.format = format or "iso8601"  # iso8601|epoch_ms|epoch_us
 
     @classmethod
-    def from_spec(cls, builder, spec):
-        return cls(start=spec.get("start"), end=spec.get("end"), format=spec.get("format"))
+    def from_spec(cls, builder: object,
+                  spec: dict[str, object]) -> "DateGenerator":
+        return cls(start=spec.get("start"), end=spec.get("end"),
+                   format=spec.get("format"))
 
-    def _sanity_check(self, ctx):
+    def _sanity_check(self, ctx: GenContext) -> None:
         if not isinstance(ctx, GenContext):
             raise ContextError("ctx must be an instance of GenContext")
         if self.format not in ("iso8601", "epoch_ms", "epoch_us"):
-            raise InvalidParameterError("format must be iso8601|epoch_ms|epoch_us")
+            raise InvalidParameterError(
+                "format must be iso8601|epoch_ms|epoch_us")
 
-    def _parse_date(self, s, default):
+    def _parse_date(self, s: int | float | str | date | None,
+                    default: date) -> date:
         if not s:
             return default
         try:
@@ -33,10 +42,11 @@ class DateGenerator(BaseGenerator):
         except Exception:
             raise InvalidParameterError("invalid date 'start'/'end'")
 
-    def generate(self, ctx):
+    def generate(self, ctx: GenContext) -> int | str:
         self._sanity_check(ctx)
         today = date.today()
-        start_d = self._parse_date(self.start, today.replace(year=today.year - 5))
+        start_d = self._parse_date(self.start,
+                                   today.replace(year=today.year - 5))
         end_d = self._parse_date(self.end, today)
         if start_d > end_d:
             raise InvalidParameterError("start must be <= end")

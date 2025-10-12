@@ -1,4 +1,8 @@
-from faker_engine.errors import MissingChildError, InvalidMinItemsError, InvalidMaxItemsError, MaxLessThanMinError, ContextError
+from __future__ import annotations
+from typing import Optional, Sequence, Mapping, Any
+
+from faker_engine.errors import MissingChildError, InvalidMinItemsError, \
+    InvalidMaxItemsError, MaxLessThanMinError, ContextError
 # NOTE: ArrayGenerator not supported yet by legacy core
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
@@ -8,13 +12,15 @@ class ArrayGenerator(BaseGenerator):
     __slots__ = ("min_items", "max_items", "child")
     __aliases__ = ("array", "list")
 
-    def __init__(self, min_items=None, max_items=None, child=None):
+    def __init__(self, min_items: Optional[int] = None,
+                 max_items: Optional[int] = None, child: Any = None) -> None:
         self.min_items = min_items
         self.max_items = max_items
         self.child = child  # must be a generator instance
 
     @classmethod
-    def from_spec(cls, builder, spec):
+    def from_spec(cls, builder: object,
+                  spec: dict[str, object]) -> "ArrayGenerator":
         child_spec = spec.get("child") or spec.get("of")
         if not child_spec:
             raise MissingChildError("Array spec requires 'child' or 'of'")
@@ -25,7 +31,7 @@ class ArrayGenerator(BaseGenerator):
             child=child,
         )
 
-    def _sanity_check(self, ctx):
+    def _sanity_check(self, ctx: GenContext) -> None:
         if not isinstance(ctx, GenContext):
             raise ContextError("ctx must be a GenContext")
         if self.min_items is not None and not isinstance(self.min_items, int):
@@ -36,7 +42,9 @@ class ArrayGenerator(BaseGenerator):
             if self.max_items < self.min_items:
                 raise MaxLessThanMinError("max_items must be >= min_items")
 
-    def configure(self, min_items=None, max_items=None, child=None, **kwargs):
+    def configure(self, min_items: Optional[int] = None,
+                  max_items: Optional[int] = None, child: Any = None,
+                  **kwargs: object) -> "ArrayGenerator":
         if min_items is not None:
             self.min_items = min_items
         if max_items is not None:
@@ -45,7 +53,7 @@ class ArrayGenerator(BaseGenerator):
             self.child = child
         return self
 
-    def generate(self, ctx):
+    def generate(self, ctx: GenContext) -> list[Any]:
         if not isinstance(ctx, GenContext):
             raise ContextError("ctx must be a GenContext")
         self._sanity_check(ctx)

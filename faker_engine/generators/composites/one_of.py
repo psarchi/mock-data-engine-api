@@ -1,4 +1,8 @@
-from faker_engine.errors import ContextError, MissingChildError, InvalidParameterError
+from __future__ import annotations
+from typing import Optional, Sequence, Mapping, Any
+
+from faker_engine.errors import ContextError, MissingChildError, \
+    InvalidParameterError
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
 
@@ -7,12 +11,14 @@ class OneOfGenerator(BaseGenerator):
     __slots__ = ("choices", "weights")
     __aliases__ = ("one_of",)
 
-    def __init__(self, choices=None, weights=None):
+    def __init__(self, choices: Sequence[Any] | None = None,
+                 weights: Sequence[float] | None = None) -> None:
         self.choices = choices or []
         self.weights = weights
 
     @classmethod
-    def from_spec(cls, builder, spec):
+    def from_spec(cls, builder: object,
+                  spec: dict[str, object]) -> "OneOfGenerator":
         raw = spec.get("choices")
         if not raw or not isinstance(raw, list):
             raise MissingChildError("'choices' (list) is required for one_of")
@@ -25,7 +31,7 @@ class OneOfGenerator(BaseGenerator):
         weights = spec.get("weights")
         return cls(choices=built, weights=weights)
 
-    def _sanity_check(self, ctx):
+    def _sanity_check(self, ctx: GenContext) -> None:
         if not isinstance(ctx, GenContext):
             raise ContextError("ctx must be an instance of GenContext")
         if not self.choices:
@@ -43,14 +49,16 @@ class OneOfGenerator(BaseGenerator):
         if total <= 0:
             raise InvalidParameterError("sum(weights) must be > 0")
 
-    def configure(self, choices=None, weights=None, **kwargs):
+    def configure(self, choices: Sequence[Any] | None = None,
+                  weights: Sequence[float] | None = None,
+                  **kwargs: object) -> "OneOfGenerator":
         if choices is not None:
             self.choices = choices
         if weights is not None:
             self.weights = weights
         return self
 
-    def _pick_index(self, rng):
+    def _pick_index(self, rng: object) -> int:
         if not self.weights:
             return rng.randint(0, len(self.choices) - 1)
         # weighted pick without external deps
@@ -63,7 +71,7 @@ class OneOfGenerator(BaseGenerator):
                 return idx
         return len(self.choices) - 1
 
-    def generate(self, ctx):
+    def generate(self, ctx: GenContext) -> Any:
         self._sanity_check(ctx)
         idx = self._pick_index(ctx.rng)
         return self.choices[idx].generate(ctx)

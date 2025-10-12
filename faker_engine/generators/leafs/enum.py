@@ -1,4 +1,8 @@
-from faker_engine.errors import ContextError, MissingChildError, InvalidParameterError
+from __future__ import annotations
+from typing import Optional, Sequence, Any
+
+from faker_engine.errors import ContextError, MissingChildError, \
+    InvalidParameterError
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
 
@@ -7,18 +11,20 @@ class EnumGenerator(BaseGenerator):
     __slots__ = ("values", "weights")
     __aliases__ = ("enum",)
 
-    def __init__(self, values=None, weights=None):
+    def __init__(self, values: Optional[Sequence[Any]] = None,
+                 weights: Optional[Sequence[float]] = None) -> None:
         self.values = list(values) if values else []
         self.weights = list(weights) if weights else None
 
     @classmethod
-    def from_spec(cls, builder, spec):
+    def from_spec(cls, builder: object,
+                  spec: dict[str, object]) -> "EnumGenerator":
         vals = spec.get("values")
         if not vals or not isinstance(vals, list):
             raise MissingChildError("enum requires 'values' list")
         return cls(values=vals, weights=spec.get("weights"))
 
-    def _sanity_check(self, ctx):
+    def _sanity_check(self, ctx: GenContext) -> None:
         if not isinstance(ctx, GenContext):
             raise ContextError("ctx must be an instance of GenContext")
         if not self.values:
@@ -36,14 +42,16 @@ class EnumGenerator(BaseGenerator):
         if total <= 0:
             raise InvalidParameterError("sum(weights) must be > 0")
 
-    def configure(self, values=None, weights=None, **kwargs):
+    def configure(self, values: Optional[Sequence[Any]] = None,
+                  weights: Optional[Sequence[float]] = None,
+                  **kwargs: object) -> "EnumGenerator":
         if values is not None:
             self.values = list(values)
         if weights is not None:
             self.weights = list(weights)
         return self
 
-    def _pick_index(self, rng):
+    def _pick_index(self, rng: object) -> int:
         if not self.weights:
             return rng.randint(0, len(self.values) - 1)
         total = float(sum(self.weights))
@@ -55,7 +63,7 @@ class EnumGenerator(BaseGenerator):
                 return idx
         return len(self.values) - 1
 
-    def generate(self, ctx):
+    def generate(self, ctx: GenContext) -> object:
         self._sanity_check(ctx)
         idx = self._pick_index(ctx.rng)
         return self.values[idx]

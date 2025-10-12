@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import Optional, Sequence, Literal
+
 import re
 from string import ascii_lowercase, ascii_uppercase, digits
 
@@ -6,7 +9,8 @@ try:
 except Exception as _e:  # pragma: no cover
     exrex = None
 
-from faker_engine.errors import ContextError, InvalidParameterError, OutOfBoundsError
+from faker_engine.errors import ContextError, InvalidParameterError, \
+    OutOfBoundsError
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
 
@@ -20,8 +24,14 @@ class StringGenerator(BaseGenerator):
     )
     __aliases__ = ('string', 'str')
 
-    def __init__(self, string_type=None, min_length=None, max_length=None,
-                 regex=None, template=None, charset=None, n_type=None, n_charset=None):
+    def __init__(
+            self,
+            string_type: Optional[str] = None,
+            min_length: Optional[int] = None, max_length: Optional[int] = None,
+            regex: Optional[str] = None, template: Optional[str] = None,
+            charset: Optional[Sequence[str]] = None,
+            n_type: Optional[str] = None,
+            n_charset: Optional[Sequence[str]] = None) -> None:
         self.string_type = string_type
         self.min_length = min_length
         self.max_length = max_length
@@ -31,7 +41,7 @@ class StringGenerator(BaseGenerator):
         self.n_type = n_type
         self.n_charset = n_charset
 
-    def _resolve_faker_provider(self, name, ctx: GenContext):
+    def _resolve_faker_provider(self, name: str, ctx: GenContext) -> object:
         fk = getattr(ctx, 'faker', None)
         if fk is None and hasattr(ctx, 'get_faker'):
             fk = ctx.get_faker()
@@ -41,14 +51,16 @@ class StringGenerator(BaseGenerator):
         attr = fk
         for part in str(name).split('.'):
             if not hasattr(attr, part):
-                raise InvalidParameterError("Faker attribute '%s' not found" % name)
+                raise InvalidParameterError(
+                    "Faker attribute '%s' not found" % name)
             attr = getattr(attr, part)
         if callable(attr):
             return attr
         return lambda: attr
 
     @classmethod
-    def from_spec(cls, builder, spec):
+    def from_spec(cls, builder: object,
+                  spec: dict[str, object]) -> "StringGenerator":
         return cls(
             string_type=spec.get('string_type'),
             min_length=spec.get('min_length'),
@@ -60,36 +72,42 @@ class StringGenerator(BaseGenerator):
             n_charset=spec.get('n_charset'),
         )
 
-    def _sanity_check(self, ctx: GenContext):
-        if self.min_length is not None and self.max_length is not None and int(self.min_length) > int(self.max_length):
+    def _sanity_check(self, ctx: GenContext) -> None:
+        if self.min_length is not None and self.max_length is not None and int(
+                self.min_length) > int(self.max_length):
             raise OutOfBoundsError('min_length must be <= max_length')
         if self.string_type and (self.regex or self.template):
-            raise InvalidParameterError('string_type is mutually exclusive with regex/template')
+            raise InvalidParameterError(
+                'string_type is mutually exclusive with regex/template')
         if self.template and self.regex:
-            raise InvalidParameterError('template is mutually exclusive with regex')
+            raise InvalidParameterError(
+                'template is mutually exclusive with regex')
 
-    def _token_chars(self):
+    def _token_chars(self) -> list[str]:
         if self.n_charset:
-            return self.n_charset
+            return list(self.n_charset)
         if self.n_type == 'numeric':
-            return digits
+            return list(digits)
         if self.n_type == 'lower':
-            return ascii_lowercase
-        return ascii_uppercase
+            return list(ascii_lowercase)
+        return list(ascii_uppercase)
 
-    def _apply_template(self, ctx: GenContext):
+    def _apply_template(self, ctx: GenContext) -> str:
         s = self.template
-        def repl(m):
+
+        def repl(m: re.Match) -> str:
             ncount = len(m.group(1))
             chars = self._token_chars()
             out = []
             for _ in range(ncount):
                 out.append(chars[ctx.rng.randint(0, len(chars) - 1)])
             return ''.join(out)
-        return re.sub(r'\{(n+)\}', repl, s)
 
-    def _plain_synth(self, ctx: GenContext):
-        chars = self.charset or ascii_lowercase
+        return re.sub(r'\{(n+)\\}', repl, s)
+
+    def _plain_synth(self, ctx: GenContext) -> str:
+        chars: list[str] = list(self.charset) if self.charset else list(
+            ascii_lowercase)
         lo = int(self.min_length) if self.min_length is not None else 1
         hi = int(self.max_length) if self.max_length is not None else 100
         if hi < lo:
@@ -100,9 +118,10 @@ class StringGenerator(BaseGenerator):
             out.append(chars[ctx.rng.randint(0, len(chars) - 1)])
         return ''.join(out)
 
-    def _regex_generate(self, ctx: GenContext):
+    def _regex_generate(self, ctx: GenContext) -> str:
         if exrex is None:
-            raise InvalidParameterError('exrex is required for regex generation but is not installed')
+            raise InvalidParameterError(
+                'exrex is required for regex generation but is not installed')
         pattern = self.regex
         if not isinstance(pattern, str) or not pattern:
             raise InvalidParameterError('regex must be a non-empty string')
@@ -120,7 +139,7 @@ class StringGenerator(BaseGenerator):
         finally:
             random.setstate(state)
 
-    def generate(self, ctx: GenContext):
+    def generate(self, ctx: GenContext) -> str:
         self._sanity_check(ctx)
         if self.template:
             return self._apply_template(ctx)
@@ -130,6 +149,7 @@ class StringGenerator(BaseGenerator):
             provider = self._resolve_faker_provider(self.string_type, ctx)
             out = provider()
             if out is None or not isinstance(out, str):
-                raise InvalidParameterError("Faker attribute '%s' did not return a string" % self.string_type)
+                raise InvalidParameterError(
+                    "Faker attribute '%s' did not return a string" % self.string_type)
             return out
         return self._plain_synth(ctx)
