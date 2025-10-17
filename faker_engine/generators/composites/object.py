@@ -1,6 +1,3 @@
-from __future__ import annotations
-from typing import Optional, Sequence, Mapping, Any
-
 from faker_engine.errors import ContextError, MissingChildError, \
     InvalidParameterError
 from faker_engine.generators.base import BaseGenerator
@@ -8,17 +5,25 @@ from faker_engine.context import GenContext
 
 
 class ObjectGenerator(BaseGenerator):
+    __meta__ = {
+        'aliases': {
+            'fields': 'fields',
+            'properties': 'fields',
+        },
+        'deprecations': [],
+        'rules': [],
+        # TODO: introduce per-generator versioning (SemVer) once contracts stabilize.
+    }
     __slots__ = ("_built", "_meta")
     __aliases__ = ("object",)
 
-    def __init__(self, fields: Mapping[str, Any] | None = None) -> None:
+    def __init__(self, fields=None):
         # fields stored as: built[name] -> child generator; meta[name] -> {required, default}
         self._built = fields or {}
         self._meta = {}
 
     @classmethod
-    def from_spec(cls, builder: object,
-                  spec: dict[str, object]) -> "ObjectGenerator":
+    def from_spec(cls, builder, spec):
         fields = spec.get("fields")
         if not fields or not isinstance(fields, dict):
             raise MissingChildError("object requires 'fields' dict")
@@ -40,20 +45,19 @@ class ObjectGenerator(BaseGenerator):
         obj._meta = meta
         return obj
 
-    def _sanity_check(self, ctx: GenContext) -> None:
+    def _sanity_check(self, ctx):
         if not isinstance(ctx, GenContext):
             raise ContextError("ctx must be an instance of GenContext")
         if not self._built:
             raise MissingChildError("object has no fields")
 
-    def configure(self, fields: Mapping[str, Any] | None = None,
-                  **kwargs: object) -> "ObjectGenerator":
+    def configure(self, fields=None, **kwargs):
         if fields is not None:
             # expect same {name: generator} shape; caller responsible
             self._built = fields
         return self
 
-    def generate(self, ctx: GenContext) -> dict[str, Any]:
+    def generate(self, ctx):
         self._sanity_check(ctx)
         out = {}
         # stable order: iterate in insertion order of self._built

@@ -1,24 +1,30 @@
-from __future__ import annotations
-from typing import Optional, Sequence, Mapping, Any
-
-from faker_engine.errors import ContextError, MissingChildError, \
-    InvalidParameterError
+from faker_engine.errors import ContextError, MissingChildError, InvalidParameterError
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
 
 
 class StringOrNullGenerator(BaseGenerator):
+    
+    __meta__ = {
+        'aliases': {
+        'max_length': 'max_length',
+        'min_length': 'min_length',
+        'p_null': 'p_null',
+        },
+        'deprecations': [],
+        'rules': [],
+        # TODO: introduce per-generator versioning (SemVer) once contracts stabilize.
+    }
     __slots__ = ("child", "weights")
     __aliases__ = ("string_or_null",)
 
-    def __init__(self, child: Any = None, weights: Any = None) -> None:
+    def __init__(self, child=None, weights=None):
         # weights: [string_weight, null_weight]
         self.child = child
         self.weights = weights
 
     @classmethod
-    def from_spec(cls, builder: object,
-                  spec: dict[str, object]) -> "StringOrNullGenerator":
+    def from_spec(cls, builder, spec):
         of_spec = spec.get("of")
         if of_spec is None:
             raise MissingChildError("string_or_null requires 'of' string spec")
@@ -26,17 +32,15 @@ class StringOrNullGenerator(BaseGenerator):
         weights = spec.get("weights")  # optional two-item list
         return cls(child=built, weights=weights)
 
-    def _sanity_check(self, ctx: GenContext) -> None:
+    def _sanity_check(self, ctx):
         if not isinstance(ctx, GenContext):
             raise ContextError("ctx must be an instance of GenContext")
         if self.child is None:
             raise MissingChildError("string_or_null requires a string child")
         if self.weights is None:
             return
-        if not isinstance(self.weights, (list, tuple)) or len(
-                self.weights) != 2:
-            raise InvalidParameterError(
-                "weights must be a two-item list: [string, null]")
+        if not isinstance(self.weights, (list, tuple)) or len(self.weights) != 2:
+            raise InvalidParameterError("weights must be a two-item list: [string, null]")
         try:
             total = float(self.weights[0]) + float(self.weights[1])
         except Exception:
@@ -44,15 +48,14 @@ class StringOrNullGenerator(BaseGenerator):
         if total <= 0:
             raise InvalidParameterError("sum(weights) must be > 0")
 
-    def configure(self, child: Any = None, weights: Any = None,
-                  **kwargs: object) -> "StringOrNullGenerator":
+    def configure(self, child=None, weights=None, **kwargs):
         if child is not None:
             self.child = child
         if weights is not None:
             self.weights = weights
         return self
 
-    def generate(self, ctx: GenContext) -> str | None:
+    def generate(self, ctx):
         self._sanity_check(ctx)
         if not self.weights:
             # default 50/50

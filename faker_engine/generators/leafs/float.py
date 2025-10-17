@@ -1,32 +1,37 @@
-from __future__ import annotations
-from typing import Optional
-
 from faker_engine.errors import ContextError, InvalidParameterError
 from faker_engine.generators.base import BaseGenerator
 from faker_engine.context import GenContext
 
 
 class FloatGenerator(BaseGenerator):
+    
+    __meta__ = {
+        'aliases': {
+        'max': 'max',
+        'min': 'min',
+        'precision': 'precision',
+        },
+        'deprecations': [],
+        'rules': [],
+        # TODO: introduce per-generator versioning (SemVer) once contracts stabilize.
+    }
     __slots__ = ("min", "max", "precision")
     __aliases__ = ("float",)
 
-    def __init__(self, min: Optional[float] = None,
-                 max: Optional[float] = None,
-                 precision: Optional[int] = None) -> None:
+    def __init__(self, min=None, max=None, precision=None):
         self.min = 0.0 if min is None else float(min)
         self.max = 1.0 if max is None else float(max)
         self.precision = None if precision is None else int(precision)
 
     @classmethod
-    def from_spec(cls, builder: object,
-                  spec: dict[str, object]) -> "FloatGenerator":
+    def from_spec(cls, builder, spec):
         return cls(
             min=spec.get("min"),
             max=spec.get("max"),
             precision=spec.get("precision"),
         )
 
-    def _sanity_check(self, ctx: GenContext) -> None:
+    def _sanity_check(self, ctx):
         if not isinstance(ctx, GenContext):
             raise ContextError("ctx must be an instance of GenContext")
         if self.min > self.max:
@@ -34,9 +39,7 @@ class FloatGenerator(BaseGenerator):
         if self.precision is not None and self.precision < 0:
             raise InvalidParameterError("precision must be >= 0")
 
-    def configure(self, min: Optional[float] = None,
-                  max: Optional[float] = None, precision: Optional[int] = None,
-                  **kwargs: object) -> "FloatGenerator":
+    def configure(self, min=None, max=None, precision=None, **kwargs):
         if min is not None:
             self.min = float(min)
         if max is not None:
@@ -45,7 +48,7 @@ class FloatGenerator(BaseGenerator):
             self.precision = int(precision)
         return self
 
-    def generate(self, ctx: GenContext) -> float:
+    def generate(self, ctx):
         self._sanity_check(ctx)
         value = ctx.rng.random() * (self.max - self.min) + self.min
         if self.precision is not None:
