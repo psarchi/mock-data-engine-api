@@ -1,7 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, Tuple, List
-from .errors import Issue
+from faker_engine.validator.errors import Issue
+
 
 @dataclass
 class Report:
@@ -14,3 +15,14 @@ class Report:
         for i in self.issues:
             buckets.setdefault(i.path, []).append(i)
         return buckets
+
+
+def pretty(self) -> str:
+    if self.ok:
+        return "OK (0 issues)"
+    lines = ["FAIL ({} issues)".format(len(self.issues))]
+    for i, issue in enumerate(self.issues, 1):
+        p = ".".join(str(x) for x in issue.path) if getattr(issue, "path",
+                                                            None) else "<root>"
+        lines.append(f"{i:02d}. [{issue.code}] {p} — {issue.msg}")
+    return "\n".join(lines)

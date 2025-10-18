@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Mapping
+from faker_engine.core.registry import GeneratorRegistry  # type: ignore
 
 
 class RegistryAdapter:
@@ -7,13 +8,14 @@ class RegistryAdapter:
     def __init__(self) -> None:
         try:
             from faker_engine import api as _api  # type: ignore
-            self._registry = getattr(_api,
-                                     "_registry")  # type: ignore[attr-defined]
-        except Exception:
-            from faker_engine.core.registry import \
-                GeneratorRegistry  # type: ignore
-            import faker_engine.generators as gens  # type: ignore
-            self._registry = GeneratorRegistry().register_from_module(gens)
+            registry = getattr(_api, "_registry")
+        except Exception as e:
+            raise RuntimeError(
+                "validator.registry_adapter: api._registry is required") from e
+        if not isinstance(registry, GeneratorRegistry):
+            raise RuntimeError(
+                "validator.registry_adapter: _registry must be GeneratorRegistry")
+        self._registry = registry
 
     def get_class(self, gen_name: str):
         return self._registry.get_cls(gen_name)

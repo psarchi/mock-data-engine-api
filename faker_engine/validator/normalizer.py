@@ -1,5 +1,7 @@
 from __future__ import annotations
 from typing import Any
+from faker_engine.spec_builder import SpecBuilder  # type: ignore
+from faker_engine.core.registry import GeneratorRegistry  # type: ignore
 
 
 class SpecNormalizer:
@@ -7,18 +9,23 @@ class SpecNormalizer:
     def __init__(self) -> None:
         try:
             from faker_engine import api as _api  # type: ignore
-            self._builder = getattr(_api, "_builder",
-                                    None)  # type: ignore[attr-defined]
-            if self._builder is None:
-                from faker_engine.spec_builder import \
-                    SpecBuilder  # type: ignore
-                self._builder = SpecBuilder()
-        except Exception:  # pragma: no cover
-            self._builder = None
+        except Exception as e:  # pragma: no cover
+            raise RuntimeError(
+                "validator.normalizer: api module not available") from e
+
+        builder = getattr(_api, "_builder", None)
+        if not isinstance(builder, SpecBuilder):
+            raise RuntimeError(
+                "validator.normalizer: _builder must be SpecBuilder(registry)")
+        if not isinstance(getattr(builder, "registry", None),
+                          GeneratorRegistry):
+            raise RuntimeError(
+                "validator.normalizer: builder.registry must be GeneratorRegistry")
+        self._builder = builder
 
     def normalize(self, spec: Any, path: str = "root") -> Any:
-        b = self._builder
-        fn = getattr(b, "_normalize", None) if b is not None else None
-        if callable(fn):
-            return fn(spec, path=path)
-        return spec
+        fn = getattr(self._builder, "_normalize", None)
+        if not callable(fn):
+            raise RuntimeError(
+                "validator.normalizer: SpecBuilder._normalize is not callable")
+        return fn(spec, path=path)
