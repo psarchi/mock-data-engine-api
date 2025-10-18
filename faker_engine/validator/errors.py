@@ -1,35 +1,87 @@
-VAL_MISSING_REQUIRED = "VAL_MISSING_REQUIRED"
-VAL_TYPE_MISMATCH = "VAL_TYPE_MISMATCH"
-VAL_ENUM_INVALID = "VAL_ENUM_INVALID"
-VAL_RANGE_VIOLATION = "VAL_RANGE_VIOLATION"
-VAL_PATTERN_MISMATCH = "VAL_PATTERN_MISMATCH"
-VAL_KEY_UNKNOWN = "VAL_KEY_UNKNOWN"
-VAL_ALIAS_UNDECLARED = "VAL_ALIAS_UNDECLARED"
-VAL_DEPRECATED_FIELD = "VAL_DEPRECATED_FIELD"
-VAL_CROSS_RULE = "VAL_CROSS_RULE"
+from __future__ import annotations
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Tuple, List
 
 
-def map_pydantic_error(err):
-    etype = getattr(err, "type", None) or (
-        err.get("type") if isinstance(err, dict) else None) or ""
-    loc = getattr(err, "loc", None) or (
-        err.get("loc") if isinstance(err, dict) else ())
-    msg = getattr(err, "msg", None) or (
-        err.get("msg") if isinstance(err, dict) else "validation error")
+class IssueCode(str, Enum):
+    REQUIRED = "REQUIRED"
+    EXTRA = "EXTRA"
+    TYPE = "TYPE"
+    RANGE = "RANGE"
+    REGEX = "REGEX"
+    ENUM = "ENUM"
+    ALIAS = "ALIAS"
+    DEPRECATION = "DEPRECATION"
+    RULE = "RULE"
 
-    code = VAL_TYPE_MISMATCH
-    if isinstance(etype, str):
-        if etype.startswith("missing"):
-            code = VAL_MISSING_REQUIRED
-        elif etype.startswith("enum"):
-            code = VAL_ENUM_INVALID
-        elif ("greater_than" in etype) or ("less_than" in etype) or (
-                "ge" in etype) or ("le" in etype) or ("range" in etype):
-            code = VAL_RANGE_VIOLATION
-        elif ("string_pattern_mismatch" in etype) or ("pattern" in etype):
-            code = VAL_PATTERN_MISMATCH
+
+@dataclass
+class Issue:
+    code: IssueCode
+    path: Tuple[str | int, ...]
+    msg: str
+    detail: dict[str, Any] | None = None
+
+
+@dataclass
+class RequiredIssue(Issue):
+    code: IssueCode = IssueCode.REQUIRED
+
+
+@dataclass
+class ExtraIssue(Issue):
+    code: IssueCode = IssueCode.EXTRA
+
+
+@dataclass
+class TypeIssue(Issue):
+    code: IssueCode = IssueCode.TYPE
+
+
+@dataclass
+class RangeIssue(Issue):
+    code: IssueCode = IssueCode.RANGE
+
+
+@dataclass
+class RegexIssue(Issue):
+    code: IssueCode = IssueCode.REGEX
+
+
+@dataclass
+class EnumIssue(Issue):
+    code: IssueCode = IssueCode.ENUM
+
+
+# Mapper from Pydantic v2 error dicts
+def _to_path(loc: List[Any]) -> Tuple[str | int, ...]:
+    return tuple(loc) if isinstance(loc, list) else tuple([loc])
+
+
+def from_pydantic_errors(errors: List[dict[str, Any]]) -> list[Issue]:
+    out: list[Issue] = []
+    for e in errors:
+        t = e.get("type", "")
+        loc = _to_path(e.get("loc", []))
+        msg = e.get("msg", t)
+        ctx = e.get("ctx") or {}
+        if t in ("missing", "value_error.missing"):
+            out.append(RequiredIssue(path=loc, msg=msg, detail=ctx))
+        elif t in ("extra_forbidden", "value_error.extra"):
+            out.append(ExtraIssue(path=loc, msg=msg, detail=ctx))
+        elif t.startswith("type_") or "type_error" in t:
+            out.append(TypeIssue(path=loc, msg=msg, detail=ctx))
+        elif any(k in t for k in (
+                "too_short", "too_long", "greater_than", "less_than", "ge",
+                "le", "gt",
+                "lt")):
+            out.append(RangeIssue(path=loc, msg=msg, detail=ctx))
+        elif "pattern" in t or "regex" in t:
+            out.append(RegexIssue(path=loc, msg=msg, detail=ctx))
+        elif "enum" in t or "literal" in t:
+            out.append(EnumIssue(path=loc, msg=msg, detail=ctx))
         else:
-            code = VAL_TYPE_MISMATCH
-
-    path = ".".join(str(p) for p in (loc or ()))
-    return {"code": code, "path": path, "message": str(msg), "hint": None}
+            out.append(Issue(code=IssueCode.TYPE, path=loc, msg=msg,
+                             detail={"raw": e}))  # default
+    return out
