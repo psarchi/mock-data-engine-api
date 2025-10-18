@@ -25,3 +25,10 @@ class RegistryAdapter:
         meta = getattr(cls, "__meta__", {}) or {}
         aliases = meta.get("aliases", {}) or {}
         return {str(k): str(v) for k, v in aliases.items()}
+
+    def resolve(self, gen_name: str):
+        reg = self._registry
+        if hasattr(reg, "resolve"):
+            return reg.resolve(gen_name)
+        cls = reg.get_cls(gen_name)
+        return cls, cls.__name__.lower()
