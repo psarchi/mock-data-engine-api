@@ -8,6 +8,8 @@ if TYPE_CHECKING:  # import only for type checking to avoid runtime cycles
 
 
 class BaseGenerator:
+    __abstract__ = True
+
     @abstractmethod
     def generate(self, ctx: "GenContext") -> Any:
         ...
@@ -27,7 +29,8 @@ class BaseGenerator:
         return fields
 
     @classmethod
-    def from_spec(cls, builder: object, spec: dict[str, object]) -> "BaseGenerator":
+    def from_spec(cls, builder: object,
+                  spec: dict[str, object]) -> "BaseGenerator":
         init_names = cls._init_fields()
         init_kwargs: dict[str, object] = {}
         for name in init_names:

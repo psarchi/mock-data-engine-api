@@ -11,4 +11,5 @@ class DateTimeGeneratorSpec:
     format: Optional[str] = None
     time_start: Optional[str] = None
     time_end: Optional[str] = None
-    tz: Optional[Union[str, timezone]] = None
+    tz: Optional[str] = None
+
