@@ -1,6 +1,4 @@
-from faker_engine.errors import DuplicateAliasError, UnknownGeneratorError, \
-    InvalidRegistrationError
-
+from faker_engine.errors import DuplicateAliasError, UnknownGeneratorError, InvalidRegistrationError
 
 class GeneratorRegistry:
     def __init__(self):
@@ -18,8 +16,7 @@ class GeneratorRegistry:
 
         for name in names:
             if name in self._catalog and self._catalog[name] is not cls:
-                raise DuplicateAliasError(
-                    "Duplicate generator alias: %s" % name)
+                raise DuplicateAliasError("Duplicate generator alias: %s" % name)
             self._catalog[name] = cls
         return self
 
@@ -49,10 +46,17 @@ class GeneratorRegistry:
             raise KeyError(
                 "Unknown generator '%s'. Available: %s" % (name, available))
 
-    def resolve(self, name):
-        cls = self.get_cls(name)
-        canonical = cls.__name__.lower()
-        return cls, canonical
-
     def available(self):
         return sorted(self._catalog)
+
+    def resolve(self, name):
+        cls = self.get_cls(name)
+        return cls, cls.__name__.lower()
+
+    def snapshot(self):
+        out = []
+        for key, cls in sorted(self._catalog.items()):
+            meta = getattr(cls, '__meta__', {}) or {}
+            aliases = tuple(meta.get('aliases', ())) if isinstance(meta.get('aliases', ()), (list, tuple)) else tuple(getattr(cls, '__aliases__', ()))
+            out.append({'name': cls.__name__.lower(), 'key': key, 'aliases': list(aliases), 'doc': (cls.__doc__ or '').strip()})
+        return out

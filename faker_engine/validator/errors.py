@@ -85,3 +85,9 @@ def from_pydantic_errors(errors: List[dict[str, Any]]) -> list[Issue]:
             out.append(Issue(code=IssueCode.TYPE, path=loc, msg=msg,
                              detail={"raw": e}))  # default
     return out
+
+
+class ValidationFailed(Exception):
+    def __init__(self, report):
+        self.report = report
+        super().__init__(getattr(report, 'pretty', lambda: str(report))())
