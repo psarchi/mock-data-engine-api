@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Tuple, List
 
@@ -26,32 +26,32 @@ class Issue:
 
 @dataclass
 class RequiredIssue(Issue):
-    code: IssueCode = IssueCode.REQUIRED
+    code: IssueCode = field(default=IssueCode.REQUIRED, init=False)
 
 
 @dataclass
 class ExtraIssue(Issue):
-    code: IssueCode = IssueCode.EXTRA
+    code: IssueCode = field(default=IssueCode.EXTRA, init=False)
 
 
 @dataclass
 class TypeIssue(Issue):
-    code: IssueCode = IssueCode.TYPE
+    code: IssueCode = field(default=IssueCode.TYPE, init=False)
 
 
 @dataclass
 class RangeIssue(Issue):
-    code: IssueCode = IssueCode.RANGE
+    code: IssueCode = field(default=IssueCode.RANGE, init=False)
 
 
 @dataclass
 class RegexIssue(Issue):
-    code: IssueCode = IssueCode.REGEX
+    code: IssueCode = field(default=IssueCode.REGEX, init=False)
 
 
 @dataclass
 class EnumIssue(Issue):
-    code: IssueCode = IssueCode.ENUM
+    code: IssueCode = field(default=IssueCode.ENUM, init=False)
 
 
 # Mapper from Pydantic v2 error dicts
@@ -85,6 +85,7 @@ def from_pydantic_errors(errors: List[dict[str, Any]]) -> list[Issue]:
             out.append(Issue(code=IssueCode.TYPE, path=loc, msg=msg,
                              detail={"raw": e}))  # default
     return out
+
 
 
 class ValidationFailed(Exception):
