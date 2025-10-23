@@ -1,70 +1,67 @@
 from __future__ import annotations
-from typing import Any
+from typing import Any, Optional, Mapping
 from pathlib import Path
 import os
+import json
+import hashlib
+import random
 import yaml
 from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi.responses import JSONResponse
 from server.deps import get_validator
-from faker_engine.api import build_generator, generate_many
+from faker_engine.api import build_generator
+from faker_engine.context import GenContext
 
 router = APIRouter(prefix="/v1", tags=["schemas"])
 
 
 def _schemas_dir() -> Path:
     env = os.getenv("SCHEMAS_DIR")
-    base = Path(env) if env else Path(__file__).resolve().parents[
-                                     2] / "schemas"
+    base = Path(env) if env else Path(__file__).resolve().parents[2] / "schemas"
+    if not base.exists():
+        raise HTTPException(status_code=500, detail="Schemas directory not found")
     return base
 
 
-@router.get("/schemas")
-def list_schemas():
-    base = _schemas_dir()
-    if not base.exists():
-        return {"schemas": []}
-    names = sorted([p.stem for p in base.glob("*.yaml")] + [p.stem for p in
-                                                            base.glob(
-                                                                "*.yml")])
-    return {"schemas": names}
+def _load_schema_file(path: Path) -> Mapping[str, Any]:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            if path.suffix in (".yaml", ".yml"):
+                return yaml.safe_load(f) or {}
+            elif path.suffix == ".json":
+                return json.loads(f.read() or "{}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid schema file: {e}")
+    raise HTTPException(status_code=404, detail="Unsupported schema extension")
 
 
-@router.get("/schemas/{name}")
-def get_schema(name: str):
+def _schema_path(name: str) -> Path:
     base = _schemas_dir()
-    for ext in (".yaml", ".yml"):
-        path = base / f"{name}{ext}"
-        if path.exists():
-            return {"name": name, "path": str(path)}
+    for ext in (".yaml", ".yml", ".json"):
+        p = base / f"{name}{ext}"
+        if p.exists():
+            return p
     raise HTTPException(status_code=404, detail=f"Schema '{name}' not found")
 
 
+def _hash_spec_and_knobs(spec: Mapping[str, Any], knobs: Optional[Mapping[str, Any]] = None) -> str:
+    blob = json.dumps({"spec": spec, "knobs": knobs or {}}, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha1(blob).hexdigest()[:6]
+
+
 @router.get("/schemas/{name}/generate")
-def generate_from_schema(
-        name: str,
-        n: int = Query(1, ge=1, le=10000),
-        seed: int | None = None,
-        locale: str = "en_US",
-        validator=Depends(get_validator),
+def generate_schema(
+    name: str,
+    n: int = Query(1, ge=1, le=1_000_000),
+    seed: Optional[int] = Query(None),
+    locale: Optional[str] = Query(None),
+    meta: bool = Query(True),
+    scenario: Optional[str] = Query(None),
+    validator = Depends(get_validator),
 ):
-    base = _schemas_dir()
-    spec_path: Path | None = None
-    for ext in (".yaml", ".yml"):
-        p = base / f"{name}{ext}"
-        if p.exists():
-            spec_path = p
-            break
-    if spec_path is None:
-        raise HTTPException(status_code=404,
-                            detail=f"Schema '{name}' not found")
-
-    try:
-        spec = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
-        spec = spec.get("root", spec)
-    except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Failed to read YAML: {e}")
-
-    report = validator.validate(spec, raise_on_fail=False, ignore_extras=False)
+    path = _schema_path(name)
+    spec = _load_schema_file(path)
+    report = validator.validate(spec, raise_on_fail=False)
     if not report.ok:
         raise HTTPException(status_code=422, detail={
             "ok": False,
@@ -76,6 +73,30 @@ def generate_from_schema(
             } for i in report.issues]
         })
 
-    gen = build_generator(report.normalized or spec)
-    items = generate_many(gen, n=n, seed=seed, locale=locale)
-    return {"schema": name, "count": len(items), "items": items}
+    normalized = report.normalized or spec
+    gen = build_generator(normalized)
+
+    ctx = GenContext(seed=seed, rng=random.Random(seed) if seed is not None else None, locale=locale)
+    ctx.schema_name = name
+    if isinstance(normalized, dict):
+        ctx.schema_version = str(normalized.get("__version__", normalized.get("version", "unknown")))
+    else:
+        ctx.schema_version = "unknown"
+    ctx.emit_meta = bool(meta)
+    ctx.scenario = scenario
+    ctx.config_hash = _hash_spec_and_knobs(normalized, {"scenario": scenario})
+
+    # meta
+    items = []
+    for _ in range(n):
+        rec = gen.generate(ctx)
+        if ctx.emit_meta:
+            rec["__meta"] = ctx.build_meta()
+        items.append(rec)
+
+    resp = JSONResponse(content={"schema": name, "count": len(items), "items": items})
+    if ctx.seed is not None:
+        resp.headers["X-Seed"] = str(ctx.seed)
+    if ctx.request_id is not None:
+        resp.headers["X-Request-Id"] = ctx.request_id
+    return resp
