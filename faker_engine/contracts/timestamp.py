@@ -6,5 +6,6 @@ from datetime import date, datetime, timezone
 
 @dataclass
 class TimestampGeneratorSpec:
+    unit: Optional[str] = None
     start: Optional[Union[int, float, str, datetime]] = None
     end: Optional[Union[int, float, str, datetime]] = None

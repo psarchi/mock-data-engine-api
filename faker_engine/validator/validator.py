@@ -7,6 +7,7 @@ from faker_engine.validator.model_provider import ModelProvider
 from faker_engine.validator.errors import from_pydantic_errors, ExtraIssue, \
     Issue, IssueCode, TypeIssue, RequiredIssue
 from faker_engine.validator.report import Report
+from collections.abc import Mapping
 
 JsonPath = tuple[str | int, ...]
 
@@ -20,7 +21,8 @@ class Validator:
         self.normalizer = normalizer or SpecNormalizer()
         self.models = models or ModelProvider()
 
-    def validate(self, spec: Any, *, raise_on_fail: bool = False) -> Report:
+    def validate(self, spec: Any, *, raise_on_fail: bool = False,
+                 ignore_extras: bool = False) -> Report:
         issues: list[Issue] = []
 
         try:
@@ -51,6 +53,7 @@ class Validator:
 
         def validate_node(node: Mapping[str, Any], path: JsonPath) -> None:
             # type presence
+            cur: Mapping[str, Any] = node
             gen_type = node.get("type")
             if gen_type is None:
                 issues.append(RequiredIssue(path=path + ("type",),
@@ -70,30 +73,38 @@ class Validator:
 
                 # extras (forbid) — collect, don't bail
                 model_fields = set(getattr(model, "model_fields", {}).keys())
-                extras = [k for k in node.keys() if k not in model_fields]
+                allowed_meta = {"type", "required", "of"}
+                extras = [k for k in node.keys() if
+                          k not in model_fields and k not in allowed_meta]
                 for k in extras:
                     issues.append(ExtraIssue(path=path + (k,),
-                                             msg="Extra field not permitted"))
+                                             msg=f"Extra field not permitted: {k}",
+                                             detail={"field": k}))
+                cur = node
+                if ignore_extras and extras:
+                    # drop extras for validation and traversal
+                    cur = {k: node[k] for k in node.keys() if
+                           k in model_fields}
 
                 # pydantic validation — collect
                 try:
-                    model.model_validate(node)
+                    model.model_validate(cur)
                 except PydanticValidationError as ve:
                     issues.extend(from_pydantic_errors(ve.errors()))
 
             # recurse for common composites
-            if "fields" in node and isinstance(node["fields"], Mapping):
-                for fname, child_spec in node["fields"].items():
+            if "fields" in cur and isinstance(cur["fields"], Mapping):
+                for fname, child_spec in cur["fields"].items():
                     if isinstance(child_spec, Mapping):
                         validate_node(child_spec, path + ("fields", fname))
-            if "child" in node and isinstance(node["child"], Mapping):
-                validate_node(node["child"], path + ("child",))
-            if "choices" in node and isinstance(node["choices"], Sequence):
-                for idx, child_spec in enumerate(node["choices"]):
-                    if isinstance(child_spec, Mapping):
-                        validate_node(child_spec, path + ("choices", idx))
-            if "options" in node and isinstance(node["options"], Mapping):
-                for oname, child_spec in node["options"].items():
+            if "child" in cur and isinstance(cur["child"], Mapping):
+                validate_node(cur["child"], path + ("child",))
+            if "items" in cur and isinstance(cur["items"], Mapping):
+                validate_node(cur["items"], path + ("items",))
+            if "of" in cur and isinstance(cur["of"], Mapping):
+                validate_node(cur["of"], path + ("of",))
+            if "options" in cur and isinstance(cur["options"], Mapping):
+                for oname, child_spec in cur["options"].items():
                     if isinstance(child_spec, Mapping):
                         validate_node(child_spec, path + ("options", oname))
 
