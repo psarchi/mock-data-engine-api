@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import Any, Dict, Tuple, List, Mapping, get_args, get_origin
+from typing import Any, Dict, Tuple, List, Mapping
 from pydantic import BaseModel, Field, ConfigDict, create_model
 from typing import Literal
 import re
+import enum
 
 from .schema import is_leaf_spec, LEAF_DEFAULT_KEYS
 
@@ -15,6 +16,10 @@ _ACCEPTS_ALIASES = {
 }
 
 _primitive_map = {"bool": bool, "int": int, "float": float, "str": str}
+
+
+class _AllowExtra(BaseModel):
+    model_config = ConfigDict(extra="allow")
 
 
 def _norm_accepts(s: str) -> str:
@@ -31,32 +36,39 @@ def _parse_type(accepts: str):
     accepts = _norm_accepts(accepts)
     if accepts in _primitive_map:
         return _primitive_map[accepts]
+
     m = _tuple_re.match(accepts)
     if m:
         inner = [x.strip() for x in m.group(1).split(",")]
         if len(inner) != 2:
-            raise ValueError(
-                f"only tuple of 2 supported in accepts: {accepts}")
-        return Tuple[
-            _primitive_map[inner[0]], _primitive_map[inner[1]]]  # type: ignore
+            raise ValueError(f"only tuple of 2 supported in accepts: {accepts}")
+        return Tuple[_primitive_map[inner[0]], _primitive_map[inner[1]]]  # type: ignore[name-defined]
+
     m = _list_re.match(accepts)
     if m:
         inner = m.group(1).strip()
-        return List[_primitive_map[inner]]  # type: ignore
+        return List[_primitive_map[inner]]  # type: ignore[name-defined]
+
     m = _map_re.match(accepts)
     if m:
         k = m.group(1).strip()
         v = m.group(2).strip()
-        return Dict[_primitive_map[k], _primitive_map[v]]  # type: ignore
+        return Dict[_primitive_map[k], _primitive_map[v]]  # type: ignore[name-defined]
+
     m = _enum_re.match(accepts)
     if m:
         raw = [x.strip() for x in m.group(1).split(",") if x.strip()]
-        are_ints = all(r.isdigit() for r in raw)
-        if are_ints:
-            vals = tuple(int(r) for r in raw)
-        else:
-            vals = tuple(raw)
-        return Literal[vals]  # type: ignore
+        def _safe_name(val: str) -> str:
+            s = re.sub(r"[^a-zA-Z0-9]+", "_", val).strip("_").upper() or "VAL"
+            # avoid leading digits
+            if s and s[0].isdigit():
+                s = f"V_{s}"
+            return s
+
+        members = { _safe_name(v): (int(v) if v.isdigit() else v) for v in raw }
+        DynEnum = enum.Enum(f"CfgEnum_{abs(hash(tuple(raw))) % 10**8}", members)
+        return DynEnum
+
     raise ValueError(f"unknown accepts type: {accepts}")
 
 
@@ -91,7 +103,7 @@ def build_model_from_default(tree: Mapping[str, Any]):
             defaults_dict = {}
             meta_group = {}
             for k, v in node.items():
-                if k in ("group_mode",):  # reserved keys for future
+                if k in ("group_mode",):
                     continue
                 t, d, m = walk(v, path + [k])
                 fields[k] = (t, Field(default=d))
@@ -99,17 +111,14 @@ def build_model_from_default(tree: Mapping[str, Any]):
                     {} if isinstance(v, dict) else None)
                 meta_group[k] = m
             model_name = _model_name_from_path(path)
-            model = create_model(model_name, __config__=type("Cfg", (), {   # type: ignore
-                "extra": "allow"}), **fields)
+            model = create_model(model_name, __base__=_AllowExtra, **fields)
             return model, defaults_dict, meta_group
         else:
             return Any, node, {"description": "", "accepts": "any"}
 
     model, defaults, meta = walk(tree, [])
     if not (isinstance(model, type) and issubclass(model, BaseModel)):
-        # wrap as root model
-        root_model = create_model("SettingsModel", __config__=type("Cfg", (), {   # type: ignore
-            "extra": "allow"}), root=(
-            type(model), Field(default=defaults)))
+        root_model = create_model("SettingsModel", __base__=_AllowExtra, root=(
+        type(model), Field(default=defaults)))  # pydantic v2
         return root_model, {"root": defaults}, {"root": meta}
     return model, defaults, meta
