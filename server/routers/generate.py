@@ -1,14 +1,31 @@
 from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from server.models import GenerateRequest, GenerateResponse, ValidateRequest
-from server.deps import get_validator
+from server.deps import get_validator, get_settings
 from faker_engine.api import build_generator, generate_many
 
 router = APIRouter(prefix="/v1", tags=["generate"])
 
 
 @router.post("/generate", response_model=GenerateResponse)
-def generate(req: GenerateRequest, validator=Depends(get_validator)):
+def generate(req: GenerateRequest, validator=Depends(get_validator),
+             settings=Depends(get_settings)):
+    # chaos/failure injection
+    if settings.features.chaos.enabled:
+        import random, time
+        lo, hi = settings.features.chaos.latency_ms_range
+        if hi and hi > 0:
+            delay_ms = random.randint(int(lo), int(hi))
+            time.sleep(delay_ms / 1000.0)
+        for status_code_str, probability in settings.features.chaos.error_rates.items():
+            try:
+                status_code_int = int(status_code_str)
+            except Exception:
+                continue
+            if random.random() < float(probability):
+                raise HTTPException(status_code=status_code_int,
+                                    detail="chaos")
+
     report = validator.validate(req.spec, raise_on_fail=False)
     if not report.ok:
         raise HTTPException(status_code=422, detail={
