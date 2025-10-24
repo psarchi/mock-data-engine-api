@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime, UTC
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from server.routers import meta, validate, generate, schemas
+from server.routers import meta, validate, generate, schemas, admin_config
 
 
 def create_app() -> FastAPI:
@@ -18,6 +18,7 @@ def create_app() -> FastAPI:
     app.include_router(validate.router)
     app.include_router(generate.router)
     app.include_router(schemas.router)
+    app.include_router(admin_config.router)
     return app
 
 

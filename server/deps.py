@@ -4,6 +4,7 @@ from faker_engine.validator.validator import Validator
 from faker_engine.validator.registry_adapter import RegistryAdapter
 from faker_engine.validator.normalizer import SpecNormalizer
 from faker_engine.validator.model_provider import ModelProvider
+from faker_engine.config import get_config_manager
 
 
 @lru_cache(maxsize=1)
@@ -13,3 +14,7 @@ def get_validator() -> Validator:
         normalizer=SpecNormalizer(),
         models=ModelProvider(),
     )
+
+
+def get_settings():
+    return get_config_manager().effective()
