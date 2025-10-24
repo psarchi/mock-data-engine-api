@@ -1,0 +1,125 @@
+server:
+  debug:
+    status: false
+    accepts: "bool"
+    description: "enable FastAPI debug mode"
+  port:
+    value: 8000
+    accepts: "int"
+    description: "HTTP server port"
+
+features:
+  chaos:
+    enabled:
+      status: false
+      accepts: "bool"
+      description: "enable/disable chaos globally"
+    latency_ms_range:
+      range: [0, 0]
+      accepts: "tuple[int,int]"
+      description: "latency range in milliseconds [min,max]"
+    error_rates:
+      map: {"429": 0.0, "500": 0.0}
+      accepts: "map[str,float]"
+      description: "per-status probability (0..1)"
+    truncation_probability:
+      value: 0.0
+      accepts: "float"
+      description: "chance to truncate payloads (0..1)"
+    slowloris_probability:
+      value: 0.0
+      accepts: "float"
+      description: "chance to simulate slowloris behavior (0..1)"
+
+  sinks:
+    enabled:
+      status: false
+      accepts: "bool"
+      description: "enable/disable sinks/connectors"
+    outputs:
+      list: []
+      accepts: "list[str]"
+      description: "sink definitions (placeholder: supply list of connector specs)"
+
+  observability:
+    metrics_enabled:
+      status: false
+      accepts: "bool"
+      description: "expose Prometheus metrics endpoint"
+    prometheus_path:
+      value: "/metrics"
+      accepts: "str"
+      description: "metrics endpoint path"
+    otel:
+      enabled:
+        status: false
+        accepts: "bool"
+        description: "enable OpenTelemetry export"
+      exporter_otlp_endpoint:
+        value: ""
+        accepts: "str"
+        description: "OTLP exporter endpoint (empty to disable)"
+
+  admin:
+    enabled:
+      status: true
+      accepts: "bool"
+      description: "enable admin endpoints"
+    allow_upload:
+      status: false
+      accepts: "bool"
+      description: "allow schema upload via admin routes"
+    storage_path:
+      value: "./.admin-store"
+      accepts: "str"
+      description: "admin storage directory"
+
+  scenarios:
+    active:
+      list: []
+      accepts: "list[str]"
+      description: "active scenario names (e.g., black_friday)"
+
+  graphql:
+    enabled:
+      status: false
+      accepts: "bool"
+      description: "enable GraphQL endpoint"
+
+  dlq:
+    enabled:
+      status: false
+      accepts: "bool"
+      description: "enable dead-letter queue handling"
+    storage_path:
+      value: "./.dlq"
+      accepts: "str"
+      description: "DLQ storage directory"
+    simulate_exactly_once:
+      status: false
+      accepts: "bool"
+      description: "simulate exactly-once delivery semantics"
+
+  security:
+    mode:
+      value: "none"
+      accepts: "enum[none,basic,jwt]"
+      description: "auth mode for protected routes"
+    allowed_roles:
+      list: ["admin", "dev", "read"]
+      accepts: "list[str]"
+      description: "authorized roles (used with basic/jwt modes)"
+    pii_mode:
+      value: "passthrough"
+      accepts: "enum[passthrough,mask,tokenize,redact]"
+      description: "PII handling policy"
+
+generation:
+  seed_mode:
+    value: "auto"
+    accepts: "enum[auto,fixed]"
+    description: "seed selection strategy"
+  fixed_seed:
+    value: 0
+    accepts: "int"
+    description: "fixed seed value (used only when seed_mode=fixed)"
