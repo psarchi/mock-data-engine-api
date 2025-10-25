@@ -83,28 +83,36 @@ def generate_schema(
     normalized = report.normalized or spec
     gen = build_generator(normalized)
 
+    # timing + chaos
     e2e_start = time.perf_counter()
     chaos = {"applied": False, "latency_ms": 0, "status_injected": None,
              "truncation": False}
-    from fastapi import HTTPException as _HTTPExc
-
-    c = getattr(settings.features, "chaos", None)
-    if c and getattr(c, "enabled", False):
-        chaos["applied"] = True
-        lo, hi = getattr(c, "latency_ms_range", (0, 0))
-        if hi and int(hi) > 0:
-            delay_ms = int(random.randint(int(lo), int(hi)))
-            chaos["latency_ms"] = delay_ms
-            time.sleep(delay_ms / 1000.0)
-        for code_str, prob in getattr(c, "error_rates", {}).items():
-            try:
-                code = int(code_str);
-                p = float(prob)
-            except Exception:
-                continue
-            if p > 0 and random.random() < p:
-                chaos["status_injected"] = code
-                raise _HTTPExc(status_code=code, detail="chaos")
+    try:
+        c = getattr(settings.features, "chaos", None)
+        if c and getattr(c, "enabled", False):
+            chaos["applied"] = True
+            lo, hi = getattr(c, "latency_ms_range", (0, 0))
+            if isinstance(lo, (
+                    list, tuple)):  # support tuple form from other endpoint
+                lo, hi = lo
+            if hi and int(hi) > 0:
+                delay_ms = int(random.randint(int(lo), int(hi)))
+                chaos["latency_ms"] = delay_ms
+                time.sleep(delay_ms / 1000.0)
+            # status injection
+            for code_str, prob in getattr(c, "error_rates", {}).items():
+                try:
+                    code = int(code_str)
+                    p = float(prob)
+                except Exception:
+                    continue
+                if p > 0 and random.random() < p:
+                    chaos["status_injected"] = code
+                    raise HTTPException(status_code=code, detail="chaos")
+    except HTTPException:
+        raise
+    except Exception:
+        pass
 
     ctx = GenContext(seed=seed,
                      rng=random.Random(seed) if seed is not None else None,
@@ -116,10 +124,13 @@ def generate_schema(
                                                                "unknown")))
     else:
         ctx.schema_version = "unknown"
-    ctx.emit_meta = bool(meta)
+    ctx.emit_meta = bool(meta) and bool(
+        getattr(getattr(settings.features, 'generation_meta'), 'enabled',
+                True))
     ctx.scenario = scenario
     ctx.config_hash = _hash_spec_and_knobs(normalized, {"scenario": scenario})
 
+    # generation & meta timing
     gen_start = time.perf_counter()
     items = []
     for _ in range(n):
@@ -128,22 +139,25 @@ def generate_schema(
             rec["__meta"] = ctx.build_meta()
         items.append(rec)
 
+    # timings and config revision
     gen_ms = (time.perf_counter() - gen_start) * 1000.0
     e2e_ms = (time.perf_counter() - e2e_start) * 1000.0
-
     try:
         config_rev = get_config_manager().revision()
     except Exception:
         config_rev = None
-
-    for rec in items:
-        if isinstance(rec, dict) and isinstance(rec.get("__meta"), dict):
-            rec["__meta"].update({
-                "gen_ms": round(gen_ms, 3),
-                "e2e_ms": round(e2e_ms, 3),
-                "config_rev": config_rev,
-                "chaos": chaos,
-            })
+    if bool(getattr(getattr(settings.features, 'generation_meta'), 'enabled',
+                    True)):
+        for rec in items:
+            if isinstance(rec, dict) and isinstance(rec.get("__meta"), dict):
+                _tmp = {"config_rev": config_rev, "chaos": chaos}
+                if bool(getattr(getattr(settings.features, "generation_meta"),
+                                "include_gen_ms", True)):
+                    _tmp["gen_ms"] = round(gen_ms, 3)
+                if bool(getattr(getattr(settings.features, "generation_meta"),
+                                "include_e2e_ms", True)):
+                    _tmp["e2e_ms"] = round(e2e_ms, 3)
+                rec["__meta"].update(_tmp)
 
     resp = JSONResponse(
         content={"schema": name, "count": len(items), "items": items})

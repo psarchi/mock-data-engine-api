@@ -11,11 +11,11 @@ server:
 features:
   chaos:
     enabled:
-      status: false
+      status: true
       accepts: "bool"
       description: "enable/disable chaos globally"
     latency_ms_range:
-      range: [0, 0]
+      range: [1, 1000]
       accepts: "tuple[int,int]"
       description: "latency range in milliseconds [min,max]"
     error_rates:
@@ -40,7 +40,19 @@ features:
       list: []
       accepts: "list[str]"
       description: "sink definitions (placeholder: supply list of connector specs)"
-
+  generation_meta:
+    enabled:
+      status: true
+      accepts: "bool"
+      description: "include __meta in responses (per-item for schema GET; top-level for POST /v1/generate)"
+    include_gen_ms:
+        status: true
+        accepts: "bool"
+        description: "include generation time (gen_ms)"
+    include_e2e_ms:
+        status: true
+        accepts: "bool"
+        description: "include end-to-end handler time (e2e_ms)"
   observability:
     metrics_enabled:
       status: false
