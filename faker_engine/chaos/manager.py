@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional
-from .types import ChaosScope, ChaosOpPhase
-from .config import ChaosConfigView
+from faker_engine.chaos.types import ChaosScope, ChaosOpPhase
+from faker_engine.chaos.config import ChaosConfigView
 from fastapi import Response
 
 
