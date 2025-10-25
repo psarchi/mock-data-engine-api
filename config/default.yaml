@@ -81,6 +81,38 @@ features:
           accepts: "list[int] (HTTP status codes)"
           description: "HTTP status codes to randomly return when this op is applied."
         description: "Request-phase; returns one of the configured error codes immediately."
+      order_shuffle:
+        enabled: false
+        enabled_meta:
+          accepts: "bool"
+          description: "Toggle post-generation item order randomization."
+        p: 0.10
+        p_meta:
+          accepts: "float 0..1"
+          description: "Independent activation probability for this op."
+        weight: 1
+        weight_meta:
+          accepts: "float>0"
+          description: "Relative selection weight for the stochastic composer."
+        description: "Response-phase; shuffles list payload order deterministically via ctx.rng."
+      payload_truncate:
+        enabled: false
+        enabled_meta:
+          accepts: "bool"
+          description: "Toggle truncation of the response item list."
+        p: 0.10
+        p_meta:
+          accepts: "float 0..1"
+          description: "Independent activation probability for this op."
+        weight: 3
+        weight_meta:
+          accepts: "float>0"
+          description: "Relative selection weight for the stochastic composer."
+        min_items: 1
+        min_items_meta:
+          accepts: "int>=0"
+          description: "Minimum number of items to retain after truncation."
+        description: "Response-phase; slices the list to a random length in [min_items, len(items)]."
 
   sinks:
     enabled:
