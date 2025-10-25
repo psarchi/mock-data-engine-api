@@ -7,10 +7,11 @@ import hashlib
 import random
 import time
 import yaml
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from fastapi.responses import JSONResponse
 from server.deps import get_validator, get_settings
-from faker_engine.api import build_generator
+from faker_engine.chaos import ChaosManager, ChaosScope
+from faker_engine.api import build_generator  # reuse your existing builder
 from faker_engine.config import get_config_manager
 from faker_engine.context import GenContext
 
@@ -59,6 +60,7 @@ def _hash_spec_and_knobs(spec: Mapping[str, Any],
 @router.get("/schemas/{name}/generate")
 def generate_schema(
         name: str,
+        request: Request,
         n: int = Query(1, ge=1, le=1_000_000),
         seed: Optional[int] = Query(None),
         locale: Optional[str] = Query(None),
@@ -129,6 +131,10 @@ def generate_schema(
                 True))
     ctx.scenario = scenario
     ctx.config_hash = _hash_spec_and_knobs(normalized, {"scenario": scenario})
+    chaos = ChaosManager(settings)
+    early = chaos.apply_request("generate", ctx, request)
+    if early is not None:
+        return early
 
     # generation & meta timing
     gen_start = time.perf_counter()
@@ -158,6 +164,7 @@ def generate_schema(
                                 "include_e2e_ms", True)):
                     _tmp["e2e_ms"] = round(e2e_ms, 3)
                 rec["__meta"].update(_tmp)
+    items = chaos.apply_response("generate", ctx, items, schema_name=name)
 
     resp = JSONResponse(
         content={"schema": name, "count": len(items), "items": items})
