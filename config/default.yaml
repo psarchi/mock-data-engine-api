@@ -10,26 +10,77 @@ server:
 
 features:
   chaos:
-    enabled:
-      status: true
+    enabled: true
+    enabled_meta:
       accepts: "bool"
-      description: "enable/disable chaos globally"
-    latency_ms_range:
-      range: [1, 1000]
-      accepts: "tuple[int,int]"
-      description: "latency range in milliseconds [min,max]"
-    error_rates:
-      map: {"429": 0.0, "500": 0.0}
-      accepts: "map[str,float]"
-      description: "per-status probability (0..1)"
-    truncation_probability:
-      value: 0.0
-      accepts: "float"
-      description: "chance to truncate payloads (0..1)"
-    slowloris_probability:
-      value: 0.0
-      accepts: "float"
-      description: "chance to simulate slowloris behavior (0..1)"
+      description: "Master kill switch for all chaos operations."
+    scopes: ["generate"]
+    scopes_meta:
+      accepts: "list[str]"
+      description: "Endpoint scopes where chaos may run: generate|validate|schema|admin."
+    selection:
+      min_ops: 0
+      min_ops_meta:
+        accepts: "int>=0"
+        description: "Lower bound of chaos ops to apply per request after activation."
+      max_ops: "all"
+      max_ops_meta:
+        accepts: "int>=0 | 'all'"
+        description: "Upper bound of ops to apply per request; 'all' disables the cap."
+      ensure_at_least_one_when_any_enabled: false
+      ensure_at_least_one_when_any_enabled_meta:
+        accepts: "bool"
+        description: "If true, force-select one op when none activate but at least one is enabled."
+    budgets:
+      max_added_latency_ms: 1500
+      max_added_latency_ms_meta:
+        accepts: "int>=0"
+        description: "Budget cap for total artificial latency injected in a single request."
+      max_faults_per_request: 999
+      max_faults_per_request_meta:
+        accepts: "int>=0"
+        description: "Maximum number of request-phase fault ops (e.g., http_error) per request."
+    ops:
+      latency:
+        enabled: true
+        enabled_meta:
+          accepts: "bool"
+          description: "Toggle latency injection."
+        p: 0.35
+        p_meta:
+          accepts: "float 0..1"
+          description: "Independent activation probability for this op."
+        weight: 2
+        weight_meta:
+          accepts: "float>0"
+          description: "Relative selection weight; higher increases sampling likelihood."
+        min_ms: 60
+        min_ms_meta:
+          accepts: "int>=0"
+          description: "Lower bound for injected latency in milliseconds."
+        max_ms: 300
+        max_ms_meta:
+          accepts: "int>=min_ms"
+          description: "Upper bound for injected latency in milliseconds."
+        description: "Request-phase; sleeps for a random delay within [min_ms, max_ms]."
+      http_error:
+        enabled: false
+        enabled_meta:
+          accepts: "bool"
+          description: "Toggle HTTP error short-circuit."
+        p: 0.05
+        p_meta:
+          accepts: "float 0..1"
+          description: "Independent activation probability for this op."
+        weight: 5
+        weight_meta:
+          accepts: "float>0"
+          description: "Relative selection weight; heavier since it's a severe fault."
+        codes: [429, 500, 502]
+        codes_meta:
+          accepts: "list[int] (HTTP status codes)"
+          description: "HTTP status codes to randomly return when this op is applied."
+        description: "Request-phase; returns one of the configured error codes immediately."
 
   sinks:
     enabled:
@@ -42,7 +93,7 @@ features:
       description: "sink definitions (placeholder: supply list of connector specs)"
   generation_meta:
     enabled:
-      status: true
+      status: false
       accepts: "bool"
       description: "include __meta in responses (per-item for schema GET; top-level for POST /v1/generate)"
     include_gen_ms:
