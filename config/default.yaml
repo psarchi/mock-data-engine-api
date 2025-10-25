@@ -113,6 +113,55 @@ features:
           accepts: "int>=0"
           description: "Minimum number of items to retain after truncation."
         description: "Response-phase; slices the list to a random length in [min_items, len(items)]."
+      auth_fault:
+        enabled: false
+        enabled_meta:
+          accepts: "bool"
+          description: "Toggle auth failures or anomalies."
+        p: 0.05
+        p_meta:
+          accepts: "float 0..1"
+          description: "Independent activation probability for this op."
+        weight: 4
+        weight_meta:
+          accepts: "float>0"
+          description: "Relative selection weight for the stochastic composer."
+        modes: [ "reject", "drop", "invalid" ]
+        modes_meta:
+          accepts: "list[str] in {reject,drop,invalid}"
+          description: "Behavior: reject with 401/403; drop Authorization; or mark as invalid."
+        codes: [ 401, 403 ]
+        codes_meta:
+          accepts: "list[int]"
+          description: "HTTP status codes to use when mode='reject'."
+        description: "Request-phase; may short-circuit with 401/403 or simulate missing/invalid Authorization."
+      header_anomaly:
+        enabled: false
+        enabled_meta:
+          accepts: "bool"
+          description: "Toggle anomalous headers on the request."
+        p: 0.10
+        p_meta:
+          accepts: "float 0..1"
+          description: "Independent activation probability for this op."
+        weight: 2
+        weight_meta:
+          accepts: "float>0"
+          description: "Relative selection weight for the stochastic composer."
+        patterns: [ "huge_value", "non_ascii", "dup_keys" ]
+        patterns_meta:
+          accepts: "list[str] in {huge_value,non_ascii,dup_keys}"
+          description: "Choose which header anomaly patterns can be applied."
+        huge_value_bytes: 8192
+        huge_value_bytes_meta:
+          accepts: "int>=0"
+          description: "Size of the large header value when using 'huge_value'."
+        dup_keys_count: 2
+        dup_keys_count_meta:
+          accepts: "int>=2"
+          description: "How many duplicate keys to attempt when using 'dup_keys'."
+        description: "Request-phase; records intended header anomalies in meta (transport mutation may require middleware)."
+
 
   sinks:
     enabled:
