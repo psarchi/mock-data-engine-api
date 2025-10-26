@@ -193,6 +193,67 @@ features:
           accepts: "int>=0"
           description: "Budget of string fields to corrupt across the whole payload."
         description: "Response-phase; replaces a character in selected strings with U+FFFD for safe corruption."
+      time_skew:
+        enabled: false
+        enabled_meta:
+          accepts: "bool"
+          description: "Toggle shifting numeric time fields by +/- seconds."
+        p: 0.10
+        p_meta:
+          accepts: "float 0..1"
+          description: "Independent activation probability for this op."
+        weight: 2
+        weight_meta:
+          accepts: "float>0"
+          description: "Relative selection weight for the stochastic composer."
+        max_skew_s: 3600
+        max_skew_s_meta:
+          accepts: "int>=1"
+          description: "Maximum absolute seconds to shift by."
+        direction: "both"
+        direction_meta:
+          accepts: "both | past | future"
+          description: "Direction of skew to apply."
+        fields: [ "event_timestamp" ]
+        fields_meta:
+          accepts: "list[str]"
+          description: "Field names in each item to skew if numeric."
+        description: "Response-phase; adds/subtracts seconds to listed numeric fields."
+      rate_drift:
+        enabled: false
+        enabled_meta:
+          accepts: "bool"
+          description: "Toggle request-level variable latency to simulate throughput drift."
+        p: 0.10
+        p_meta:
+          accepts: "float 0..1"
+          description: "Independent activation probability for this op."
+        weight: 3
+        weight_meta:
+          accepts: "float>0"
+          description: "Relative selection weight for the stochastic composer."
+        pattern: "sine"
+        pattern_meta:
+          accepts: "sine | step | burst | random_walk"
+          description: "Rate drift shape."
+        amp_ms: 250
+        amp_ms_meta:
+          accepts: "int>=0"
+          description: "Peak added latency in milliseconds."
+        period_s: 60
+        period_s_meta:
+          accepts: "float>0 (sine/step only)"
+          description: "Wave period in seconds."
+        burst_prob: 0.05
+        burst_prob_meta:
+          accepts: "float 0..1 (burst only)"
+          description: "Chance of a max-latency burst on a given request."
+        step_ms: 25
+        step_ms_meta:
+          accepts: "int>=1 (random_walk only)"
+          description: "Max step size per request for the random walk."
+        description: "Request-phase; injects latency based on a drift pattern using the request RNG."
+
 
 
 
