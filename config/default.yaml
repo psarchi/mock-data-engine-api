@@ -253,6 +253,69 @@ features:
           accepts: "int>=1 (random_walk only)"
           description: "Max step size per request for the random walk."
         description: "Request-phase; injects latency based on a drift pattern using the request RNG."
+      data_drift:
+        enabled: false
+        enabled_meta:
+          accepts: "bool"
+          description: "Toggle field-level value drift (categorical reweighting or numeric bias/jitter)."
+        p: 0.15
+        p_meta:
+          accepts: "float 0..1"
+          description: "Independent activation probability for this op."
+        weight: 3
+        weight_meta:
+          accepts: "float>0"
+          description: "Relative selection weight for the stochastic composer."
+        q: 0.15
+        q_meta:
+          accepts: "float 0..1"
+          description: "Default per-field chance to alter a value when the op is active."
+        fields:
+          event_name:
+            mode: "categorical"
+            choices: [ "purchase", "login", "search", "view_item" ]
+            weights_delta:
+              purchase: +0.2
+              login: -0.1
+            q: 0.25
+          event_value:
+            mode: "numeric"
+            add: 0.0
+            mul: 1.0
+            jitter: 1.5
+            q: 0.15
+        fields_meta:
+          accepts: "dict[str, FieldSpec]"
+          description: "Map individual fields to drift specs (categorical or numeric)."
+        description: "Response-phase; adjusts values for selected fields according to drift specs using rng."
+      schema_drift:
+        enabled: false
+        enabled_meta:
+          accepts: "bool"
+          description: "Toggle schema drift: add/drop/rename fields in the response items."
+        p: 0.10
+        p_meta:
+          accepts: "float 0..1"
+          description: "Independent activation probability for this op."
+        weight: 4
+        weight_meta:
+          accepts: "float>0"
+          description: "Relative selection weight for the stochastic composer."
+        add_fields:
+          extra_flag: true
+        add_fields_meta:
+          accepts: "dict[str, any]"
+          description: "Fields to add with constant values when missing."
+        drop_fields: [ "user_id" ]
+        drop_fields_meta:
+          accepts: "list[str]"
+          description: "Fields to remove from each item if present."
+        rename_fields:
+          device_category: "device_type"
+        rename_fields_meta:
+          accepts: "dict[str,str]"
+          description: "Old->new field rename mapping."
+        description: "Response-phase; applies add/drop/rename transforms to item dicts."
 
 
 
