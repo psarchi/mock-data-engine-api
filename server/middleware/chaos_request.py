@@ -21,14 +21,28 @@ def default_scope_resolver(scope: Scope) -> ChaosScope:
     return 'schema'
 
 
+def _extract_header(headers: List[Tuple[bytes, bytes]], name: bytes) -> \
+Optional[str]:
+    lname = name.lower()
+    for k, v in headers or []:
+        if k.lower() == lname:
+            try:
+                return v.decode('latin-1')
+            except Exception:
+                return None
+    return None
+
+
 def _seed_from_scope(scope: Scope) -> int:
-    rid = None
     headers: List[Tuple[bytes, bytes]] = scope.get('headers') or []
-    for k, v in headers:
-        if k.lower() == b'x-request-id':
-            rid = v.decode('latin-1', errors='ignore')
-            break
-    base = f"{scope.get('method', 'GET')}:{scope.get('path', '/')}:{rid or ''}"
+    incoming_seed = _extract_header(headers, b'x-seed')
+    if incoming_seed:
+        try:
+            return int(incoming_seed)
+        except Exception:
+            pass
+    rid = _extract_header(headers, b'x-request-id') or ''
+    base = f"{scope.get('method', 'GET')}:{scope.get('path', '/')}:{rid}"
     return abs(hash(base)) % (2 ** 31 - 1)
 
 
@@ -44,8 +58,6 @@ class ChaosRequestMiddleware:
         self.app = app
         self.cfg_view = ChaosConfigView(cfg)
         self.scope_resolver = scope_resolver or default_scope_resolver
-
-        # Load only ops that are present under features.chaos.ops in config (lazy import)
         op_names = list((cfg.get('features', {}).get('chaos', {}).get('ops',
                                                                       {}) or {}).keys())
         self.ops_registry = build_ops_registry(op_names)
@@ -57,19 +69,46 @@ class ChaosRequestMiddleware:
             return
 
         scope_kind = self.scope_resolver(scope)
-        rng = random.Random(_seed_from_scope(scope))
+        seed = _seed_from_scope(scope)
+        rng = random.Random(seed)
+
+        state = scope.setdefault('state', {})
+        state['seed'] = seed
 
         ctx = _Ctx()
+        ctx.meta['seed'] = seed
+        ctx.meta.setdefault('chaos', {})[
+            'seed_source'] = 'header' if _extract_header(
+            scope.get('headers') or [], b'x-seed') else 'derived'
+
         mgr = ChaosManager(cfg=self.cfg_view, ops_registry=self.ops_registry,
                            rng=rng)
 
         early = mgr.apply_request(scope_kind, ctx, scope)
         if isinstance(early, Response):
-            await early(scope, receive, send)
+            async def send_with_seed(message):
+                if message.get('type') == 'http.response.start':
+                    headers = message.setdefault('headers', [])
+                    headers.append((b'x-seed', str(seed).encode('latin-1')))
+                await early(scope, receive, send)
+
+            await send_with_seed({'type': 'http.response.start'})
             return
 
         scope = self._mutate_headers(scope, ctx, rng)
-        await self.app(scope, receive, send)
+
+        async def send_wrapper(message):
+            if message.get('type') == 'http.response.start':
+                headers = message.get('headers')
+                if headers is None:
+                    message['headers'] = [
+                        (b'x-seed', str(seed).encode('latin-1'))]
+                else:
+                    message['headers'] = list(headers) + [
+                        (b'x-seed', str(seed).encode('latin-1'))]
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
 
     def _mutate_headers(self, scope: Scope, ctx: _Ctx,
                         rng: random.Random) -> Scope:
