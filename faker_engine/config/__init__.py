@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Optional
-from mock_engine.config.manager import ConfigManager
+from faker_engine.config.manager import ConfigManager
 
 _SINGLETON: Optional[ConfigManager] = None
 

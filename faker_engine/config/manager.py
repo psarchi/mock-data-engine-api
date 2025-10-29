@@ -10,8 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from mock_engine.config.schema import validate_default_yaml_schema
-from mock_engine.config.builder import build_model_from_default
+from faker_engine.config.schema import validate_default_yaml_schema
+from faker_engine.config.builder import build_model_from_default
 
 try:
     import yaml  # type: ignore

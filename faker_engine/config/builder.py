@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
-from mock_engine.config.schema import LEAF_DEFAULT_KEYS, is_leaf_spec
+from faker_engine.config.schema import LEAF_DEFAULT_KEYS, is_leaf_spec
 
 # TODO: move this to schemas or constants module?
 # Aliases accepted in "accepts" strings.
