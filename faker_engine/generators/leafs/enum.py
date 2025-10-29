@@ -2,19 +2,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Mapping, Sequence, Self
 
-from mock_engine.context import GenContext
-from mock_engine.errors import ContextError
-from mock_engine.generators.base import BaseGenerator
-from mock_engine.generators.errors import (
+from faker_engine.context import GenContext
+from faker_engine.errors import ContextError
+from faker_engine.generators.base import BaseGenerator
+from faker_engine.generators.errors import (
     InvalidParameterError,
     MissingChildError,
 )
 
 # TODO: Consider moving _pick_index to utils to share with OneOfGenerator
-from mock_engine.generators.utils import _pick_index
+from faker_engine.generators.utils import _pick_index
 
 if TYPE_CHECKING:  # import only for typing to avoid cycles
-    from mock_engine.types import JsonValue  # noqa: F401
+    from faker_engine.types import JsonValue  # noqa: F401
 
 
 class EnumGenerator(BaseGenerator):

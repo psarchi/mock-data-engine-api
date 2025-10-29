@@ -10,11 +10,11 @@ from collections.abc import Mapping
 from typing import Any, TYPE_CHECKING, Self
 from abc import abstractmethod
 
-from mock_engine.generators.utils import get_init_fields
+from faker_engine.generators.utils import get_init_fields
 
 if TYPE_CHECKING:  # import only for typing to avoid cycles
-    from mock_engine.context import GenContext
-    from mock_engine.types import JsonValue  # noqa: F401
+    from faker_engine.context import GenContext
+    from faker_engine.types import JsonValue  # noqa: F401
 
 
 class BaseGenerator:

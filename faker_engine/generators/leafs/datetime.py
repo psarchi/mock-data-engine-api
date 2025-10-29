@@ -3,9 +3,9 @@ from datetime import datetime, timedelta, timezone
 import re
 from typing import Any, Mapping, Optional, Tuple
 
-from mock_engine.generators.errors import InvalidParameterError
-from mock_engine.generators.base import BaseGenerator
-from mock_engine.context import GenContext
+from faker_engine.generators.errors import InvalidParameterError
+from faker_engine.generators.base import BaseGenerator
+from faker_engine.context import GenContext
 
 UTC = timezone.utc
 ISO_DEFAULT = "%Y-%m-%dT%H:%M:%S%z"

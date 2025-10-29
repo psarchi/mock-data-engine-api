@@ -10,13 +10,13 @@ try:
 except Exception as _e:  # noqa: BLE001 - preserved behavior
     exrex = None
 
-from mock_engine.context import GenContext
-from mock_engine.errors import ContextError
-from mock_engine.generators.base import BaseGenerator
-from mock_engine.generators.errors import InvalidParameterError, OutOfBoundsError
+from faker_engine.context import GenContext
+from faker_engine.errors import ContextError
+from faker_engine.generators.base import BaseGenerator
+from faker_engine.generators.errors import InvalidParameterError, OutOfBoundsError
 
 if TYPE_CHECKING:  # import only for typing to avoid cycles
-    from mock_engine.types import JsonValue  # noqa: F401
+    from faker_engine.types import JsonValue  # noqa: F401
 
 
 class StringGenerator(BaseGenerator):

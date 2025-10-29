@@ -9,7 +9,7 @@ from random import Random
 from typing import TYPE_CHECKING, Any, Type, Sequence
 
 if TYPE_CHECKING:  # import only for typing to avoid cycles
-    from mock_engine.types import JsonValue  # noqa: F401
+    from faker_engine.types import JsonValue  # noqa: F401
 
 
 # TODO (core): Wire all utils here for generators.

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from mock_engine.errors import FakerEngineError
+from faker_engine.errors import FakerEngineError
 
 
 class GeneratorError(FakerEngineError):
