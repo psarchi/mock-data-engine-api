@@ -5,5 +5,6 @@ ChaosScope = Literal['generate', 'validate', 'schema', 'admin']
 
 
 class ChaosOpPhase:
+    """Chaos Op Phase."""
     REQUEST = 'request'
     RESPONSE = 'response'

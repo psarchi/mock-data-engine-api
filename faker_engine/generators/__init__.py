@@ -1,25 +1,21 @@
-from faker_engine.generators.composites.maybe import MaybeGenerator
-from faker_engine.generators.composites.object import ObjectGenerator
-from faker_engine.generators.composites.object_or_null import \
-    ObjectOrNullGenerator
-from faker_engine.generators.composites.one_of import OneOfGenerator
-from faker_engine.generators.composites.select import SelectGenerator
-from faker_engine.generators.composites.string_or_null import \
-    StringOrNullGenerator
-from faker_engine.generators.leafs.date import DateGenerator
-from faker_engine.generators.leafs.datetime import DateTimeGenerator
-from faker_engine.generators.leafs.timestamp import TimestampGenerator
-from faker_engine.generators.leafs.enum import EnumGenerator
-from faker_engine.generators.leafs.bool import BoolGenerator
-from faker_engine.generators.composites.array import ArrayGenerator
-from faker_engine.generators.leafs.float import FloatGenerator
-from faker_engine.generators.leafs.int import IntGenerator
-from faker_engine.generators.leafs.string import StringGenerator
+from __future__ import annotations
+from faker_engine.generators.leafs import DateTimeGenerator
+from faker_engine.generators.leafs import TimestampGenerator
+from faker_engine.generators.leafs import EnumGenerator
+from faker_engine.generators.leafs import BoolGenerator
+from faker_engine.generators.leafs import FloatGenerator
+from faker_engine.generators.leafs import IntGenerator
+from faker_engine.generators.leafs import StringGenerator
+from faker_engine.generators.composites import MaybeGenerator
+from faker_engine.generators.composites import ObjectGenerator
+from faker_engine.generators.composites import ObjectOrNullGenerator
+from faker_engine.generators.composites import OneOfGenerator
+from faker_engine.generators.composites import SelectGenerator
+from faker_engine.generators.composites import StringOrNullGenerator
+from faker_engine.generators.composites import ArrayGenerator
 
 __all__ = ['IntGenerator', 'FloatGenerator', 'StringGenerator',
            'BoolGenerator', 'EnumGenerator', 'ArrayGenerator',
            'ObjectGenerator', 'MaybeGenerator', 'OneOfGenerator',
            'ObjectOrNullGenerator', 'SelectGenerator', 'StringOrNullGenerator',
-           'TimestampGenerator', 'DateGenerator', 'DateTimeGenerator']
-
-
+           'TimestampGenerator', 'DateTimeGenerator']

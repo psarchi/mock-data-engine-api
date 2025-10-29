@@ -1,11 +1,11 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, Optional, Union, Sequence, Mapping, Literal
-from datetime import date, datetime, timezone
+from typing import Optional, Sequence
 
 
 @dataclass
 class StringGeneratorSpec:
+    """String Generator Spec."""
     string_type: Optional[str] = None
     min_length: Optional[int] = None
     max_length: Optional[int] = None

@@ -1,37 +1,90 @@
-from faker_engine.errors import ContextError, InvalidParameterError
-from faker_engine.generators.base import BaseGenerator
-from faker_engine.context import GenContext
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Mapping, Self
+
+from mock_engine.context import GenContext
+from mock_engine.errors import ContextError
+from mock_engine.generators.base import BaseGenerator
+from mock_engine.generators.errors import InvalidParameterError
+
+if TYPE_CHECKING:  # import only for typing to avoid cycles
+    from mock_engine.types import JsonValue  # noqa: F401
 
 
 class FloatGenerator(BaseGenerator):
-    
+    """Generate floating-point numbers within a configurable range.
+
+    Args:
+        min (float | None): Minimum value (inclusive). Defaults to ``0.0``.
+        max (float | None): Maximum value (inclusive). Defaults to ``1.0``.
+        precision (int | None): Number of decimal places to round to; ``None`` for no rounding.
+
+    Raises:
+        ContextError: If ``ctx`` is not a ``GenContext`` in ``generate``.
+        InvalidParameterError: If ``min > max`` or ``precision < 0``.
+    """
+
     __meta__ = {
-        'aliases': {
-        'max': 'max',
-        'min': 'min',
-        'precision': 'precision',
-        },
-        'deprecations': [],
-        'rules': [],
-        # TODO: introduce per-generator versioning (SemVer) once contracts stabilize.
+        "aliases": {"max": "max", "min": "min", "precision": "precision"},
+        "deprecations": [],
+        "rules": [],
     }
     __slots__ = ("min", "max", "precision")
     __aliases__ = ("float",)
 
-    def __init__(self, min=None, max=None, precision=None):
-        self.min = 0.0 if min is None else float(min)
-        self.max = 1.0 if max is None else float(max)
-        self.precision = None if precision is None else int(precision)
+    # TODO(validation): Ensure bounds and precision are finite (no NaN/inf) once global validation utilities are in place.
+
+    def __init__(
+        self,
+        min: float | None = None,
+        max: float | None = None,
+        precision: int | None = None,
+    ) -> None:
+        """Initialize the generator with bounds and precision.
+
+        Args:
+            min (float | None): Minimum value (inclusive). If ``None``, defaults to ``0.0``.
+            max (float | None): Maximum value (inclusive). If ``None``, defaults to ``1.0``.
+            precision (int | None): Decimal places for rounding; ``None`` leaves raw value.
+        """
+        self.min: float = 0.0 if min is None else float(min)
+        self.max: float = 1.0 if max is None else float(max)
+        self.precision: int | None = None if precision is None else int(precision)
 
     @classmethod
-    def from_spec(cls, builder, spec):
+    def from_spec(
+        cls,
+        builder: Any,
+        spec: Mapping[str, Any],
+    ) -> "FloatGenerator":
+        """Construct from a generator specification mapping.
+
+        Note: Contract suggests returning the concrete class *type*; preserving
+        legacy behavior (instance) to avoid breaking callers.
+
+        Args:
+            builder (Any): Unused builder/factory (kept for signature parity).
+            spec (Mapping[str, Any]): Mapping possibly containing ``min``, ``max``, ``precision``.
+
+        Returns:
+            FloatGenerator: Configured instance.
+        """
         return cls(
             min=spec.get("min"),
             max=spec.get("max"),
             precision=spec.get("precision"),
         )
 
-    def _sanity_check(self, ctx):
+    def _sanity_check(self, ctx: GenContext) -> None:
+        """Validate configuration and context preconditions.
+
+        Args:
+            ctx (GenContext): Active generation context.
+
+        Raises:
+            ContextError: If ``ctx`` is not a ``GenContext``.
+            InvalidParameterError: If bounds/precision are invalid.
+        """
         if not isinstance(ctx, GenContext):
             raise ContextError("ctx must be an instance of GenContext")
         if self.min > self.max:
@@ -39,7 +92,26 @@ class FloatGenerator(BaseGenerator):
         if self.precision is not None and self.precision < 0:
             raise InvalidParameterError("precision must be >= 0")
 
-    def configure(self, min=None, max=None, precision=None, **kwargs):
+    def configure(
+        self,
+        min: float | None = None,
+        max: float | None = None,
+        precision: int | None = None,
+        **_: Any,
+    ) -> Self:
+        """Apply configuration in-place and return ``self``.
+
+        Unknown kwargs are intentionally ignored to preserve behavior.
+
+        Args:
+            min (float | None): Optional replacement for ``min``.
+            max (float | None): Optional replacement for ``max``.
+            precision (int | None): Optional replacement for ``precision``.
+            **_ (Any): Ignored extra arguments.
+
+        Returns:
+            Self: ``self`` for fluent chaining.
+        """
         if min is not None:
             self.min = float(min)
         if max is not None:
@@ -48,7 +120,15 @@ class FloatGenerator(BaseGenerator):
             self.precision = int(precision)
         return self
 
-    def generate(self, ctx):
+    def generate(self, ctx: GenContext) -> "JsonValue":
+        """Produce a float according to the configuration.
+
+        Args:
+            ctx (GenContext): Generation context providing RNG via ``ctx.rng``.
+
+        Returns:
+            JsonValue: ``float`` within ``[min, max]`` (rounded if ``precision`` is set).
+        """
         self._sanity_check(ctx)
         value = ctx.rng.random() * (self.max - self.min) + self.min
         if self.precision is not None:

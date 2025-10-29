@@ -1,11 +1,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, Optional, Union, Sequence, Mapping
-from datetime import date, datetime, timezone
-
+from typing import Optional
 
 @dataclass
 class FloatGeneratorSpec:
+    """Float Generator Spec."""
     min: Optional[float] = None
     max: Optional[float] = None
     precision: Optional[int] = None

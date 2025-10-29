@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Any, Dict
-from faker_engine.chaos.types import ChaosOpPhase
+from mock_engine.chaos.types import ChaosOpPhase
 import math
 import time
 

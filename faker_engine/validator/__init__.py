@@ -1,4 +1,4 @@
 from __future__ import annotations
-from .validator import Validator
-from .report import Report
-from .errors import Issue, IssueCode, RequiredIssue, ExtraIssue, TypeIssue, RangeIssue, RegexIssue, EnumIssue
+from mock_engine.validator.validator import Validator
+from mock_engine.validator.report import Report
+from mock_engine.validator.errors import Issue, IssueCode, RequiredIssue, ExtraIssue, TypeIssue, RangeIssue, RegexIssue, EnumIssue

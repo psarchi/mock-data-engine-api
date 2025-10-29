@@ -1,7 +1,7 @@
 from __future__ import annotations
 import time
 from typing import Any, Dict
-from faker_engine.chaos.types import ChaosOpPhase
+from mock_engine.chaos.types import ChaosOpPhase
 
 def phase() -> str:
     return ChaosOpPhase.REQUEST
