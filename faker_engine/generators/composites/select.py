@@ -4,14 +4,14 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 from random import Random
 
-from mock_engine.context import GenContext
-from mock_engine.errors import ContextError
-from mock_engine.generators.base import BaseGenerator
-from mock_engine.generators.errors import InvalidParameterError, \
+from faker_engine.context import GenContext
+from faker_engine.errors import ContextError
+from faker_engine.generators.base import BaseGenerator
+from faker_engine.generators.errors import InvalidParameterError, \
     MissingChildError
 
 if TYPE_CHECKING:  # avoid runtime import cycles
-    from mock_engine.contracts.types import JsonValue  # noqa: F401
+    from faker_engine.contracts.types import JsonValue  # noqa: F401
 
 
 # TODO(refactor): consider whole file refactor to reduce code duplication with ObjectGenerator

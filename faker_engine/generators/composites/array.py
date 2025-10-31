@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
-from mock_engine.context import GenContext
-from mock_engine.errors import ContextError
-from mock_engine.generators.base import BaseGenerator
-from mock_engine.generators.errors import (
+from faker_engine.context import GenContext
+from faker_engine.errors import ContextError
+from faker_engine.generators.base import BaseGenerator
+from faker_engine.generators.errors import (
     InvalidMaxItemsError,
     InvalidMinItemsError,
     MaxLessThanMinError,
@@ -14,7 +14,7 @@ from mock_engine.generators.errors import (
 )
 
 if TYPE_CHECKING:  # keep annotations strict without import cycles at runtime
-    from mock_engine.contracts.types import JsonValue  # noqa: F401
+    from faker_engine.contracts.types import JsonValue  # noqa: F401
 
 
 class ArrayGenerator(BaseGenerator):
