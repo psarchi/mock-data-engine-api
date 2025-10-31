@@ -8,14 +8,14 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from mock_engine.core.registry import GeneratorRegistry
-from mock_engine.spec_builder import SpecBuilder
+from faker_engine.core.registry import GeneratorRegistry
+from faker_engine.spec_builder import SpecBuilder
 
 
 class SpecNormalizer:
     """Normalize a spec mapping using the active framework builder.
 
-    The builder is resolved from ``mock_engine.api`` and validated for type
+    The builder is resolved from ``faker_engine.api`` and validated for type
     safety. Normalization is delegated to its private ``_normalize`` method to
     preserve existing behavior.
 
@@ -24,7 +24,7 @@ class SpecNormalizer:
     """
 
     # TODO(arch): Prefer dependency injection (accept builder in __init__) to avoid
-    #             importing globals from ``mock_engine.api``.
+    #             importing globals from ``faker_engine.api``.
 
     def __init__(self) -> None:
         """Initialize by resolving the framework builder.
@@ -33,7 +33,7 @@ class SpecNormalizer:
             None: Constructor performs resolution/validation only.
         """
         try:
-            from mock_engine import api as _api
+            from faker_engine import api as _api
         except Exception as exc:  # noqa: BLE001 (preserve behavior)
             raise RuntimeError("validator.normalizer: api module not available") from exc
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Mapping
 
-from mock_engine.constants import ExtrasPolicy  # noqa: F401
+from faker_engine.constants import ExtrasPolicy  # noqa: F401
 
 
 # TODO(arch): Consolidate on a single validator entrypoint and remove fallbacks.

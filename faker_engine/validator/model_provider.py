@@ -18,7 +18,7 @@ class ModelProvider:
     """Construct Pydantic models from contract specs.
 
     Attributes:
-        _contracts_module (module): Imported ``mock_engine.contracts`` module.
+        _contracts_module (module): Imported ``faker_engine.contracts`` module.
         _cache (dict[str, type[BaseModel]]): In-memory model cache keyed by generator name.
     """
 
@@ -32,7 +32,7 @@ class ModelProvider:
         Returns:
             None: Constructor has side effects only (imports, cache setup).
         """
-        self._contracts_module = importlib.import_module("mock_engine.contracts")
+        self._contracts_module = importlib.import_module("faker_engine.contracts")
         self._cache: dict[str, type[BaseModel]] = {}
 
     def _collect_specs(self) -> dict[str, type]:

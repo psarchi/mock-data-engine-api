@@ -1,7 +1,7 @@
 """Registry adapter for validator components.
 
-Resolves the framework's global :class:`~mock_engine.core.registry.GeneratorRegistry`
-from ``mock_engine.api`` and provides thin helpers to look up generator
+Resolves the framework's global :class:`~faker_engine.core.registry.GeneratorRegistry`
+from ``faker_engine.api`` and provides thin helpers to look up generator
 classes, aliases, and resolve a generator by name.
 """
 from __future__ import annotations
@@ -9,8 +9,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
-from mock_engine.core.registry import GeneratorRegistry
-from mock_engine.generators.base import BaseGenerator
+from faker_engine.core.registry import GeneratorRegistry
+from faker_engine.generators.base import BaseGenerator
 
 if TYPE_CHECKING:  # import only for typing to avoid cycles
     from typing import Mapping as _MappingAlias  # noqa: F401
@@ -26,13 +26,13 @@ class RegistryAdapter:
     __slots__ = ("_registry",)
 
     def __init__(self) -> None:
-        """Initialize by resolving the global registry from ``mock_engine.api``.
+        """Initialize by resolving the global registry from ``faker_engine.api``.
 
         Returns:
             None: Constructor performs resolution/validation only.
         """
         try:
-            from mock_engine import api as _api
+            from faker_engine import api as _api
         except Exception as exc:  # noqa: BLE001 (preserve behavior)
             raise RuntimeError("validator.registry_adapter: api module not available") from exc
         registry = getattr(_api, "_registry", None)

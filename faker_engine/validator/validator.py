@@ -11,8 +11,8 @@ from typing import Any
 
 from pydantic import ValidationError as PydanticValidationError
 
-from mock_engine.generators.base import BaseGenerator
-from mock_engine.validator.errors import (
+from faker_engine.generators.base import BaseGenerator
+from faker_engine.validator.errors import (
     ExtraIssue,
     Issue,
     IssueCode,
@@ -21,10 +21,10 @@ from mock_engine.validator.errors import (
     ValidationFailed,
     from_pydantic_errors,
 )
-from mock_engine.validator.model_provider import ModelProvider
-from mock_engine.validator.normalizer import SpecNormalizer
-from mock_engine.validator.registry_adapter import RegistryAdapter
-from mock_engine.validator.report import Report
+from faker_engine.validator.model_provider import ModelProvider
+from faker_engine.validator.normalizer import SpecNormalizer
+from faker_engine.validator.registry_adapter import RegistryAdapter
+from faker_engine.validator.report import Report
 
 JsonPath = tuple[str | int, ...]
 
