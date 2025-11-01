@@ -6,8 +6,8 @@ from typing import Any, Optional
 
 from starlette.responses import Response
 
-from mock_engine.chaos.config import ChaosConfigView
-from mock_engine.chaos.types import ChaosOpPhase, ChaosScope
+from faker_engine.chaos.config import ChaosConfigView
+from faker_engine.chaos.types import ChaosOpPhase, ChaosScope
 
 
 # TODO(arch): probably want to rename this to ChaosController or ChaosCoordinator

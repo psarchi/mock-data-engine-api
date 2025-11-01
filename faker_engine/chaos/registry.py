@@ -17,7 +17,7 @@ def build_ops_registry(names: Iterable[str]) -> dict[str, Any]:
 
     Args:
         names (Iterable[str]): Operation module names to import from
-            ``mock_engine.chaos.ops``.
+            ``faker_engine.chaos.ops``.
 
     Returns:
         dict[str, Any]: Mapping ``name → module`` for successfully imported ops.
@@ -25,7 +25,7 @@ def build_ops_registry(names: Iterable[str]) -> dict[str, Any]:
     registry: dict[str, Any] = {}
     for op_name in names:
         try:
-            module = import_module(f"mock_engine.chaos.ops.{op_name}")
+            module = import_module(f"faker_engine.chaos.ops.{op_name}")
         except Exception:  # noqa: BLE001 (preserved behavior)
             # Keep silent failure for compatibility.
             continue

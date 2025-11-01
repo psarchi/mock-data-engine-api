@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Any, Dict, List
-from mock_engine.chaos.types import ChaosOpPhase
+from faker_engine.chaos.types import ChaosOpPhase
 
 
 def phase() -> str:
