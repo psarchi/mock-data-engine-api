@@ -1,5 +1,5 @@
 import json
-from faker_engine.api import build_generator, generate_many, FakerEngine
+from mock_engine.api import build_generator, generate_many, MockEngine
 
 
 def main():
@@ -28,7 +28,7 @@ def main():
 
     # ---------------- OOP API demo ----------------
     print("=== OOP API ===")
-    engine = FakerEngine(seed=123, locale="en_US")
+    engine = MockEngine(seed=123, locale="en_US")
     gen = engine.build(spec)
     records = engine.generate_many(gen, n=3)
     for rec in records:

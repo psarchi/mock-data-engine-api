@@ -1,4 +1,4 @@
-from faker_engine.api import build_generator, generate_one
+from mock_engine.api import build_generator, generate_one
 
 def test_object_fields_present_and_types():
     spec = {

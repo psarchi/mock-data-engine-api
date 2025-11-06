@@ -1,5 +1,5 @@
-from faker_engine.generators.leafs.int import IntGenerator
-from faker_engine.context import GenContext
+from mock_engine.generators.leafs.int import IntGenerator
+from mock_engine.context import GenContext
 
 
 def test_int_within_bounds():

@@ -1,5 +1,5 @@
-from faker_engine.generators.composites.select import SelectGenerator
-from faker_engine.context import GenContext
+from mock_engine.generators.composites.select import SelectGenerator
+from mock_engine.context import GenContext
 
 class DummyBuilder:
     def build(self, spec): return spec

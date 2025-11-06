@@ -14,10 +14,10 @@ import random
 from starlette.responses import Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from faker_engine.chaos.config import ChaosConfigView
-from faker_engine.chaos.manager import ChaosManager
-from faker_engine.chaos.registry import build_ops_registry
-from faker_engine.chaos.types import ChaosScope
+from mock_engine.chaos.config import ChaosConfigView
+from mock_engine.chaos.manager import ChaosManager
+from mock_engine.chaos.registry import build_ops_registry
+from mock_engine.chaos.types import ChaosScope
 
 
 # TODO: Probably want to make this pluggable/configurable at some point.

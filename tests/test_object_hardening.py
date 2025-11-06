@@ -1,7 +1,7 @@
 import pytest
-from faker_engine.generators.composites.object import ObjectGenerator
-from faker_engine.errors import InvalidParameterError
-from faker_engine.context import GenContext
+from mock_engine.generators.composites.object import ObjectGenerator
+from mock_engine.errors import InvalidParameterError
+from mock_engine.context import GenContext
 
 class DummyBuilder:
     def build(self, spec): return spec

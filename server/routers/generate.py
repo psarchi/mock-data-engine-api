@@ -11,12 +11,12 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from faker_engine.api import build_generator, generate_many
+from mock_engine.api import build_generator, generate_many
 from server.deps import get_settings, get_validator
 from server.models import GenerateRequest, GenerateResponse
 
 if TYPE_CHECKING:  # import only for typing to avoid cycles
-    from faker_engine.types import JsonValue  # noqa: F401
+    from mock_engine.types import JsonValue  # noqa: F401
 
 
 router = APIRouter(prefix="/v1", tags=["generate"])

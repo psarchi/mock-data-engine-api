@@ -7,11 +7,11 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from faker_engine.config import get_config_manager
-from faker_engine.validator.model_provider import ModelProvider
-from faker_engine.validator.normalizer import SpecNormalizer
-from faker_engine.validator.registry_adapter import RegistryAdapter
-from faker_engine.validator.validator import Validator
+from mock_engine.config import get_config_manager
+from mock_engine.validator.model_provider import ModelProvider
+from mock_engine.validator.normalizer import SpecNormalizer
+from mock_engine.validator.registry_adapter import RegistryAdapter
+from mock_engine.validator.validator import Validator
 
 __all__ = ["get_validator", "get_settings"]
 

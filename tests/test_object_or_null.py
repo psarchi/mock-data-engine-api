@@ -1,7 +1,7 @@
-from faker_engine.generators.composites.object_or_null import \
+from mock_engine.generators.composites.object_or_null import \
     ObjectOrNullGenerator
-from faker_engine.generators.composites.object import ObjectGenerator
-from faker_engine.context import GenContext
+from mock_engine.generators.composites.object import ObjectGenerator
+from mock_engine.context import GenContext
 
 
 class FixedField:

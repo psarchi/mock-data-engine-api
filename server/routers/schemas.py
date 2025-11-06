@@ -21,12 +21,12 @@ import yaml
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
-from faker_engine.api import build_generator
-from faker_engine.chaos import ChaosManager, ChaosScope
-from faker_engine.chaos.config import ChaosConfigView
-from faker_engine.chaos.registry import build_ops_registry
-from faker_engine.config import get_config_manager
-from faker_engine.context import GenContext
+from mock_engine.api import build_generator
+from mock_engine.chaos import ChaosManager, ChaosScope
+from mock_engine.chaos.config import ChaosConfigView
+from mock_engine.chaos.registry import build_ops_registry
+from mock_engine.config import get_config_manager
+from mock_engine.context import GenContext
 
 from server.deps import get_settings, get_validator
 

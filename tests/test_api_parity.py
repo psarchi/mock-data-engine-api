@@ -1,6 +1,6 @@
 
 import json
-from faker_engine.api import build_generator, generate_many, FakerEngine
+from mock_engine.api import build_generator, generate_many, MockEngine
 
 def test_functional_vs_oop_parity():
     spec = {
@@ -19,7 +19,7 @@ def test_functional_vs_oop_parity():
     gen = build_generator(spec)
     func_rows = generate_many(gen, n=3, seed=123, locale="en_US")
 
-    engine = FakerEngine(seed=123, locale="en_US")
+    engine = MockEngine(seed=123, locale="en_US")
     gen2 = engine.build(spec)
     oop_rows = engine.generate_many(gen2, n=3)
 

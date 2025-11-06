@@ -10,7 +10,7 @@ from typing import Any, Mapping
 
 from fastapi import APIRouter, Body, Header
 
-from faker_engine.config import get_config_manager
+from mock_engine.config import get_config_manager
 # TODO(refractor): full refractor of admin endpoints I don't like how it is organized
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
 

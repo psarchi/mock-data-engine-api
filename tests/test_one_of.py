@@ -1,5 +1,5 @@
-from faker_engine.generators.composites.one_of import OneOfGenerator
-from faker_engine.context import GenContext
+from mock_engine.generators.composites.one_of import OneOfGenerator
+from mock_engine.context import GenContext
 
 
 class A:

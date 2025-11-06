@@ -1,5 +1,5 @@
-from faker_engine.generators.leafs.enum import EnumGenerator
-from faker_engine.context import GenContext
+from mock_engine.generators.leafs.enum import EnumGenerator
+from mock_engine.context import GenContext
 
 
 def test_enum_weights_bias():

@@ -1,7 +1,7 @@
 import re
 import random
-from faker_engine.generators.composites.maybe import MaybeGenerator
-from faker_engine.context import GenContext
+from mock_engine.generators.composites.maybe import MaybeGenerator
+from mock_engine.context import GenContext
 
 
 class DummyChild:

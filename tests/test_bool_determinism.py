@@ -1,6 +1,6 @@
 
-from faker_engine.generators.leafs.bool import BoolGenerator
-from faker_engine.context import GenContext
+from mock_engine.generators.leafs.bool import BoolGenerator
+from mock_engine.context import GenContext
 
 def test_bool_deterministic_sequence():
     gen = BoolGenerator()

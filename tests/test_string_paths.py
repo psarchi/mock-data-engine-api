@@ -1,6 +1,6 @@
 import re
-from faker_engine.generators.leafs.string import StringGenerator
-from faker_engine.context import GenContext
+from mock_engine.generators.leafs.string import StringGenerator
+from mock_engine.context import GenContext
 
 def test_string_template_upper_default():
     ctx = GenContext(seed=7)
