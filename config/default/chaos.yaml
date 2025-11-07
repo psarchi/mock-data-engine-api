@@ -1,0 +1,466 @@
+chaos:
+  type: group
+  enabled:
+    type: bool
+    value: true
+    description: Master kill switch for all chaos operations.
+  scopes:
+    type: list
+    value:
+    - generate
+    description: 'Endpoint scopes where chaos may run: generate|validate|schema|admin.'
+    items:
+      type: string
+  selection:
+    type: group
+    min_ops:
+      type: int
+      value: 0
+      description: Lower bound of chaos ops to apply per request after activation.
+      constraints:
+        ge: 0.0
+    max_ops:
+      type: str
+      value: all
+      description: Upper bound of ops to apply per request; 'all' disables the cap.
+    ensure_at_least_one_when_any_enabled:
+      type: bool
+      value: false
+      description: If true, force-select one op when none activate but at least one
+        is enabled.
+  budgets:
+    type: group
+    max_added_latency_ms:
+      type: int
+      value: 1500
+      description: Budget cap for total artificial latency injected in a single request.
+      constraints:
+        ge: 0.0
+    max_faults_per_request:
+      type: int
+      value: 999
+      description: Maximum number of request-phase fault ops (e.g., http_error) per
+        request.
+      constraints:
+        ge: 0.0
+  ops:
+    type: group
+    latency:
+      description: Request-phase; sleeps for a random delay within [min_ms, max_ms].
+      type: group
+      enabled:
+        type: bool
+        value: true
+        description: Toggle latency injection.
+      p:
+        type: float
+        value: 0.35
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 2.0
+        description: Relative selection weight; higher increases sampling likelihood.
+        constraints:
+          gt: 0.0
+      min_ms:
+        type: int
+        value: 60
+        description: Lower bound for injected latency in milliseconds.
+        constraints:
+          ge: 0.0
+      max_ms:
+        type: int
+        value: 300
+        description: Upper bound for injected latency in milliseconds.
+    http_error:
+      description: Request-phase; returns one of the configured error codes immediately.
+      type: group
+      enabled:
+        type: bool
+        value: false
+        description: Toggle HTTP error short-circuit.
+      p:
+        type: float
+        value: 0.05
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 5.0
+        description: Relative selection weight; heavier since it's a severe fault.
+        constraints:
+          gt: 0.0
+      codes:
+        type: list
+        value:
+        - 429
+        - 500
+        - 502
+        description: HTTP status codes to randomly return when this op is applied.
+        items:
+          type: int
+    order_shuffle:
+      description: Response-phase; shuffles list payload order deterministically via
+        ctx.rng.
+      type: group
+      enabled:
+        type: bool
+        value: false
+        description: Toggle post-generation item order randomization.
+      p:
+        type: float
+        value: 0.1
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 1.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+    payload_truncate:
+      description: Response-phase; slices the list to a random length in [min_items,
+        len(items)].
+      type: group
+      enabled:
+        type: bool
+        value: false
+        description: Toggle truncation of the response item list.
+      p:
+        type: float
+        value: 0.1
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 3.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      min_items:
+        type: int
+        value: 1
+        description: Minimum number of items to retain after truncation.
+        constraints:
+          ge: 0.0
+    auth_fault:
+      description: Request-phase; may short-circuit with 401/403 or simulate missing/invalid
+        Authorization.
+      type: group
+      enabled:
+        type: bool
+        value: false
+        description: Toggle auth failures or anomalies.
+      p:
+        type: float
+        value: 0.05
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 4.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      modes:
+        type: str
+        value:
+        - reject
+        - drop
+        - invalid
+        description: 'Behavior: reject with 401/403; drop Authorization; or mark as
+          invalid.'
+      codes:
+        type: list
+        value:
+        - 401
+        - 403
+        description: HTTP status codes to use when mode='reject'.
+        items:
+          type: int
+    header_anomaly:
+      description: Request-phase; records intended header anomalies in meta (transport
+        mutation may require middleware).
+      type: group
+      enabled:
+        type: bool
+        value: false
+        description: Toggle anomalous headers on the request.
+      p:
+        type: float
+        value: 0.1
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 2.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      patterns:
+        type: str
+        value:
+        - huge_value
+        - non_ascii
+        - dup_keys
+        description: Choose which header anomaly patterns can be applied.
+      huge_value_bytes:
+        type: int
+        value: 8192
+        description: Size of the large header value when using 'huge_value'.
+        constraints:
+          ge: 0.0
+      dup_keys_count:
+        type: int
+        value: 2
+        description: How many duplicate keys to attempt when using 'dup_keys'.
+        constraints:
+          ge: 2.0
+    partial_load:
+      description: Response-phase; slices the response list at a random cut index.
+      type: group
+      enabled:
+        type: bool
+        value: false
+        description: Toggle cutting the list mid-way to simulate partial responses.
+      p:
+        type: float
+        value: 0.1
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 2.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+    encoding_corrupt:
+      description: Response-phase; replaces a character in selected strings with U+FFFD
+        for safe corruption.
+      type: group
+      enabled:
+        type: bool
+        value: false
+        description: Toggle light string corruption within items (replacement char).
+      p:
+        type: float
+        value: 0.05
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 3.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      fields_to_corrupt:
+        type: int
+        value: 1
+        description: Budget of string fields to corrupt across the whole payload.
+        constraints:
+          ge: 0.0
+    time_skew:
+      description: Response-phase; adds/subtracts seconds to listed numeric fields.
+      type: group
+      enabled:
+        type: bool
+        value: false
+        description: Toggle shifting numeric time fields by +/- seconds.
+      p:
+        type: float
+        value: 0.1
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 2.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      max_skew_s:
+        type: int
+        value: 3600
+        description: Maximum absolute seconds to shift by.
+        constraints:
+          ge: 1.0
+      direction:
+        type: union
+        value: both
+        description: Direction of skew to apply.
+      fields:
+        type: list
+        value:
+        - event_timestamp
+        description: Field names in each item to skew if numeric.
+        items:
+          type: string
+    rate_drift:
+      description: Request-phase; injects latency based on a drift pattern using the
+        request RNG.
+      type: group
+      enabled:
+        type: bool
+        value: false
+        description: Toggle request-level variable latency to simulate throughput
+          drift.
+      p:
+        type: float
+        value: 0.1
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 3.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      pattern:
+        type: union
+        value: sine
+        description: Rate drift shape.
+      amp_ms:
+        type: int
+        value: 250
+        description: Peak added latency in milliseconds.
+        constraints:
+          ge: 0.0
+      period_s:
+        type: float
+        value: 60.0
+        description: Wave period in seconds.
+        constraints:
+          gt: 0.0
+      burst_prob:
+        type: float
+        value: 0.05
+        description: Chance of a max-latency burst on a given request.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      step_ms:
+        type: int
+        value: 25
+        description: Max step size per request for the random walk.
+        constraints:
+          ge: 1.0
+    data_drift:
+      description: Response-phase; adjusts values for selected fields according to
+        drift specs using rng.
+      type: group
+      enabled:
+        type: bool
+        value: false
+        description: Toggle field-level value drift (categorical reweighting or numeric
+          bias/jitter).
+      p:
+        type: float
+        value: 0.15
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 3.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      q:
+        type: float
+        value: 0.15
+        description: Default per-field chance to alter a value when the op is active.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      fields:
+        type: group
+        value:
+          type: group
+          event_name:
+            type: group
+            mode: categorical
+            choices:
+            - purchase
+            - login
+            - search
+            - view_item
+            weights_delta:
+              type: group
+              purchase: 0.2
+              login: -0.1
+            q: 0.25
+          event_value:
+            type: group
+            mode: numeric
+            add: 0.0
+            mul: 1.0
+            jitter: 1.5
+            q: 0.15
+        description: Map individual fields to drift specs (categorical or numeric).
+    schema_drift:
+      description: Response-phase; applies add/drop/rename transforms to item dicts.
+      type: group
+      enabled:
+        type: bool
+        value: false
+        description: 'Toggle schema drift: add/drop/rename fields in the response
+          items.'
+      p:
+        type: float
+        value: 0.1
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 4.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      add_fields:
+        type: group
+        value:
+          type: group
+          extra_flag: true
+        description: Fields to add with constant values when missing.
+      drop_fields:
+        type: list
+        value:
+        - user_id
+        description: Fields to remove from each item if present.
+        items:
+          type: string
+      rename_fields:
+        type: group
+        value:
+          type: group
+          device_category: device_type
+        description: Old->new field rename mapping.
+  scenarios:
+    type: group
+    active:
+      description: active scenario names (e.g., black_friday)
+      type: group
+      list: []

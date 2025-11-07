@@ -1,279 +1,308 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
-import json
-import os
-import threading
-import time
-from typing import Any
+from typing import Any, Dict, List, Optional, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
-from mock_engine.config.schema import validate_default_yaml_schema
-from mock_engine.config.builder import build_model_from_default
+from mock_engine.config.builder import build_config, BuiltRoot
+from mock_engine.config.utils import Logger, discover_overrides, _safe_attr_name
+from mock_engine.config.errors import ConfigError
 
-try:
-    import yaml  # type: ignore
-except Exception:  # pragma: no cover
-    yaml = None  # type: ignore
+
+@dataclass
+class Provenance:
+    """Record of the first override that set a specific config path.
+
+    Attributes:
+        file (Path): Path to the override file that applied the value.
+        value_repr (str): ``repr()`` of the applied value, used to detect
+            conflicts across multiple override files.
+    """
+    file: Path
+    value_repr: str
 
 
 class ConfigManager:
-    """Configuration manager for default/override YAML, validation, and effective model.
-        Responsibilities
-        - Load and validate the default configuration (YAML)
-        - Read/write overrides with atomic persistence, revisioning, and audit log
-        - Build a Pydantic model from the default spec and validate the merged view"""
+    """Load defaults, apply override files, and expose runtime/meta views.
 
-    def __init__(self, project_root: Path | str) -> None:
-        """Initialize the configuration manager.
+    Builds Pydantic models from defaults and applies YAML/JSON overrides with
+    conflict detection and rollback on validation errors. Uses provenance to
+    detect multi-file conflicts and maintains readiness status for the server.
+
+    Attributes:
+        overrides_dir (Path): Directory scanned for per-root override files.
+        print_logs (Literal['never','on_error','always']): Logging behavior.
+        logger (Logger): In-memory log collector for load operations.
+        built (Dict[str, BuiltRoot]): Build artifacts keyed by root name.
+        provenance (Dict[str, Provenance]): First-writer record per path.
+        ready (bool): True if the last load had no hard errors or conflicts.
+        last_loaded_at (datetime | None): UTC timestamp of the last load.
+        summary (Dict[str, int]): Counts per log level from the last load.
+    """
+
+    def __init__(self, overrides_dir: Path,
+                 print_logs: Literal['never', 'on_error', 'always'] = 'always') -> None:  # noqa
+        """Initialize the manager with override location and logging policy.
 
         Args:
-            project_root (Path | str): Project root directory containing the
-                ``config/`` folder with ``default.yaml`` and ``overrides.yaml``.
+            overrides_dir (Path): Directory containing per-root override files.
+            print_logs (Literal['never','on_error','always']): When to print
+                logs collected during ``load()``. Defaults to ``'always'``.
         """
-        self._root = Path(project_root)
-        # TODO(constants): consider lifting file names/paths to a constants module
-        # TODO(Maybe): support from CONFIG file ?
-        self._default_path = self._root / "config" / "default.yaml"
-        self._overrides_path = self._root / "config" / "overrides.yaml"
-        self._rev_path = self._root / "config" / ".overrides_rev"
-        self._audit_path = self._root / "config" / "audit.log"
+        self.overrides_dir = overrides_dir
+        self.print_logs: Literal['never', 'on_error', 'always'] = print_logs
+        self.logger = Logger()
+        self.built: Dict[str, BuiltRoot] = {}
+        self.provenance: Dict[str, Provenance] = {}
+        self.ready: bool = False
+        self.last_loaded_at: datetime | None = None
+        self.summary: Dict[str, int] = {}
+        self._rollback_errors: int = 0  # overrides failed but rolled back
+        self._hard_errors: int = 0  # conflicts or no-rollback cases
 
-        self._lock = threading.RLock()
-        self._revision = 0
+    def load(self) -> None:
+        """Load defaults, apply overrides, compute summary, and set readiness.
 
-        self._model_cls: type[BaseModel] | None = None
-        self._meta_tree: dict[str, Any] = {}
-        self._defaults_tree: dict[str, Any] = {}
-        self._effective: BaseModel | None = None
-        self._overrides: dict[str, Any] = {}
-
-        self.reload()
-
-    # TODO(utils): consider moving to utils/io module if shared
-    @staticmethod
-    def _deep_merge(base: Mapping[str, Any], addendum: Mapping[str, Any]) -> dict[str, Any]:
-        """Deep-merge two mapping trees (non-destructive for ``base``).
-
-        Dicts are merged recursively; other values override.
-
-        Args:
-            base (Mapping[str, Any]): Original mapping.
-            addendum (Mapping[str, Any]): Mapping whose values override/extend ``base``.
-
-        Returns:
-            dict[str, Any]: New mapping containing the merged view.
-        """
-        # NOTE: using JSON round-trip to clone simple dict/list primitives.
-        merged: dict[str, Any] = json.loads(json.dumps(base))
-        for key, value in (addendum or {}).items():
-            if isinstance(value, dict) and isinstance(merged.get(key), dict):
-                merged[key] = ConfigManager._deep_merge(merged[key], value)
-            else:
-                merged[key] = value
-        return merged
-
-    # TODO(utils): consider moving to utils/io module if shared
-    @staticmethod
-    def _atomic_write(path: Path, content: str) -> None:
-        """Write ``content`` to ``path`` atomically.
-
-        Args:
-            path (Path): Target file path.
-            content (str): Text content to write.
-        """
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = path.with_suffix(path.suffix + ".tmp")
-        with tmp_path.open("w", encoding="utf-8") as handle:
-            handle.write(content)
-            handle.flush()
-            os.fsync(handle.fileno())
-        tmp_path.replace(path)
-
-    def _load_yaml(self, path: Path) -> dict[str, Any]:
-        """Load a YAML file into a mapping (empty mapping if file missing).
-
-        Args:
-            path (Path): YAML file path.
-
-        Returns:
-            dict[str, Any]: Parsed mapping, or ``{}`` if the file does not exist.
+        Rebuilds configuration from defaults, discovers and applies override
+        files, logs successes/failures, computes per-level counts, sets
+        ``ready``/``last_loaded_at``, and optionally prints logs. Raises if any
+        conflicts or non-recoverable errors occurred.
 
         Raises:
-            RuntimeError: If PyYAML is not available.
-            ValueError: If the file exists but does not contain a top-level mapping.
+            ConfigError: When conflicts or hard errors are detected during
+                override application.
         """
-        if not path.exists():
-            return {}
-        if yaml is None:
-            # TODO(errors): consider raising ConfigDependencyError (errors.ConfigDependencyError)
-            raise RuntimeError("PyYAML is required to load config files")
-        with path.open("r", encoding="utf-8") as handle:
-            data = yaml.safe_load(handle) or {}
-            if not isinstance(data, dict):
-                # TODO(errors): consider raising ConfigSchemaError (errors.ConfigSchemaError)
-                raise ValueError(f"Config file {path} must be a mapping at top-level")
-            return data
+        self.logger = Logger()
+        self.ready = False
+        # reset counters per load
+        self._rollback_errors = 0
+        self._hard_errors = 0
+
+        try:
+            self.built = build_config()
+        except Exception as e:
+            self.logger.add('ERROR', '<builder>', f'build failed: {e}')
+            self._hard_errors += 1
+            self.summary = self._compute_summary()
+            self.ready = False
+            if self.print_logs == 'always':
+                self.logger.dump()
+                self.logger.summary()
+            raise
+
+        self.provenance.clear()
+
+        overrides = discover_overrides(self.overrides_dir)
+        for root_name, entries in overrides.items():
+            if root_name not in self.built:
+                self.logger.add('ERROR', root_name,
+                                'root not found in defaults')
+                self._hard_errors += 1
+                continue
+            for file_path, payload in entries:
+                self._apply_override_file(root_name, file_path, payload)
+
+        # finalize status
+        self.summary = self._compute_summary()
+        has_problem = (self._hard_errors > 0) or (
+                self.summary.get('CONFLICT', 0) > 0)
+        self.last_loaded_at = datetime.now(timezone.utc)
+        self.ready = not has_problem
+
+        if self.print_logs == 'always' or (
+                self.print_logs == 'on_error' and has_problem):
+            self.logger.dump()
+            self.logger.summary()
+
+        if has_problem:
+            raise ConfigError(
+                'one or more override errors/conflicts occurred; see console logs')
 
     def reload(self) -> None:
-        """Reload defaults and overrides, rebuild model, and validate.
+        """Reload configuration by delegating to :meth:`load`."""
+        self.load()
 
-        On success, updates effective config, metadata, defaults, and revision.
+    @property
+    def runtime(self) -> Dict[str, BaseModel]:
+        """Mapping of root name to runtime Pydantic model instances.
+
+        Returns:
+            Dict[str, BaseModel]: The live runtime models keyed by root name.
         """
-        with self._lock:
-            base_defaults = self._load_yaml(self._default_path)
-            validate_default_yaml_schema(base_defaults)
+        return {k: v.runtime for k, v in self.built.items()}
 
-            model_cls, defaults_tree, meta_tree = build_model_from_default(base_defaults)
-            self._model_cls = model_cls
-            self._meta_tree = meta_tree
-            self._defaults_tree = defaults_tree
+    @property
+    def meta(self) -> Dict[str, Any]:
+        """Mapping of root name to meta trees.
 
-            overrides = self._load_yaml(self._overrides_path)
-            merged = self._deep_merge(defaults_tree, overrides)
+        Returns:
+            Dict[str, Any]: The meta trees keyed by root name as produced by
+            the builder.
+        """
+        return {k: v.meta for k, v in self.built.items()}
 
-            self._effective = model_cls.model_validate(merged)
-            self._overrides = overrides
+    def get_root(self, name: str) -> Optional[BaseModel]:
+        """Return a single runtime model by its root name.
 
-            try:
-                if self._rev_path.exists():
-                    rev_text = self._rev_path.read_text(encoding="utf-8").strip() or "0"
-                    self._revision = int(rev_text)
-            except Exception:
-                # TODO(errors): replace broad Exception with a typed error (e.g., RevisionReadError)
-                self._revision = 0
+        Args:
+            name (str): Canonical root name to retrieve.
 
-    def effective(self) -> BaseModel:
-        """Return the current validated effective configuration model."""
-        assert self._effective is not None
-        return self._effective
+        Returns:
+            Optional[BaseModel]: The runtime model instance if present, else
+                ``None``.
+        """
+        bundle = self.built.get(name)
+        return bundle.runtime if bundle else None
 
-    def overrides(self) -> dict[str, Any]:
-        """Return a deep copy of the current overrides mapping."""
-        return json.loads(json.dumps(self._overrides))
+    def _compute_summary(self) -> Dict[str, int]:
+        # TODO(logger): Move this into Logger and maintain counts incrementally.
 
-    def revision(self) -> int:
-        """Return current overrides revision number."""
-        return self._revision
+        """Compute per-level log entry counts from the last load.
 
-    def meta(self) -> dict[str, Any]:
-        """Return metadata (accepts/description) aligned to the defaults tree."""
-        return json.loads(json.dumps(self._meta_tree))
+        Returns:
+            Dict[str, int]: Mapping of log level to number of entries.
+        """
+        counts: Dict[str, int] = {}
+        for e in self.logger.entries:
+            counts[e.level] = counts.get(e.level, 0) + 1
+        return counts
 
-    def json_schema(self) -> dict[str, Any]:
-        """Return the Pydantic JSON schema for the effective model type."""
-        assert self._model_cls is not None
+    def _apply_override_file(self, root_name: str, file_path: Path,
+                             payload: Dict[str, Any]) -> None:
+        """Apply one override file payload to a specific root.
+
+        Args:
+            root_name (str): Target configuration root name.
+            file_path (Path): Source file path for logging/provenance.
+            payload (Dict[str, Any]): Parsed override content (nested dict).
+        """
+        bundle = self.built[root_name]
+        self._apply_object([root_name], bundle.meta, bundle.runtime, payload,
+                           file_path)
+
+    def _apply_object(self, path_parts: List[str], meta_node, runtime_node,
+                      override_obj: Dict[str, Any], file_path: Path) -> None:
+        """Recursively apply a nested override object at the given path.
+
+        Descends through group/object meta nodes, resolving the correct runtime
+        child by safe attribute name and delegating to :meth:`_apply_leaf` for
+        scalars.
+
+        Args:
+            path_parts (List[str]): Current path components from the root.
+            meta_node: Meta node describing the expected structure.
+            runtime_node: Runtime model instance or sub-model.
+            override_obj (Dict[str, Any]): Nested overrides to apply.
+            file_path (Path): Source file path for logging/provenance.
+        """
+        if meta_node.kind not in ('group', 'object'):
+            self.logger.add('ERROR', '.'.join(path_parts),
+                            'expected group/object at this level; got scalar',
+                            file_path)
+            self._hard_errors += 1
+            return
+
+        children = meta_node.children or meta_node.properties or {}
+        for key, val in override_obj.items():
+            key_parts = path_parts + [key]
+            child_meta = children.get(key)
+            if not child_meta:
+                self.logger.add('ERROR', '.'.join(key_parts),
+                                'path not found in defaults', file_path)
+                self._hard_errors += 1
+                continue
+            if child_meta.kind in ('group', 'object') and isinstance(val,
+                                                                     dict):
+                attr = _safe_attr_name(key)
+                child_runtime = getattr(runtime_node, attr, None)
+                self._apply_object(key_parts, child_meta, child_runtime, val,
+                                   file_path)
+                continue
+            self._apply_leaf(key_parts, child_meta, runtime_node, key, val,
+                             file_path)
+
+    def _apply_leaf(self, path_parts: List[str], meta_leaf, runtime_parent,
+                    attr_name: str, value: Any, file_path: Path) -> None:
+        """Set a leaf value with conflict detection and rollback on failure.
+
+        If a different file already set the same path, logs a ``CONFLICT`` and
+        aborts. Otherwise assigns via Pydantic to trigger validation; on
+        ``ValidationError`` attempts to roll back to the previous value or a
+        default (meta or field default). Logs each outcome.
+
+        Args:
+            path_parts (List[str]): Full path to the leaf from the root.
+            meta_leaf: Meta node describing the leaf field and defaults.
+            runtime_parent: Parent runtime model that owns the attribute.
+            attr_name (str): Original (possibly unsafe) leaf name.
+            value (Any): Value from the override payload to assign.
+            file_path (Path): Source file path for logging/provenance.
+        """
+        path = '.'.join(path_parts)
+        prov = self.provenance.get(path)
+        value_repr = repr(value)
+        if prov and prov.value_repr != value_repr:
+            self.logger.add('CONFLICT', path,
+                            f'set by {prov.file}={prov.value_repr} and {file_path}={value_repr}')
+            self._hard_errors += 1
+            return
+        if not prov:
+            self.provenance[path] = Provenance(file=file_path,
+                                               value_repr=value_repr)
+
+        attr = _safe_attr_name(attr_name)
+        current_value = getattr(runtime_parent, attr, None)
+
         try:
-            return self._model_cls.model_json_schema()
-        except Exception:
-            # TODO(errors): replace broad Exception with a typed error (e.g., SchemaBuildError)
-            return {}
-
-    def _bump_revision(self) -> int:
-        """Increment revision, persist to file, and return the new value."""
-        self._revision += 1
-        ConfigManager._atomic_write(self._rev_path, str(self._revision))
-        return self._revision
-
-    def _write_overrides(self, overrides: Mapping[str, Any]) -> None:
-        """Persist overrides to YAML using an atomic write.
-
-        Args:
-            overrides (Mapping[str, Any]): Overrides to persist.
-        """
-        if yaml is None:
-            # TODO(errors): consider raising ConfigDependencyError (errors.ConfigDependencyError)
-            raise RuntimeError("PyYAML is required to persist config overrides")
-        # Using a local alias to keep type-checkers happy for optional import.
-        import yaml as _yaml  # type: ignore
-
-        payload = _yaml.safe_dump(dict(overrides), sort_keys=True, allow_unicode=True)
-        ConfigManager._atomic_write(self._overrides_path, payload)
-
-    def _audit(self, actor: str, operation: str, payload: Mapping[str, object], new_revision: int) -> None:
-        """Append an audit entry as a single JSON line.
-
-        Args:
-            actor (str): Who performed the action.
-            operation (str): Operation name (e.g., "patch", "replace", "reset").
-            payload (Mapping[str, object]): Payload associated with the action.
-            new_revision (int): Revision number after the action.
-        """
-        event = {
-            "ts": time.time(),
-            "actor": actor,
-            "op": operation,
-            "revision": new_revision,
-            "payload": payload,
-        }
-        line = json.dumps(event, ensure_ascii=False)
-        self._audit_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._audit_path.open("a", encoding="utf-8") as handle:
-            handle.write(line + "")
-
-    def apply_replace(self, new_overrides: Mapping[str, Any], actor: str = "system") -> dict[str, Any]:
-        """Replace overrides entirely and return new revision + effective model dump."""
-        with self._lock:
-            merged = self._deep_merge(self._defaults_tree, dict(new_overrides))
-            assert self._model_cls is not None
-            effective_model = self._model_cls.model_validate(merged)
-
-            self._write_overrides(new_overrides)
-            self._overrides = dict(new_overrides)
-            self._effective = effective_model
-
-            new_rev = self._bump_revision()
-            self._audit(actor, "replace", dict(new_overrides), new_rev)
-            return {"revision": new_rev, "effective": effective_model.model_dump()}
-
-    def apply_patch(self, partial_overrides: Mapping[str, Any], actor: str = "system") -> dict[str, Any]:
-        """Patch overrides (deep-merge), validate, and return new revision + effective."""
-        with self._lock:
-            patched = self._deep_merge(self._overrides, dict(partial_overrides))
-            merged = self._deep_merge(self._defaults_tree, patched)
-            assert self._model_cls is not None
-            effective_model = self._model_cls.model_validate(merged)
-
-            self._write_overrides(patched)
-            self._overrides = patched
-            self._effective = effective_model
-
-            new_rev = self._bump_revision()
-            self._audit(actor, "patch", dict(partial_overrides), new_rev)
-            return {"revision": new_rev, "effective": effective_model.model_dump()}
-
-    def dry_run(self, payload: Mapping[str, object]) -> dict[str, Any]:
-        """Validate a potential patch against the model without persisting.
-
-        Returns an object with keys: ``ok`` (bool), ``errors`` (list[str]), and
-        optionally ``effective`` when validation succeeds.
-        """
-        with self._lock:
-            trial = self._deep_merge(self._overrides, dict(payload))
-            merged = self._deep_merge(self._defaults_tree, trial)
-            result: dict[str, Any] = {"ok": True, "errors": []}
+            setattr(runtime_parent, attr, value)
+        except ValidationError as ve:
             try:
-                assert self._model_cls is not None
-                effective_model = self._model_cls.model_validate(merged)
-                result["effective"] = effective_model.model_dump()
-            except Exception as exc:
-                # TODO(errors): catch specific validation error types (e.g., ValidationError)
-                result["ok"] = False
-                result["errors"] = [str(exc)]
-            return result
+                first = ve.errors()[0]
+                reason = first.get('msg', str(ve))
+            except Exception:
+                reason = str(ve)
 
-    def reset_overrides(self, actor: str = "system") -> dict[str, Any]:
-        """Clear overrides, validate defaults, and return new revision + effective."""
-        with self._lock:
-            self._write_overrides({})
-            self._overrides = {}
+            fallback = current_value
+            if fallback is None:
+                fallback = getattr(meta_leaf, 'default_value', None)
+                if fallback is None:
+                    fields = getattr(runtime_parent.__class__,
+                                     '__pydantic_fields__', {})
+                    fld = fields.get(attr) if isinstance(fields,
+                                                         dict) else None
+                    if fld is not None:
+                        try:
+                            fallback = getattr(fld, 'default', None)
+                        except Exception:
+                            fallback = None
 
-            assert self._model_cls is not None
-            effective_model = self._model_cls.model_validate(self._defaults_tree)
-            self._effective = effective_model
+            if fallback is not None:
+                try:
+                    setattr(runtime_parent, attr, fallback)
+                    self.logger.add('ERROR', path,
+                                    f"{reason} — rolled back to default {repr(fallback)}",
+                                    file_path)
+                    self._rollback_errors += 1
+                    return
+                except Exception as ex2:
+                    self.logger.add('ERROR', path,
+                                    f"{reason} — rollback failed: {ex2}",
+                                    file_path)
+                    self._hard_errors += 1
+                    return
+            else:
+                self.logger.add('ERROR', path,
+                                f"{reason} — no default to roll back to",
+                                file_path)
+                self._hard_errors += 1
+                return
+        except Exception as ex:
+            self.logger.add('ERROR', path, f'pydantic validation error: {ex}',
+                            file_path)
+            self._hard_errors += 1
+            return
 
-            new_rev = self._bump_revision()
-            self._audit(actor, "reset", {}, new_rev)
-            return {"revision": new_rev, "effective": effective_model.model_dump()}
+        self.logger.add('APPLIED', path, f'<- {value_repr}', file_path)

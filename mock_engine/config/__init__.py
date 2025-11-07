@@ -1,23 +1,10 @@
-from __future__ import annotations
-from pathlib import Path
-from typing import Optional
+from mock_engine.config import utils, constants
+
+from mock_engine.config.errors import ConfigError, ConfigBuildError, ConfigValidationError, ConfigPathError, ConfigSchemaError
+
+
+from mock_engine.config.access import get_config_manager
 from mock_engine.config.manager import ConfigManager
+from mock_engine.config.builder import build_config
 
-_SINGLETON: Optional[ConfigManager] = None
-
-
-# TODO: move to config/access.py or similar
-def get_config_manager(
-        project_root: Path | str | None = None) -> ConfigManager:
-    """Get config_manager.
-
-Args:
-    project_root (Path | str | None): Value.
-
-Returns:
-    ConfigManager: Value."""
-    global _SINGLETON
-    if _SINGLETON is None:
-        root = Path(project_root or Path(__file__).resolve().parents[2])
-        _SINGLETON = ConfigManager(project_root=root)
-    return _SINGLETON
+__all__ = ["ConfigManager", "build_config","get_config_manager"]

@@ -1,0 +1,95 @@
+server:
+  type: group
+  debug:
+    description: enable FastAPI debug mode
+    type: bool
+    value: false
+  port:
+    description: HTTP server port
+    type: int
+    value: 8000
+  observability:
+    type: group
+    metrics_enabled:
+      description: expose Prometheus metrics endpoint
+      type: bool
+      value: false
+    prometheus_path:
+      description: metrics endpoint path
+      type: str
+      value: /metrics
+    otel:
+      type: group
+      enabled:
+        description: enable OpenTelemetry export
+        type: bool
+        value: false
+      exporter_otlp_endpoint:
+        description: OTLP exporter endpoint (empty to disable)
+        type: str
+        value: ''
+  admin:
+    type: group
+    enabled:
+      description: enable admin endpoints
+      type: bool
+      value: true
+    allow_upload:
+      description: allow schema upload via admin routes
+      type: bool
+      value: false
+    storage_path:
+      description: admin storage directory
+      type: str
+      value: ./.admin-store
+  graphql:
+    type: group
+    enabled:
+      description: enable GraphQL endpoint
+      type: bool
+      value: false
+  security:
+    type: group
+    mode:
+      description: auth mode for protected routes
+      type: enum
+      choices:
+      - none,basic,jwt
+      value: none
+    allowed_roles:
+      description: authorized roles (used with basic/jwt modes)
+      type: group
+      list:
+      - admin
+      - dev
+      - read
+    pii_mode:
+      description: PII handling policy
+      type: enum
+      choices:
+      - passthrough,mask,tokenize,redact
+      value: passthrough
+  sinks:
+    type: group
+    enabled:
+      description: enable/disable sinks/connectors
+      type: bool
+      value: false
+    outputs:
+      description: 'sink definitions (placeholder: supply list of connector specs)'
+      type: group
+      list: []
+  dlq:
+    type: group
+    enabled:
+      description: enable dead-letter queue handling
+      type: bool
+      value: false
+    storage_path:
+      description: DLQ storage directory
+      type: str
+      value: ./.dlq
+    simulate_exactly_once:
+      description: simulate exactly-once delivery semantics
+      type: bool
+      value: false

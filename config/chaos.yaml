@@ -1,0 +1,80 @@
+chaos:
+  enabled: true
+  scopes: [generate]
+  selection:
+    min_ops: 0
+    ensure_at_least_one_when_any_enabled: false
+  budgets:
+    max_added_latency_ms: 1500
+    max_faults_per_request: 999
+  ops:
+    latency:
+      enabled: true
+      p: 0.25
+      weight: 1.0
+      min_ms: 50
+      max_ms: 250
+    http_error:
+      enabled: false
+      p: 0.1
+      weight: 1.0
+      codes: [429, 503]
+    order_shuffle:
+      enabled: false
+      p: 0.05
+      weight: 1.0
+    payload_truncate:
+      enabled: false
+      p: 0.05
+      weight: 1.0
+      min_items: 1
+    auth_fault:
+      enabled: false
+      p: 0.01
+      weight: 1.0
+      modes: missing
+      codes: [401, 403]
+    header_anomaly:
+      enabled: false
+      p: 0.03
+      weight: 1.0
+      patterns: huge-value
+      huge_value_bytes: 2048
+      dup_keys_count: 3
+    partial_load:
+      enabled: false
+      p: 0.02
+      weight: 1.0
+    encoding_corrupt:
+      enabled: false
+      p: 0.02
+      weight: 1.0
+      fields_to_corrupt: 0
+    time_skew:
+      enabled: false
+      p: 0.05
+      weight: asd
+      max_skew_s: 600
+      direction: both
+      fields: [event.timestamp]
+    rate_drift:
+      enabled: false
+      p: 0.02
+      weight: 1.0
+      pattern: sine
+      amp_ms: 200
+      period_s: 60
+      burst_prob: 0.0
+      step_ms: 1
+    data_drift:
+      enabled: false
+      p: 0.02
+      weight: 1.0
+      q: 0.01
+    schema_drift:
+      enabled: false
+      p: 0.02
+      weight: 1.0
+      add_fields: {}
+      drop_fields: []
+      rename_fields: {}

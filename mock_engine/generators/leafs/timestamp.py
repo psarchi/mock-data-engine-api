@@ -14,7 +14,7 @@ if TYPE_CHECKING:  # import only for typing to avoid cycles
 
 
 # TODO: move to constants
-# TODO(arch): use global timezone config from config/default.yaml
+# TODO(arch): use global timezone config from config/DEPRICATED.yaml
 UTC = timezone.utc
 
 

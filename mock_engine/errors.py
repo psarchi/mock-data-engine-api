@@ -64,7 +64,7 @@ class InvalidLocaleError(ContextError):
 
 
 class ConfigError(MockEngineError):
-    """Top-level configuration problems (default.yaml, runtime flags, etc.)."""
+    """Top-level configuration problems (DEPRICATED.yaml, runtime flags, etc.)."""
 
 
 class MissingSchemaError(ConfigError):

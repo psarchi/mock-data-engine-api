@@ -1,0 +1,25 @@
+generation:
+  type: group
+  seed_mode:
+    description: seed selection strategy
+    type: enum
+    choices:
+    - auto,fixed
+    value: fixed
+  fixed_seed:
+    description: fixed seed value (used only when seed_mode=fixed)
+    type: int
+    value: 123
+generation_meta:
+    enabled:
+      status: false
+      accepts: "bool"
+      description: "include __meta in responses (per-item for schema GET; top-level for POST /v1/generate)"
+    include_gen_ms:
+        status: true
+        accepts: "bool"
+        description: "include generation time (gen_ms)"
+    include_e2e_ms:
+        status: true
+        accepts: "bool"
+        description: "include end-to-end handler time (e2e_ms)"

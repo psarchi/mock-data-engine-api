@@ -1,3 +1,4 @@
+# DEORICATED: use ROOT/CONFIG/DEFAULTS/*.yaml instead
 server:
   debug:
     status: false
