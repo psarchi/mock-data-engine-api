@@ -1,9 +1,19 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import ClassVar, Set, Dict, Any, Optional
+from pydantic import ConfigDict
+from mock_engine.contracts.base import ContractModel
 
 
-@dataclass
-class ObjectGeneratorSpec:
-    """Object Generator Spec."""
-    fields: Mapping[str, Any] | None = None
+class ObjectGeneratorSpec(ContractModel):
+    """Object with named fields."""
+    model_config = ConfigDict(extra="forbid")
+    type_token: ClassVar[str] = "object"
+    type_aliases: ClassVar[Set[str]] = {"record"}
+
+    fields: Optional[Dict[str, Any]] = None
+
+    def to_spec(self, name: str, adapt):
+        fields = {}
+        for k, v in (self.fields or {}).items():
+            fields[k] = adapt(f"{name}.{k}", v)
+        return {"type": "object", "fields": fields}

@@ -1,15 +1,13 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Optional, Union
-from datetime import datetime
+from typing import ClassVar, Set, Optional
+from pydantic import ConfigDict
+from mock_engine.contracts.base import ContractModel
 
 
-@dataclass
-class DateTimeGeneratorSpec:
-    """Date Time Generator Spec."""
-    start: Optional[Union[int, float, str, datetime]] = None
-    end: Optional[Union[int, float, str, datetime]] = None
+class DateTimeGeneratorSpec(ContractModel):
+    """Date/time generator (format optional)."""
+    model_config = ConfigDict(extra="forbid")
+    type_token: ClassVar[str] = "datetime"
+    type_aliases: ClassVar[Set[str]] = set()
+
     format: Optional[str] = None
-    time_start: Optional[str] = None
-    time_end: Optional[str] = None
-    tz: Optional[str] = None

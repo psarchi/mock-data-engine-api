@@ -1,11 +1,16 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, ClassVar, Set
+from pydantic import BaseModel, ConfigDict
 
 
-@dataclass
-class IntGeneratorSpec:
+class IntGeneratorSpec(BaseModel):
     """Int Generator Spec."""
+
+    # type aliasing
+    type_token: ClassVar[str] = "int"
+    type_aliases: ClassVar[Set[str]] = ['integer']
+    model_config = ConfigDict(extra='forbid')
+
     min: Optional[int] = None
     max: Optional[int] = None
     step: Optional[int] = None

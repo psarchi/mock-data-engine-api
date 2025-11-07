@@ -1,11 +1,25 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Any, Optional
+from typing import ClassVar, Set, Any, Optional
+from pydantic import ConfigDict
+from mock_engine.contracts.base import ContractModel
 
 
-@dataclass
-class ArrayGeneratorSpec:
-    """Array Generator Spec."""
+class ArrayGeneratorSpec(ContractModel):
+    """Array of a single child spec (with min/max cardinality)."""
+    model_config = ConfigDict(extra="forbid")
+    type_token: ClassVar[str] = "array"
+    type_aliases: ClassVar[Set[str]] = {"list"}
+
+    child: Optional[Any] = None
     min_items: Optional[int] = None
     max_items: Optional[int] = None
-    child: Any = None
+
+    def to_spec(self, name: str, adapt):
+        out = {"type": "array"}
+        if self.child is not None:
+            out["child"] = adapt(f"{name}[]", self.child)
+        if self.min_items is not None:
+            out["min_items"] = int(self.min_items)
+        if self.max_items is not None:
+            out["max_items"] = int(self.max_items)
+        return out
