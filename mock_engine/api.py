@@ -1,8 +1,3 @@
-"""Public API surface for building and using the mock data engine.
-
-This module exposes helpers to build generators from specs and to produce
-values with deterministic RNG/locale control.
-"""
 from __future__ import annotations
 
 import random
@@ -24,6 +19,7 @@ __all__ = [
     "generate_one",
     "generate_many",
     "MockEngine",
+    "build",
 ]
 
 # Initialize global builder for the simple functional API.
@@ -45,9 +41,9 @@ def build_generator(spec: Mapping[str, object]) -> BaseGenerator:
 
 
 def generate_one(
-    gen: BaseGenerator,
-    seed: int | None = None,
-    locale: str = "en_US",
+        gen: BaseGenerator,
+        seed: int | None = None,
+        locale: str = "en_US",
 ) -> "JsonValue":
     """Generate a single value from ``gen``.
 
@@ -65,10 +61,10 @@ def generate_one(
 
 
 def generate_many(
-    gen: BaseGenerator,
-    n: int = 10,
-    seed: int | None = None,
-    locale: str = "en_US",
+        gen: BaseGenerator,
+        n: int = 10,
+        seed: int | None = None,
+        locale: str = "en_US",
 ) -> list["JsonValue"]:
     """Generate ``n`` values from ``gen``.
 
@@ -133,7 +129,8 @@ class MockEngine:
         """
         return gen.generate(self.ctx)
 
-    def generate_many(self, gen: BaseGenerator, n: int = 10) -> list["JsonValue"]:
+    def generate_many(self, gen: BaseGenerator, n: int = 10) -> list[
+        "JsonValue"]:
         """Generate ``n`` values using the engine context.
 
         Args:
@@ -144,3 +141,40 @@ class MockEngine:
             list[JsonValue]: List of generated values.
         """
         return [gen.generate(self.ctx) for _ in range(n)]
+
+
+# mock_engine/api.py  (replace the whole _contract_to_spec function)
+
+def _contract_to_spec(name: str, contract: object) -> dict:
+    to_spec = getattr(contract, "to_spec", None)
+    if callable(to_spec):
+        return to_spec(name, _contract_to_spec)
+    from mock_engine.schema.contract_registry import token_for_instance
+    tok = token_for_instance(contract) or "string"
+    try:
+        d = contract.model_dump(exclude_none=True)
+    except Exception:
+        d = {}
+    d["type"] = tok
+    return d
+
+
+def build(contracts_by_path: dict[str, object]):
+    """Build a generator from a contracts map by synthesizing a root object spec."""
+    root_fields = {}
+    for path, spec in contracts_by_path.items():
+        if "." not in path and "[]" not in path and "|" not in path:
+            root_fields[path] = _contract_to_spec(path, spec)
+    if not root_fields:
+        # fallback
+        for path, spec in contracts_by_path.items():
+            if "|" in path:
+                continue
+            if path.endswith("[]"):
+                key = path[:-2]
+            else:
+                key = path.split(".")[-1]
+            root_fields[key] = _contract_to_spec(path, spec)
+    root_spec = {"type": "object", "fields": root_fields}
+    builder = SpecBuilder(registry=_registry)
+    return builder.build(root_spec)
