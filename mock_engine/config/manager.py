@@ -44,7 +44,7 @@ class ConfigManager:
     """
 
     def __init__(self, overrides_dir: Path,
-                 print_logs: Literal['never', 'on_error', 'always'] = 'always') -> None:  # noqa
+                 print_logs: Literal['never', 'on_error', 'always'] = 'on_error') -> None:  # noqa
         """Initialize the manager with override location and logging policy.
 
         Args:

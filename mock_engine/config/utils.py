@@ -9,8 +9,32 @@ import unicodedata
 import yaml
 from mock_engine.config.constants import TYPE_MAP
 
+
+# Auto-discover CONF_ROOT by searching upwards for a directory that contains "config/default"
+def _discover_conf_root(start: Path | None = None) -> Path:
+    start = start or Path(__file__).resolve()
+    cur = start
+    # climb up at most 8 levels
+    for _ in range(8):
+        if (cur / "config" / "default").exists():
+            return cur
+        cur = cur.parent
+    # fallback to project root if known via env var or cwd
+    try:
+        import os
+        env = os.getenv("MDE_CONF_ROOT")
+        if env:
+            p = Path(env)
+            if (p / "config" / "default").exists():
+                return p
+    except Exception:
+        pass
+    # last resort: use two parents up (legacy); may be wrong but better than None
+    return Path(__file__).resolve().parents[3]
+
+
 # TODO(paths): Make CONF_ROOT configurable via env var or parameter.
-CONF_ROOT = Path("../../mock-data-engine-api")  # <- ok for now
+CONF_ROOT = _discover_conf_root()  # auto-discovered project root
 DEFAULTS_DIR = CONF_ROOT / "config" / "default"
 OVERRIDES_DIR = CONF_ROOT / "config"
 YAML_GLOBS = ("*.yaml", "*.yml")
