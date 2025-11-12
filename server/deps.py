@@ -61,5 +61,5 @@ def get_settings():
     from mock_engine.config import get_config_manager
     from mock_engine.config.access import ensure_config_fresh
     cm = get_config_manager()
-    ensure_config_fresh(cm)
+    ensure_config_fresh()
     return cm

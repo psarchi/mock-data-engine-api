@@ -43,7 +43,6 @@ def create_app() -> FastAPI:
     )
     app.include_router(admin_chaos.router)
     app.include_router(meta.router)
-    app.include_router(schemas.router)
     app.include_router(admin_config.router)
 
     return app
