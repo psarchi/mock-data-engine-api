@@ -1,0 +1,362 @@
+type: object
+fields:
+  event_timestamp:
+    type: timestamp
+    start: '2024-01-01T00:00:00+00:00'
+    end:   '2026-01-01T00:00:00+00:00'
+
+  event_date:
+    type: datetime
+    format: '%Y%m%d'
+
+  event_name:
+    type: one_of
+    choices:
+      - type: string
+        template: page_view
+      - type: string
+        template: session_start
+      - type: string
+        template: scroll
+      - type: string
+        template: view_item
+      - type: string
+        template: add_to_cart
+      - type: string
+        template: begin_checkout
+      - type: string
+        template: purchase
+    weights: [55, 5, 15, 10, 7, 5, 3]
+
+  user_pseudo_id:
+    type: string
+    string_type: uuid4
+
+  user_id:
+    type: maybe
+    p_null: 0.8
+    child:
+      type: string
+      string_type: uuid4
+
+  device:
+    type: one_of
+    choices:
+      - type: object
+        fields:
+          browser:
+            type: one_of
+            choices:
+              - type: string
+                template: Chrome
+              - type: string
+                template: Safari
+              - type: string
+                template: Firefox
+              - type: string
+                template: Edge
+              - type: string
+                template: "Samsung Internet"
+            weights: [55, 25, 10, 5, 5]
+          operating_system:
+            type: string
+            template: Android
+          category:
+            type: string
+            template: mobile
+          language:
+            type: one_of
+            choices:
+              - type: string
+                template: en
+              - type: string
+                template: ka
+              - type: string
+                template: ru
+              - type: string
+                template: de
+              - type: string
+                template: fr
+            weights: [60, 10, 10, 10, 10]
+          screen_resolution:
+            type: one_of
+            choices:
+              - type: string
+                template: 1080x2400
+              - type: string
+                template: 1170x2532
+              - type: string
+                template: 1440x3200
+
+      - type: object
+        fields:
+          browser:
+            type: one_of
+            choices:
+              - type: string
+                template: Chrome
+              - type: string
+                template: Safari
+              - type: string
+                template: Firefox
+              - type: string
+                template: Edge
+            weights: [60, 10, 20, 10]
+          operating_system:
+            type: string
+            template: Windows
+          category:
+            type: string
+            template: desktop
+          language:
+            type: one_of
+            choices:
+              - type: string
+                template: en
+              - type: string
+                template: ka
+              - type: string
+                template: ru
+              - type: string
+                template: de
+              - type: string
+                template: fr
+            weights: [60, 10, 10, 10, 10]
+          screen_resolution:
+            type: one_of
+            choices:
+              - type: string
+                template: 1920x1080
+              - type: string
+                template: 1366x768
+              - type: string
+                template: 2560x1440
+
+      - type: object
+        fields:
+          browser:
+            type: one_of
+            choices:
+              - type: string
+                template: Chrome
+              - type: string
+                template: Safari
+              - type: string
+                template: Firefox
+            weights: [50, 40, 10]
+          operating_system:
+            type: string
+            template: macOS
+          category:
+            type: string
+            template: desktop
+          language:
+            type: one_of
+            choices:
+              - type: string
+                template: en
+              - type: string
+                template: ka
+              - type: string
+                template: ru
+              - type: string
+                template: de
+              - type: string
+                template: fr
+            weights: [60, 10, 10, 10, 10]
+          screen_resolution:
+            type: one_of
+            choices:
+              - type: string
+                template: 2560x1600
+              - type: string
+                template: 2560x1440
+              - type: string
+                template: 1920x1080
+
+  geo:
+    type: object
+    fields:
+      city:
+        type: string
+        string_type: city
+      region:
+        type: string
+        string_type: state
+      country:
+        type: one_of
+        choices:
+          - type: string
+            template: US
+          - type: string
+            template: GB
+          - type: string
+            template: DE
+          - type: string
+            template: FR
+          - type: string
+            template: min
+
+  traffic_source:
+    type: object
+    fields:
+      source:
+        type: one_of
+        choices:
+          - type: string
+            template: google
+          - type: string
+            template: facebook
+          - type: string
+            template: direct
+          - type: string
+            template: email
+          - type: string
+            template: newsletter
+        weights: [55, 15, 15, 10, 5]
+      medium:
+        type: one_of
+        choices:
+          - type: string
+            template: organic
+          - type: string
+            template: cpc
+          - type: string
+            template: referral
+          - type: string
+            template: email
+          - type: string
+            template: "(none)"
+        weights: [55, 15, 15, 10, 5]
+      name:
+        type: string
+        string_type: word
+
+  event_params:
+    type: array
+    min_items: 1
+    max_items: 6
+    child:
+      type: one_of
+      choices:
+        - type: object
+          fields:
+            key:
+              type: string
+              template: page_location
+            value:
+              type: object
+              fields:
+                string_value:
+                  type: string
+                  string_type: url
+        - type: object
+          fields:
+            key:
+              type: string
+              template: page_referrer
+            value:
+              type: object
+              fields:
+                string_value:
+                  type: string
+                  string_type: url
+        - type: object
+          fields:
+            key:
+              type: string
+              template: engagement_time_msec
+            value:
+              type: object
+              fields:
+                int_value:
+                  type: int
+                  min: 1
+                  max: 600000
+        - type: object
+          fields:
+            key:
+              type: string
+              template: session_id
+            value:
+              type: object
+              fields:
+                string_value:
+                  type: string
+                  regex: ^[0-9]{10}$
+                  min_length: 10
+                  max_length: 10
+        - type: object
+          fields:
+            key:
+              type: string
+              template: ga_session_number
+            value:
+              type: object
+              fields:
+                int_value:
+                  type: int
+                  min: 1
+                  max: 1000
+
+  items:
+    type: array
+    min_items: 0
+    max_items: 3
+    child:
+      type: object
+      fields:
+        item_id:
+          type: string
+          template: SKU-{nnnnnn}
+          n_type: numeric
+        item_name:
+          type: string
+          string_type: word
+        quantity:
+          type: int
+          min: 1
+          max: 5
+        price:
+          type: float
+          min: 0
+          max: 5000
+          precision: 2
+        item_coupon:
+          type: maybe
+          p_null: 0.7
+          child:
+            type: string
+            template: SAVE{nnn}
+            n_type: numeric
+        item_promotion_id:
+          type: maybe
+          p_null: 0.8
+          child:
+            type: string
+            template: PR{nnnn}
+            n_type: numeric
+        item_category:
+          type: string
+          string_type: word
+
+  user_properties:
+    type: array
+    min_items: 0
+    max_items: 3
+    child:
+      type: object
+      fields:
+        key:
+          type: string
+          string_type: word
+        value:
+          type: object
+          fields:
+            string_value:
+              type: string
+              string_type: word
+        set_timestamp_micros:
+          type: timestamp
+          start: '2024-01-01T00:00:00+00:00'
+          end:   '2026-01-01T00:00:00+00:00'
