@@ -386,6 +386,12 @@ chaos:
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
+      max_mutations:
+        type: int
+        value: 3
+        description: Maximum number of contracts to mutate per activation.
+        constraints:
+          ge: 1.0
       q:
         type: float
         value: 0.15
@@ -393,6 +399,258 @@ chaos:
         constraints:
           ge: 0.0
           le: 1.0
+      config:
+        type: group
+        value:
+          type: group
+          max_mutations:
+            type: int
+            value: 3
+            description: Global cap on mutations consumed per schema revision.
+            constraints:
+              ge: 1.0
+          default:
+            type: group
+            value: {}
+            description: Baseline overrides merged into every spec config.
+          specs:
+            type: group
+            value:
+              type: group
+              int:
+                type: group
+                value:
+                  type: group
+                  offset_ratio:
+                    type: float
+                    value: 0.2
+                    description: Relative fraction of the span used when sampling range shifts.
+                    constraints:
+                      ge: 0.0
+                  offset_abs:
+                    type: list
+                    value: [-5, 5]
+                    description: Absolute range for integer bound offsets (lo, hi).
+                  step_delta:
+                    type: int
+                    value: 2
+                    description: Max step adjustment applied to integer specs when drifted.
+                    constraints:
+                      ge: 0.0
+                  nullable:
+                    type: group
+                    value:
+                      type: group
+                      range:
+                        type: list
+                        value: [0.2, 0.6]
+                        description: Inclusive range for p_null sampling when wrapping ints.
+              float:
+                type: group
+                value:
+                  type: group
+                  offset_ratio:
+                    type: float
+                    value: 0.2
+                    description: Relative fraction of the float span used for bound offsets.
+                    constraints:
+                      ge: 0.0
+                  precision_step:
+                    type: int
+                    value: 1
+                    description: Maximum precision step delta applied when drifted.
+                    constraints:
+                      ge: 0.0
+                  nullable:
+                    type: group
+                    value:
+                      type: group
+                      range:
+                        type: list
+                        value: [0.1, 0.4]
+                        description: Inclusive range for p_null sampling when wrapping floats.
+              string:
+                type: group
+                value:
+                  type: group
+                  nullable:
+                    type: group
+                    value:
+                      type: group
+                      range:
+                        type: list
+                        value: [0.3, 0.6]
+                        description: Inclusive range for p_null sampling when strings become nullable.
+              array:
+                type: group
+                value:
+                  type: group
+                  length_ratio:
+                    type: float
+                    value: 0.25
+                    description: Ratio of current span used to jitter min/max items.
+                    constraints:
+                      ge: 0.0
+                  child:
+                    type: group
+                    value:
+                      type: group
+                      int:
+                        type: group
+                        value:
+                          type: group
+                          offset_ratio:
+                            type: float
+                            value: 0.15
+                            description: Relative shift for nested integer bounds.
+                          offset_abs:
+                            type: list
+                            value: [-2, 2]
+                            description: Absolute jitter for nested integer bounds.
+                      float:
+                        type: group
+                        value:
+                          type: group
+                          offset_ratio:
+                            type: float
+                            value: 0.1
+                            description: Relative shift for nested float bounds.
+              maybe:
+                type: group
+                value:
+                  type: group
+                  null_delta:
+                    type: float
+                    value: 0.25
+                    description: Max additive delta applied to p_null for Maybe specs.
+                    constraints:
+                      ge: 0.0
+              string_or_null:
+                type: group
+                value:
+                  type: group
+                  null_delta:
+                    type: float
+                    value: 0.2
+                    description: Max additive delta applied to weight distributions.
+                    constraints:
+                      ge: 0.0
+              object_or_null:
+                type: group
+                value:
+                  type: group
+                  null_delta:
+                    type: float
+                    value: 0.2
+                    description: Max additive delta applied to weight distributions.
+                    constraints:
+                      ge: 0.0
+              enum:
+                type: group
+                value:
+                  type: group
+                  shuffle:
+                    type: bool
+                    value: true
+                    description: Toggle random reordering of enum values.
+                  weight_delta:
+                    type: float
+                    value: 0.2
+                    description: Max weight adjustment applied between two enum entries.
+                    constraints:
+                      ge: 0.0
+              select:
+                type: group
+                value:
+                  type: group
+                  shuffle:
+                    type: bool
+                    value: true
+                    description: Shuffle select options prior to mutation.
+                  pick_delta:
+                    type: int
+                    value: 1
+                    description: Max additive delta applied to pick counts.
+                  child:
+                    type: group
+                    value:
+                      type: group
+                      maybe:
+                        type: group
+                        value:
+                          type: group
+                          null_delta:
+                            type: float
+                            value: 0.35
+                            description: Max additive delta applied to nested maybe specs.
+                      int:
+                        type: group
+                        value:
+                          type: group
+                          offset_ratio:
+                            type: float
+                            value: 0.1
+                            description: Relative shift for nested integer bounds.
+              one_of:
+                type: group
+                value:
+                  type: group
+                  weight_delta:
+                    type: float
+                    value: 0.25
+                    description: Max additive delta applied between one_of weights.
+                    constraints:
+                      ge: 0.0
+                  child:
+                    type: group
+                    value:
+                      type: group
+                      maybe:
+                        type: group
+                        value:
+                          type: group
+                          null_delta:
+                            type: float
+                            value: 0.4
+                            description: Max additive delta applied to nested maybe specs.
+                      int:
+                        type: group
+                        value:
+                          type: group
+                          offset_ratio:
+                            type: float
+                            value: 0.1
+                            description: Relative shift for nested integer bounds.
+                      float:
+                        type: group
+                        value:
+                          type: group
+                          offset_ratio:
+                            type: float
+                            value: 0.1
+                            description: Relative shift for nested float bounds.
+              timestamp:
+                type: group
+                value:
+                  type: group
+                  offset_ratio:
+                    type: float
+                    value: 0.1
+                    description: Relative fraction of the span used when shifting start/end.
+                    constraints:
+                      ge: 0.0
+                  offset_abs:
+                    type: list
+                    value: [-3600, 3600]
+                    description: Absolute offset bounds in seconds for timestamps.
+                  nullable:
+                    type: group
+                    value:
+                      type: group
+                      range:
+                        type: list
+                        value: [0.1, 0.3]
+                        description: Inclusive range for p_null sampling when wrapping timestamps.
       fields:
         type: group
         value:
