@@ -62,24 +62,23 @@ class ObjectGenerator(BaseGenerator):
         """
         fields_block = spec.get("fields") or spec.get("properties")
         if not fields_block or not isinstance(fields_block, dict):
-            raise MissingChildError(
-                "object requires a 'fields'/'properties' mapping")
-
-        built: dict[str, BaseGenerator] = {}
-        meta: dict[str, dict[str, Any]] = {}
-
-        for field_name, field_spec in fields_block.items():
-            if isinstance(field_spec, dict) and "of" in field_spec:
-                child_spec = field_spec.get("of")
-                child = builder.build(child_spec)
-                meta[field_name] = {
-                    "required": bool(field_spec.get("required")),
-                    "default": field_spec.get("default", None),
-                }
-            else:
-                child = builder.build(field_spec)
-                meta[field_name] = {"required": False, "default": None}
-            built[field_name] = child
+            built = {}
+            meta = {}
+        else:
+            built = {}
+            meta = {}
+            for field_name, field_spec in fields_block.items():
+                if isinstance(field_spec, dict) and "of" in field_spec:
+                    child_spec = field_spec.get("of")
+                    child = builder.build(child_spec)
+                    meta[field_name] = {
+                        "required": bool(field_spec.get("required")),
+                        "default": field_spec.get("default", None),
+                    }
+                else:
+                    child = builder.build(field_spec)
+                    meta[field_name] = {"required": False, "default": None}
+                built[field_name] = child
 
         instance = cls(fields=built)
         instance._meta = meta

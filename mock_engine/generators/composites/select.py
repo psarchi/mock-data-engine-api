@@ -70,8 +70,9 @@ class SelectGenerator(BaseGenerator):
             InvalidParameterError: If ``pick.mode`` is invalid or required bounds are missing.
         """
         opts = spec.get("options")
-        if not opts or not isinstance(opts, dict):
-            raise MissingChildError("select requires 'options' mapping")
+        if opts is not None and not isinstance(opts, dict):
+            raise InvalidParameterError("select 'options' must be a mapping")
+        opts = opts or {}
 
         built: dict[str, BaseGenerator] = {}
         meta: dict[str, dict[str, Any]] = {}
