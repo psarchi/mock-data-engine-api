@@ -21,11 +21,13 @@ chaos:
         ge: 0.0
     max_ops:
       type: str
-      value: all
+      value: 9999
       description: Upper bound of ops to apply per request; 'all' disables the cap.
+      constraints:
+        ge: 1.0
     ensure_at_least_one_when_any_enabled:
       type: bool
-      value: false
+      value: true
       description: If true, force-select one op when none activate but at least one
         is enabled.
   budgets:
@@ -80,7 +82,7 @@ chaos:
       type: group
       enabled:
         type: bool
-        value: false
+        value: true
         description: Toggle HTTP error short-circuit.
       p:
         type: float
@@ -104,13 +106,49 @@ chaos:
         description: HTTP status codes to randomly return when this op is applied.
         items:
           type: int
-    order_shuffle:
-      description: Response-phase; shuffles list payload order deterministically via
+    http_mismatch:
+      description: Response-phase; forces non-2xx status codes while leaving the body untouched.
+      type: group
+      enabled:
+        type: bool
+        value: true
+        description: Toggle HTTP status/body mismatch faults.
+      p:
+        type: float
+        value: 0.05
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 3.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      codes:
+        type: list
+        value:
+        - 400
+        - 401
+        - 403
+        - 409
+        - 412
+        - 422
+        - 429
+        - 500
+        - 502
+        - 503
+        description: Candidate HTTP status codes for mismatched responses.
+        items:
+          type: int
+    list_shuffle:
+      description: Response-phase; shuffles every list in the body deterministically via
         ctx.rng.
       type: group
       enabled:
         type: bool
-        value: false
+        value: true
         description: Toggle post-generation item order randomization.
       p:
         type: float
@@ -125,14 +163,75 @@ chaos:
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
-    payload_truncate:
-      description: Response-phase; slices the list to a random length in [min_items,
-        len(items)].
+    truncate:
+      description: Response-phase; truncates serialized JSON fragments to corrupt payload text.
       type: group
       enabled:
         type: bool
-        value: false
-        description: Toggle truncation of the response item list.
+        value: true
+        description: Toggle payload truncation/corruption.
+      p:
+        type: float
+        value: 0.05
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 2.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      min_items:
+        type: int
+        value: 1
+        description: Minimum corrupted elements when targeting list entries.
+        constraints:
+          ge: 0.0
+      max_items:
+        type: int
+        value: 3
+        description: Maximum corrupted elements when targeting list entries.
+        constraints:
+          ge: 1.0
+    schema_bloat:
+      description: Response-phase; inflates string fields to simulate payload growth.
+      type: group
+      enabled:
+        type: bool
+        value: true
+        description: Toggle schema bloat string inflation.
+      p:
+        type: float
+        value: 0.05
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 1.5
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      extra_kb:
+        type: int
+        value: 32
+        description: Approximate additional kilobytes to inject into a string field.
+        constraints:
+          ge: 0.0
+      strategy:
+        type: str
+        value: insert
+        description: String inflation strategy ('insert' or 'repeat').
+    schema_field_nulling:
+      description: Response-phase; nulls a single field within the response payload.
+      type: group
+      enabled:
+        type: bool
+        value: true
+        description: Toggle schema field nulling.
       p:
         type: float
         value: 0.1
@@ -142,23 +241,93 @@ chaos:
           le: 1.0
       weight:
         type: float
-        value: 3.0
+        value: 1.5
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
-      min_items:
-        type: int
-        value: 1
-        description: Minimum number of items to retain after truncation.
+      fields:
+        type: list
+        value: []
+        description: Optional dotted paths eligible for nulling (default any leaf).
+        items:
+          type: string
+    schema_time_skew:
+      description: Response-phase; skews configured timestamp fields by up to max_skew_s seconds.
+      type: group
+      enabled:
+        type: bool
+        value: true
+        description: Toggle timestamp skew mutations.
+      p:
+        type: float
+        value: 0.05
+        description: Independent activation probability for this op.
         constraints:
           ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 1.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      max_skew_s:
+        type: int
+        value: 900
+        description: Maximum absolute timestamp skew in seconds.
+        constraints:
+          ge: 0.0
+      direction:
+        type: str
+        value: both
+        description: Direction of skew ('past', 'future', or 'both').
+      fields:
+        type: list
+        value: []
+        description: Timestamp field names (ISO8601 or epoch) to skew.
+        items:
+          type: string
+    duplicate_items:
+      description: Response-phase; duplicates elements within lists found in the response body.
+      type: group
+      enabled:
+        type: bool
+        value: true
+        description: Toggle duplication of list items throughout the body.
+      p:
+        type: float
+        value: 0.1
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 1.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      max_dups:
+        type: int
+        value: 1
+        description: Maximum number of additional copies inserted per list encounter.
+        constraints:
+          ge: 1.0
+      strategy:
+        type: str
+        value: adjacent
+        description: Duplication placement strategy ('adjacent' or 'random').
+      include_root:
+        type: bool
+        value: true
+        description: When true, also duplicate lists directly under the root object.
     auth_fault:
       description: Request-phase; may short-circuit with 401/403 or simulate missing/invalid
         Authorization.
       type: group
       enabled:
         type: bool
-        value: false
+        value: true
         description: Toggle auth failures or anomalies.
       p:
         type: float
@@ -195,7 +364,7 @@ chaos:
       type: group
       enabled:
         type: bool
-        value: false
+        value: true
         description: Toggle anomalous headers on the request.
       p:
         type: float
@@ -210,6 +379,37 @@ chaos:
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
+    random_header_case:
+      description: Response-phase; mutates header values by randomizing case.
+      type: group
+      enabled:
+        type: bool
+        value: true
+        description: Toggle random header casing mutations.
+      p:
+        type: float
+        value: 0.1
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 1.0
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      headers:
+        type: list
+        value:
+        - content-type
+        description: Header names eligible for casing mutations.
+        items:
+          type: string
+      mode:
+        type: str
+        value: random
+        description: Casing mode ('random', 'upper', or 'lower').
       patterns:
         type: str
         value:
@@ -234,7 +434,7 @@ chaos:
       type: group
       enabled:
         type: bool
-        value: false
+        value: true
         description: Toggle cutting the list mid-way to simulate partial responses.
       p:
         type: float
@@ -255,7 +455,7 @@ chaos:
       type: group
       enabled:
         type: bool
-        value: false
+        value: true
         description: Toggle light string corruption within items (replacement char).
       p:
         type: float
@@ -281,7 +481,7 @@ chaos:
       type: group
       enabled:
         type: bool
-        value: false
+        value: true
         description: Toggle shifting numeric time fields by +/- seconds.
       p:
         type: float
@@ -319,7 +519,7 @@ chaos:
       type: group
       enabled:
         type: bool
-        value: false
+        value: true
         description: Toggle request-level variable latency to simulate throughput
           drift.
       p:
@@ -370,7 +570,7 @@ chaos:
       type: group
       enabled:
         type: bool
-        value: false
+        value: true
         description: Toggle field-level value drift (categorical reweighting or numeric
           bias/jitter).
       p:
@@ -681,7 +881,7 @@ chaos:
       type: group
       enabled:
         type: bool
-        value: false
+        value: true
         description: 'Toggle schema drift: add/drop/rename fields in the response
           items.'
       p:
@@ -697,25 +897,90 @@ chaos:
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
-      add_fields:
+      max_mutations:
+        type: int
+        value: 2
+        description: Maximum structural mutations applied per activation.
+        constraints:
+          ge: 1.0
+      config:
         type: group
         value:
           type: group
-          extra_flag: true
-        description: Fields to add with constant values when missing.
-      drop_fields:
-        type: list
-        value:
-        - user_id
-        description: Fields to remove from each item if present.
-        items:
-          type: string
-      rename_fields:
-        type: group
-        value:
-          type: group
-          device_category: device_type
-        description: Old->new field rename mapping.
+          max_mutations:
+            type: int
+            value: 2
+            description: Override for mutation count; defaults to op-level value.
+            constraints:
+              ge: 1.0
+          skip_fields:
+            type: list
+            value: []
+            description: Field names that should never be dropped or renamed.
+            items:
+              type: string
+          mutations:
+            type: group
+            value:
+              type: group
+              add_field:
+                type: float
+                value: 1.0
+                description: Weight controlling how often new fields are added.
+                constraints:
+                  ge: 0.0
+              drop_entry:
+                type: float
+                value: 1.0
+                description: Weight controlling how often existing fields/options are removed.
+                constraints:
+                  ge: 0.0
+              rename_entry:
+                type: float
+                value: 1.0
+                description: Weight controlling how often fields/options are renamed.
+                constraints:
+                  ge: 0.0
+              flatten_object:
+                type: float
+                value: 0.5
+                description: Weight controlling how often nested objects are flattened into parents.
+                constraints:
+                  ge: 0.0
+          templates:
+            type: group
+            value:
+              type: group
+              primitives:
+                type: list
+                value:
+                - string
+                - int
+                - float
+                - bool
+                - timestamp
+                description: Primitive spec templates considered when adding new fields.
+              catalog:
+                type: list
+                value:
+                - type: string
+                  string_type: word
+                - type: int
+                  min: 0
+                  max: 100
+                - type: float
+                  min: 0.0
+                  max: 50.0
+                  precision: 2
+                description: Optional explicit spec templates for added fields (first-class overrides).
+              maybe_probability:
+                type: float
+                value: 0.3
+                description: Chance that a new field is wrapped in Maybe when added.
+                constraints:
+                  ge: 0.0
+                  le: 1.0
+        description: Detailed schema drift configuration (mutation weights and templates).
   scenarios:
     type: group
     active:
