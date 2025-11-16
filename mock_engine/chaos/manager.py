@@ -1,119 +1,100 @@
-﻿from __future__ import annotations
-from typing import Any, Dict, Tuple, Type, List
+from __future__ import annotations
 
-from mock_engine.chaos.ops.base import BaseChaosOp, ApplyResult
-from .registry import get_registry
+import random
+from types import SimpleNamespace
+from typing import Any, Dict, List, Optional, Tuple, Type
 
-def _get_op_params_dict(config_root, op_name: str) -> dict:
-    """Extract parameters for an op from Pydantic models using getattr(...).__dict__.
-    Falls back to empty dict if model is present but has no public fields.
-    Raises on missing op config node.
-    """
-    ops_node = getattr(config_root, "ops", None)
-    if ops_node is None:
-        raise RuntimeError("Chaos config is missing 'ops' node")
-    node = getattr(ops_node, op_name, None)
-    if node is None:
-        raise RuntimeError(f"Chaos config missing ops.{op_name}")
-    params = dict(getattr(node, "__dict__", {}) or {})
-    for k in list(params.keys()):
-        if k.startswith("model_") or k.startswith("__"):
-            params.pop(k, None)
-    return params
-
-
-
-
-
-def _normalize_response(response: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "status": int(response.get("status", 200)),
-        "headers": dict(response.get("headers", {}) or {}),
-        "body": response.get("body"),
-    }
-
-
-def _ops_mapping(chaos_cfg: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    ops_node = getattr(chaos_cfg, "ops", None)
-    if isinstance(ops_node, dict):
-        # Expect mapping {name: params}
-        out = {}
-        for n, params in ops_node.items():
-            if isinstance(params, dict):
-                out[str(n)] = dict(params)
-            else:
-                out[str(n)] = {}
-        return out
-    if isinstance(ops_node, list):
-        out: Dict[str, Dict[str, Any]] = {}
-        for entry in ops_node:
-            if isinstance(entry, str):
-                out[entry] = {}
-            elif isinstance(entry, dict):
-                n = entry.get("name")
-                if n:
-                    out[str(n)] = {k: v for k, v in entry.items() if
-                                   k != "name"}
-        return out
-    return {}
-
+from mock_engine.chaos.drift import get_drift_coordinator
+from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
+from .registry import _Registry
+from mock_engine.context import GenContext
+from pydantic import BaseModel
 
 class ChaosManager:
-    def __init__(self, *, ctx, config_snapshot: Dict[str, Any],
-                 registry: Dict[str, Type[BaseChaosOp]] | None = None) -> None:
+    """Coordinate chaos operations for a single response."""
+
+    def __init__(
+        self,
+        *,
+        ctx: GenContext,
+        config_snapshot: BaseModel, 
+        registry: Dict[str, Type[BaseChaosOp]],
+    ) -> None:
         self.ctx = ctx
-        # Expect a dict-like snapshot for fast reads.
-        self.cfg = config_snapshot or {}
-        self.registry = registry or get_registry()
-        self._hits: Dict[str, int] = {}
+        self.registry = registry
+        self._hits: Dict[str, int] = {}  # for now placeholder
+        self.drift = get_drift_coordinator()
+        self.cfg = config_snapshot
+        self.rng = ctx.rng
 
-    def _merge(self, resp: Dict[str, Any], res: ApplyResult) -> None:
-        # status
-        if getattr(res, "status", None) is not None:
-            resp["status"] = int(res.status)  # type: ignore[arg-type]
-        # headers
-        if getattr(res, "headers", None) is not None:
-            resp["headers"] = dict(res.headers)  # type: ignore[arg-type]
-        else:
-            delta = getattr(res, "headers_delta", None)
-            if isinstance(delta, dict):
-                h = resp.setdefault("headers", {})
-                for k, v in delta.items():
-                    if v is None:
-                        h.pop(k, None)
-                    else:
-                        h[k] = v
-        # body
-        if getattr(res, "body", None) is not None:
-            resp["body"] = res.body
-        if getattr(res, "descriptions", None) is not None:
-            resp["body"]["descriptions"] = res.descriptions
-
-    def apply(self, *, response: Dict[str, Any], meta_enabled: bool,
-              names: List[str] | None = None,
-              schema_name: str | None = None) -> Tuple[
-        Dict[str, Any], Dict[str, Any]]:
-        chaos = self.cfg
-
-        # simple fast tests for now
-
-        if names is not None:
-            for name in names:
-                if name not in self.registry:
-                    raise Exception(f"Unknown chaos op {name!r}")
-                cfg_key = getattr(self.registry[name], "key", None)
-                if cfg_key is None:
-                    raise Exception(f"Chaos OP missing key for ops.{name}")
-                ops_cls = self.registry[name]
-                if ops_cls is None:
-                    raise Exception(f"Chaos OP class not found for ops.{name}")
-                op = ops_cls(enabled=True)
-                body = response.get("body")
-                result = op.apply(request=None, response=response, body=body,
-                                  rng=self.ctx)
-                if not isinstance(result, ApplyResult):
-                    continue
-                self._merge(response, result)
-
+    def apply(
+        self,
+        *,
+        response: Dict[str, Any],
+        meta_enabled: bool,
+        forced_activation: List[str] | None = None, # placeholder for forced activation
+        schema_name: str | None = None,
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        self.drift.record_hit()
+        ops_cfg = getattr(self.cfg, "ops", None)  # never should be None 
+        if ops_cfg is None:
             return response, {}
+        selection_cfg = getattr(self.cfg, "selection", None)
+        ensure_one = bool(
+            getattr(selection_cfg, "ensure_at_least_one_when_any_enabled", False)
+        )
+        min_ops = getattr(selection_cfg, "min_ops", 0)
+        if ensure_one and min_ops < 1:
+            min_ops = 1
+        max_ops = getattr(selection_cfg, "max_ops", 0)
+        chosen_count = self.rng.randint(min_ops, max_ops)
+        chosen_names: List[str] = []
+        chosen_weights: List[float] = []
+        activated_names: List[str] = []
 
+        allowed_names = self.registry
+        if forced_activation:
+            allowed_names = {key: value for key, value in allowed_names.items() if key in forced_activation}
+            activated_names = [k for k,v  in allowed_names.items() if k in forced_activation]
+            
+        else:
+            for op_name, op_cls in allowed_names.items():
+                op_cfg = getattr(ops_cfg, op_name, None)
+                if not (op_cfg and getattr(op_cfg, "enabled", False) and getattr(op_cfg, "p", 0)):
+                    continue
+                if self.rng.random() < getattr(op_cfg, "p"):
+                    chosen_names.append(op_name)
+                    chosen_weights.append(getattr(op_cfg, "weight", 0))
+                
+            if chosen_names and sum(chosen_weights) > 0:
+                activated_names = self.rng.choices(chosen_names, weights=chosen_weights, k=chosen_count)
+            else:
+                return response, {}
+        
+        # budget (without drifts)
+        drift_ops: list[str] = []
+        other_ops: list[str] = []
+
+        for name in activated_names:
+            (drift_ops if "drift" in name else other_ops).append(name)
+
+        activated_names = other_ops
+        budgets_cfg = getattr(self.cfg, "budgets", None)
+        if budgets_cfg:
+            if len(activated_names) > getattr(budgets_cfg, "max_faults_per_request"):
+                activated_names = self.rng.sample(activated_names, k= getattr(budgets_cfg, "max_faults_per_request"))
+
+        result = ApplyResult(body=response.get("body"))
+        for op in activated_names:
+            op_cls = self.registry.get(op)
+            params = getattr(ops_cfg, op).model_dump()
+            op_instance = op_cls(**params)
+            op_result = op_instance.apply(body=result.body)
+            if result.descriptions:
+                result.descriptions.extend(op_result.descriptions)
+            else:
+                result.descriptions = op_result.descriptions
+            result.body = op_result.body
+        
+        return result, {}
+    

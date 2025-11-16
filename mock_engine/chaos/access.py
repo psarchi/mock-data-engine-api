@@ -17,18 +17,21 @@ def get_chaos_manager(ctx=None) -> ChaosManager:
     """
     # TODO: better way, refractor
     global _manager
+    rng = getattr(ctx, "rng", None) if ctx is not None else None
     if _manager is None:
         with _lock:
             if _manager is None:
                 chaos_cfg = get_config_manager().get_root("chaos")
                 reg = get_registry()
-                rng = getattr(ctx, "rng", None) if ctx is not None else None
-                _manager = ChaosManager(ctx=rng, config_snapshot=chaos_cfg,
-                                        registry=reg)
+                _manager = ChaosManager(
+                    ctx=rng,
+                    config_snapshot=chaos_cfg,
+                    registry=reg,
+                )
                 return _manager
-    if ctx is not None:
+    if rng is not None:
         try:
-            _manager.rng = getattr(ctx, "rng")  # type: ignore[attr-defined]
+            _manager.ctx = rng  # type: ignore[attr-defined]
         except Exception:
-            pass
+            setattr(_manager, "ctx", rng)  # type: ignore[attr-defined]
     return _manager  # type: ignore[return-value]
