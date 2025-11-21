@@ -35,17 +35,15 @@ class ChaosManager:
     def apply(
         self,
         *,
-        response: Dict[str, Any],
-        meta_enabled: bool,
-        forced_activation: List[str] | None = None, # placeholder for forced activation
+        body: dict,
         schema_name: str | None = None,
-    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        forced_activation: List[str] | None = None,
+    ) -> Tuple[ApplyResult, Dict[str, Any]]:
         if schema_name:
-            # Track chaos usage under a single strategy bucket for drift bookkeeping.
             self.drift.record_hit(schema_name, "chaos")
-        ops_cfg = getattr(self.cfg, "ops", None)  # never should be None 
+        ops_cfg = getattr(self.cfg, "ops", None)
         if ops_cfg is None:
-            return response, {}
+            return ApplyResult(body=body), {}
         selection_cfg = getattr(self.cfg, "selection", None)
         ensure_one = bool(
             getattr(selection_cfg, "ensure_at_least_one_when_any_enabled", False)
@@ -77,7 +75,7 @@ class ChaosManager:
             if chosen_names and sum(chosen_weights) > 0:
                 activated_names = self.rng.choices(chosen_names, weights=chosen_weights, k=chosen_count)
             else:
-                return response, {}
+                return ApplyResult(body=body), {}
         
         # budget (without drifts)
         drift_ops: list[str] = []
@@ -86,20 +84,33 @@ class ChaosManager:
         for name in activated_names:
             (drift_ops if "drift" in name else other_ops).append(name)
 
-        activated_names = other_ops
+        regular_ops = other_ops
         budgets_cfg = getattr(self.cfg, "budgets", None)
         if budgets_cfg:
-            if len(activated_names) > getattr(budgets_cfg, "max_faults_per_request"):
-                activated_names = self.rng.sample(activated_names, k= getattr(budgets_cfg, "max_faults_per_request"))
+            if len(regular_ops) > getattr(budgets_cfg, "max_faults_per_request"):
+                regular_ops = self.rng.sample(regular_ops, k= getattr(budgets_cfg, "max_faults_per_request"))
 
-        result = ApplyResult(body=response.get("body"))
-        for op in activated_names:
+        response = {
+            "body": body,
+            "headers": {"content-type": "application/json"},
+            "status": 200,
+            "request": None,
+        }
+        headers_ref = dict(response["headers"])
+        status_ref = response["status"]
+        try:
+            resp_obj = SimpleNamespace(**response)
+        except Exception:
+            resp_obj = SimpleNamespace(**{"body": body, "headers": headers_ref, "status": status_ref})
+
+        result = ApplyResult(body=body)
+        for op in drift_ops + regular_ops:
             op_cls = self.registry.get(op)
             params = getattr(ops_cfg, op).model_dump()
             op_instance = op_cls(**params)
             op_result = op_instance.apply(
                 request=response.get("request"),
-                response=response.get("response"),
+                response=resp_obj,
                 body=result.body,
                 rng=self.rng,
             )
@@ -108,6 +119,15 @@ class ChaosManager:
             else:
                 result.descriptions = op_result.descriptions
             result.body = op_result.body
-        
-        return result, {}
+            if op_result.status:
+                status_ref = op_result.status
+            if op_result.headers_delta:
+                # Apply explicit header deltas
+                for k, v in op_result.headers_delta.items():
+                    if v is None:
+                        resp_obj.headers.pop(k, None)
+                    else:
+                        resp_obj.headers[k] = v
+        headers_ref = dict(getattr(resp_obj, "headers", headers_ref) or {})
+        return result, {"headers": headers_ref, "status": status_ref}
     

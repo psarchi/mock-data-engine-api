@@ -23,24 +23,23 @@ async def generate_schema(
     items = [gen.generate(ctx) for _ in range(count)]
     payload: dict = {"items": items, "count": len(items)}
 
-    if chaos_ops is not None:
+    forced = None
+    if chaos_ops:
         forced = [op.strip() for op in chaos_ops.split(",") if op.strip()]
-        mgr = get_chaos_manager(ctx)
-        result, _meta = mgr.apply(
-            response={"body": payload},
-            meta_enabled=False,
-            forced_activation=forced or None,  # forced activation for testing specific ops
-            schema_name=name,
-        )
-        payload = getattr(result, "body", payload) or payload
-        descriptions = getattr(result, "descriptions", None) or []
-        try:
-            if isinstance(payload, dict) and "count" not in payload and "items" in payload:
-                payload["count"] = len(payload["items"])
-        except Exception:
-            pass
-        if descriptions and isinstance(payload, dict):
-            payload = dict(payload)
-            payload["chaos_descriptions"] = descriptions
 
-    return JSONResponse(payload)
+    mgr = get_chaos_manager(ctx)
+    result, meta = mgr.apply(body=payload, schema_name=name, forced_activation=forced or None)
+    payload = getattr(result, "body", payload) or payload
+    descriptions = getattr(result, "descriptions", None) or []
+    try:
+        if isinstance(payload, dict) and "count" not in payload and "items" in payload:
+            payload["count"] = len(payload["items"])
+    except Exception:
+        pass
+    if descriptions and isinstance(payload, dict):
+        payload = dict(payload)
+        payload["chaos_descriptions"] = descriptions
+
+    status_override = (meta or {}).get("status")
+    headers_override = (meta or {}).get("headers")
+    return JSONResponse(payload, status_code=status_override or 200, headers=headers_override or None)
