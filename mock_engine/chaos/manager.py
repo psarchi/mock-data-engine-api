@@ -16,8 +16,8 @@ class ChaosManager:
     def __init__(
         self,
         *,
-        ctx: GenContext,
-        config_snapshot: BaseModel, 
+        ctx: GenContext | random.Random | None,
+        config_snapshot: BaseModel,
         registry: Dict[str, Type[BaseChaosOp]],
     ) -> None:
         self.ctx = ctx
@@ -25,7 +25,12 @@ class ChaosManager:
         self._hits: Dict[str, int] = {}  # for now placeholder
         self.drift = get_drift_coordinator()
         self.cfg = config_snapshot
-        self.rng = ctx.rng
+        if isinstance(ctx, GenContext):
+            self.rng = ctx.rng
+        elif isinstance(ctx, random.Random):
+            self.rng = ctx
+        else:
+            self.rng = random.Random()
 
     def apply(
         self,
@@ -35,7 +40,9 @@ class ChaosManager:
         forced_activation: List[str] | None = None, # placeholder for forced activation
         schema_name: str | None = None,
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        self.drift.record_hit()
+        if schema_name:
+            # Track chaos usage under a single strategy bucket for drift bookkeeping.
+            self.drift.record_hit(schema_name, "chaos")
         ops_cfg = getattr(self.cfg, "ops", None)  # never should be None 
         if ops_cfg is None:
             return response, {}
@@ -54,6 +61,7 @@ class ChaosManager:
 
         allowed_names = self.registry
         if forced_activation:
+            # forced activation for testing/validation of specific ops
             allowed_names = {key: value for key, value in allowed_names.items() if key in forced_activation}
             activated_names = [k for k,v  in allowed_names.items() if k in forced_activation]
             
@@ -89,7 +97,12 @@ class ChaosManager:
             op_cls = self.registry.get(op)
             params = getattr(ops_cfg, op).model_dump()
             op_instance = op_cls(**params)
-            op_result = op_instance.apply(body=result.body)
+            op_result = op_instance.apply(
+                request=response.get("request"),
+                response=response.get("response"),
+                body=result.body,
+                rng=self.rng,
+            )
             if result.descriptions:
                 result.descriptions.extend(op_result.descriptions)
             else:
