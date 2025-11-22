@@ -7,10 +7,15 @@ from mock_engine.chaos.drift.registry import run_drift
 from mock_engine.chaos.drift import get_drift_coordinator
 from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
 from mock_engine.contracts.array import ArrayGeneratorSpec
+from mock_engine.contracts.enum import EnumGeneratorSpec
+from mock_engine.contracts.float import FloatGeneratorSpec
+from mock_engine.contracts.int import IntGeneratorSpec
 from mock_engine.contracts.maybe import MaybeGeneratorSpec
 from mock_engine.contracts.object import ObjectGeneratorSpec
 from mock_engine.contracts.one_of import OneOfGeneratorSpec
 from mock_engine.contracts.select import SelectGeneratorSpec
+from mock_engine.contracts.string import StringGeneratorSpec
+from mock_engine.contracts.timestamp import TimestampGeneratorSpec
 from mock_engine.schema.builder import _flatten
 from mock_engine.schema.registry import SchemaRegistry
 
@@ -43,16 +48,19 @@ class DataDriftOp(BaseChaosOp):
         self.max_hits = max_hits
         self.request_quota = request_quota
         self.drift_config: Dict[str, Any] = dict(config or {})
-        self.spec_config: Dict[str, Any] = dict(self.drift_config.get("specs", {}))
-        self.default_spec_config: Dict[str, Any] = dict(
-            self.drift_config.get("default", {})
-        )
-        cfg_max = self.drift_config.get("max_mutations")
+
+        raw_config = self.drift_config.get("value", self.drift_config)
+        self.spec_config: Dict[str, Any] = raw_config.get("specs", {})
+        if isinstance(self.spec_config, dict) and "value" in self.spec_config:
+            self.spec_config = self.spec_config["value"]
+
+        self.default_spec_config: Dict[str, Any] = raw_config.get("default", {})
+        if isinstance(self.default_spec_config, dict) and "value" in self.default_spec_config:
+            self.default_spec_config = self.default_spec_config["value"] or {}
+
+        cfg_max = raw_config.get("max_mutations")
         self.max_mutations = int(max_mutations or cfg_max or 3)
         self._raw_cfg = kwargs
-
-    def _next_revision_name(self, schema_name: str, index: int) -> str:
-        return f"{schema_name}_{self.key}_{index}"
 
     @staticmethod
     def _parse_path(path: str) -> List[str]:
@@ -187,26 +195,41 @@ class DataDriftOp(BaseChaosOp):
         self._assign(parent, target_segment, replacement)
         doc.contracts_by_path[path] = replacement
 
+    @staticmethod
+    def _unwrap_config(cfg: Any) -> Any:
+        """Recursively unwrap 'value' wrappers from config dict."""
+        if not isinstance(cfg, dict):
+            return cfg
+        if 'value' in cfg and len(cfg) == 1:
+            return DataDriftOp._unwrap_config(cfg['value'])
+        return {k: DataDriftOp._unwrap_config(v) for k, v in cfg.items()}
+
     def _spec_config_for(self, spec_obj: Any) -> Dict[str, Any]:
         cfg: Dict[str, Any] = dict(self.default_spec_config)
         spec_type = getattr(spec_obj, "type_token", None)
+        class_name = type(spec_obj).__name__
+
         if isinstance(spec_type, str):
             specific = self.spec_config.get(spec_type) or self.spec_config.get(
                 spec_type.lower()
             )
             if isinstance(specific, dict):
+                specific = self._unwrap_config(specific)
                 cfg.update(specific)
-        class_name = type(spec_obj).__name__
+
         specific = self.spec_config.get(class_name)
         if isinstance(specific, dict):
+            specific = self._unwrap_config(specific)
             cfg.update(specific)
+
         if isinstance(spec_obj, MaybeGeneratorSpec) and getattr(
             spec_obj, "child", None
         ) is not None:
             child_cfg = self._spec_config_for(spec_obj.child)
             if child_cfg:
-                cfg = dict(cfg)  # avoid mutating shared dict
+                cfg = dict(cfg)
                 cfg.setdefault("child", child_cfg)
+
         return cfg
 
     def _mutate_schema(
@@ -276,26 +299,21 @@ class DataDriftOp(BaseChaosOp):
             return ApplyResult(body=body)
 
         coordinator = get_drift_coordinator()
-        next_index = coordinator.strategy_layer_count(schema_name, self.key)
-        revision_name = self._next_revision_name(schema_name, next_index)
 
         try:
-            revision, modifications = self._mutate_schema(
-                schema_name, revision_name, rng=rng
+            coordinator.create_and_register_layer(
+                schema_name=schema_name,
+                strategy=self.key,
+                mutation_fn=lambda rev_name: self._mutate_schema(
+                    schema_name, rev_name, rng=rng
+                ),
+                layering_enabled=self.layering_enabled,
+                max_hits=self.max_hits,
+                request_quota=self.request_quota,
+                metadata={"placeholder": True},
             )
         except Exception:
             return ApplyResult(body=body)
-
-        coordinator.register_layer(
-            schema_name=schema_name,
-            strategy=self.key,
-            revision=revision,
-            modifications=modifications,
-            layering_enabled=self.layering_enabled,
-            max_hits=self.max_hits,
-            request_quota=self.request_quota,
-            metadata={"placeholder": True},
-        )
 
         return ApplyResult(
             body=body,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 
 @dataclass
@@ -50,7 +50,7 @@ class _SchemaDriftState:
     layering_enabled: bool = True
     layers: List[DriftLayer] = field(default_factory=list)
     current_revision: Optional[str] = None
-    cooldown_active: bool = False  # placeholder for future timing support
+    cooldown_active: bool = False
 
     def active_layers(self) -> Tuple[DriftLayer, ...]:
         return tuple(self.layers)
@@ -80,6 +80,56 @@ class DriftCoordinator:
     def _drop_state_if_empty(self, state: _SchemaDriftState) -> None:
         if not state.layers:
             self._schemas.pop(state.schema_name, None)
+
+    def create_and_register_layer(
+            self,
+            *,
+            schema_name: str,
+            strategy: str,
+            mutation_fn: Callable[[str], Tuple[str, List[str]]],
+            layering_enabled: bool = True,
+            max_hits: Optional[int] = None,
+            request_quota: Optional[int] = None,
+            metadata: Optional[Dict[str, object]] = None,
+    ) -> DriftLayer:
+        """Create and register a new drift layer with auto-generated revision name.
+
+        Args:
+            schema_name: Canonical schema name.
+            strategy: Drift strategy/operation name.
+            mutation_fn: Callable that takes revision_name and returns (revision, modifications).
+            layering_enabled: Whether layering is enabled for this schema.
+            max_hits: Maximum number of responses that may use this layer.
+            request_quota: Maximum activation approvals before the layer backs off.
+            metadata: Arbitrary payload supplied by the drift op.
+
+        Returns:
+            The registered DriftLayer descriptor.
+        """
+        import time
+
+        with self._lock:
+            state = self._ensure_state(schema_name,
+                                       layering_enabled=layering_enabled)
+            next_index = sum(1 for _ in state.iter_strategy_layers(strategy)) + 1
+            timestamp = int(time.time() * 1000)
+            revision_name = f"{schema_name}_{strategy}_{next_index}_{timestamp}"
+
+            revision, modifications = mutation_fn(revision_name)
+
+            layer = DriftLayer(
+                schema_name=schema_name,
+                strategy=strategy,
+                index=next_index,
+                revision=revision,
+                max_hits=max_hits,
+                request_quota=request_quota,
+                metadata=dict(metadata or {}),
+                modifications=list(modifications or []),
+            )
+            state.layers.append(layer)
+            state.current_revision = revision
+            return layer
 
     def register_layer(
             self,
