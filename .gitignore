@@ -25,7 +25,7 @@ dist/
 
 # Project
 .env
-EOF
 config/overrides.yaml
 config/.overrides_rev
 config/audit.log
+*.log
