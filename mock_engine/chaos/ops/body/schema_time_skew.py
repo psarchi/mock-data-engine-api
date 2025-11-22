@@ -13,6 +13,10 @@ def _try_parse_ts(val: Any):
     try:
         return datetime.datetime.utcfromtimestamp(float(val)), "epoch"
     except Exception:
+        pass
+    try:
+        return datetime.datetime.utcfromtimestamp(float(val) / 1_000_000), "epoch_micro"
+    except Exception:
         return None, None
 
 
@@ -61,7 +65,12 @@ class SchemaTimeSkewOp(BaseChaosOp):
                         "both", "past") and rng.random() < 0.5:
                             skew = -skew
                         new_dt = ts + datetime.timedelta(seconds=skew)
-                        rec[f] = new_dt.isoformat().replace("+00:00", "Z")
+                        if kind == "epoch_micro":
+                            rec[f] = int(new_dt.timestamp() * 1_000_000)
+                        elif kind == "epoch":
+                            rec[f] = int(new_dt.timestamp())
+                        else:
+                            rec[f] = new_dt.isoformat().replace("+00:00", "Z")
                         applied = True
         return ApplyResult(body=body,
                            descriptions=(["time_skew"] if applied else []))
