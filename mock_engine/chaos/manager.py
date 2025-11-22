@@ -6,12 +6,16 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 
 from mock_engine.chaos.drift import get_drift_coordinator
 from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
-from .registry import _Registry
 from mock_engine.context import GenContext
 from pydantic import BaseModel
 
+
 class ChaosManager:
-    """Coordinate chaos operations for a single response."""
+    """Orchestrate chaos operations for request/response pairs.
+
+    Manages op selection (probability-based or forced), budgeting, and execution
+    order (drift ops first, then regular ops).
+    """
 
     def __init__(
         self,
@@ -20,11 +24,18 @@ class ChaosManager:
         config_snapshot: BaseModel,
         registry: Dict[str, Type[BaseChaosOp]],
     ) -> None:
+        """Initialize chaos manager with context and configuration.
+
+        Args:
+            ctx: Generation context with RNG or standalone Random instance
+            config_snapshot: Pydantic config model with ops/selection/budgets
+            registry: Dict mapping op keys to op classes
+        """
         self.ctx = ctx
         self.registry = registry
-        self._hits: Dict[str, int] = {}  # for now placeholder
         self.drift = get_drift_coordinator()
         self.cfg = config_snapshot
+
         if isinstance(ctx, GenContext):
             self.rng = ctx.rng
         elif isinstance(ctx, random.Random):
@@ -39,11 +50,57 @@ class ChaosManager:
         schema_name: str | None = None,
         forced_activation: List[str] | None = None,
     ) -> Tuple[ApplyResult, Dict[str, Any]]:
+        """Apply selected chaos ops to response body.
+
+        Args:
+            body: Response body dict to modify
+            schema_name: Schema name for drift tracking
+            forced_activation: Override selection with specific op keys (for testing)
+
+        Returns:
+            Tuple of (ApplyResult with final body, dict with headers/status)
+        """
         if schema_name:
             self.drift.record_hit(schema_name, "chaos")
+
         ops_cfg = getattr(self.cfg, "ops", None)
         if ops_cfg is None:
             return ApplyResult(body=body), {}
+
+        activated_ops = self._select_ops(ops_cfg, forced_activation)
+        if not activated_ops:
+            return ApplyResult(body=body), {}
+
+        drift_ops, regular_ops = self._partition_ops(activated_ops)
+
+        regular_ops = self._apply_budget_limits(regular_ops)
+
+        result, resp_metadata = self._execute_ops(
+            drift_ops + regular_ops,
+            body,
+            schema_name,
+            ops_cfg,
+        )
+
+        return result, resp_metadata
+
+    def _select_ops(
+        self,
+        ops_cfg: BaseModel,
+        forced_activation: List[str] | None,
+    ) -> List[str]:
+        """Select which ops to run based on config or forced activation.
+
+        Args:
+            ops_cfg: Ops configuration with enabled/p/weight for each op
+            forced_activation: Optional list of op keys to force (overrides config)
+
+        Returns:
+            List of op keys to execute
+        """
+        if forced_activation:
+            return [k for k in forced_activation if k in self.registry]
+
         selection_cfg = getattr(self.cfg, "selection", None)
         ensure_one = bool(
             getattr(selection_cfg, "ensure_at_least_one_when_any_enabled", False)
@@ -52,82 +109,148 @@ class ChaosManager:
         if ensure_one and min_ops < 1:
             min_ops = 1
         max_ops = getattr(selection_cfg, "max_ops", 0)
-        chosen_count = self.rng.randint(min_ops, max_ops)
-        chosen_names: List[str] = []
-        chosen_weights: List[float] = []
-        activated_names: List[str] = []
 
-        allowed_names = self.registry
-        if forced_activation:
-            # forced activation for testing/validation of specific ops
-            allowed_names = {key: value for key, value in allowed_names.items() if key in forced_activation}
-            activated_names = [k for k,v  in allowed_names.items() if k in forced_activation]
-            
-        else:
-            for op_name, op_cls in allowed_names.items():
-                op_cfg = getattr(ops_cfg, op_name, None)
-                if not (op_cfg and getattr(op_cfg, "enabled", False) and getattr(op_cfg, "p", 0)):
-                    continue
-                if self.rng.random() < getattr(op_cfg, "p"):
-                    chosen_names.append(op_name)
-                    chosen_weights.append(getattr(op_cfg, "weight", 0))
-                
-            if chosen_names and sum(chosen_weights) > 0:
-                activated_names = self.rng.choices(chosen_names, weights=chosen_weights, k=chosen_count)
+        if max_ops == 0 or min_ops > max_ops:
+            return []
+
+        eligible_ops: List[str] = []
+        op_weights: List[float] = []
+
+        for op_name in self.registry.keys():
+            op_cfg = getattr(ops_cfg, op_name, None)
+            if not op_cfg:
+                continue
+
+            enabled = getattr(op_cfg, "enabled", False)
+            probability = getattr(op_cfg, "p", 0)
+
+            if not (enabled and probability > 0):
+                continue
+
+            if self.rng.random() < probability:
+                eligible_ops.append(op_name)
+                op_weights.append(getattr(op_cfg, "weight", 1.0))
+
+        if not eligible_ops:
+            return []
+
+        total_weight = sum(op_weights)
+        if total_weight <= 0:
+            return []
+
+        k = self.rng.randint(min_ops, max_ops)
+        k = min(k, len(eligible_ops))
+
+        return self.rng.choices(eligible_ops, weights=op_weights, k=k)
+
+    def _partition_ops(self, op_names: List[str]) -> Tuple[List[str], List[str]]:
+        """Separate drift ops from regular ops.
+
+        Drift ops contain 'drift' in their key and run first.
+
+        Args:
+            op_names: List of op keys to partition
+
+        Returns:
+            Tuple of (drift_ops, regular_ops)
+        """
+        drift_ops: List[str] = []
+        regular_ops: List[str] = []
+
+        for name in op_names:
+            if "drift" in name:
+                drift_ops.append(name)
             else:
-                return ApplyResult(body=body), {}
-        
-        # budget (without drifts)
-        drift_ops: list[str] = []
-        other_ops: list[str] = []
+                regular_ops.append(name)
 
-        for name in activated_names:
-            (drift_ops if "drift" in name else other_ops).append(name)
+        return drift_ops, regular_ops
 
-        regular_ops = other_ops
+    def _apply_budget_limits(self, op_names: List[str]) -> List[str]:
+        """Apply budget limits to regular ops (drift ops exempt).
+
+        Args:
+            op_names: List of regular op keys
+
+        Returns:
+            Subset of ops within budget limits
+        """
         budgets_cfg = getattr(self.cfg, "budgets", None)
-        if budgets_cfg:
-            if len(regular_ops) > getattr(budgets_cfg, "max_faults_per_request"):
-                regular_ops = self.rng.sample(regular_ops, k= getattr(budgets_cfg, "max_faults_per_request"))
+        if not budgets_cfg:
+            return op_names
 
-        response = {
-            "body": body,
-            "headers": {"content-type": "application/json"},
-            "status": 200,
-            "request": None,
-        }
-        headers_ref = dict(response["headers"])
-        status_ref = response["status"]
-        try:
-            resp_obj = SimpleNamespace(**response)
-        except Exception:
-            resp_obj = SimpleNamespace(**{"body": body, "headers": headers_ref, "status": status_ref})
+        max_faults = getattr(budgets_cfg, "max_faults_per_request", None)
+        if max_faults is None or len(op_names) <= max_faults:
+            return op_names
+
+        return self.rng.sample(op_names, k=max_faults)
+
+    def _execute_ops(
+        self,
+        op_names: List[str],
+        body: dict,
+        schema_name: str | None,
+        ops_cfg: BaseModel,
+    ) -> Tuple[ApplyResult, Dict[str, Any]]:
+        """Execute ops in sequence, accumulating results.
+
+        Args:
+            op_names: Ordered list of op keys to execute
+            body: Initial response body
+            schema_name: Schema name for response object
+            ops_cfg: Ops configuration for parameter extraction
+
+        Returns:
+            Tuple of (final ApplyResult, response metadata dict)
+        """
+        resp_obj = SimpleNamespace(
+            body=body,
+            headers={"content-type": "application/json"},
+            status=200,
+            request=None,
+            schema_name=schema_name,
+        )
 
         result = ApplyResult(body=body)
-        for op in drift_ops + regular_ops:
-            op_cls = self.registry.get(op)
-            params = getattr(ops_cfg, op).model_dump()
+
+        for op_key in op_names:
+            op_cls = self.registry.get(op_key)
+            if not op_cls:
+                continue
+
+            op_cfg = getattr(ops_cfg, op_key, None)
+            if not op_cfg:
+                continue
+
+            params = op_cfg.model_dump()
+
             op_instance = op_cls(**params)
             op_result = op_instance.apply(
-                request=response.get("request"),
+                request=None,
                 response=resp_obj,
                 body=result.body,
                 rng=self.rng,
             )
-            if result.descriptions:
-                result.descriptions.extend(op_result.descriptions)
-            else:
-                result.descriptions = op_result.descriptions
+
             result.body = op_result.body
+
+            if op_result.descriptions:
+                if result.descriptions:
+                    result.descriptions.extend(op_result.descriptions)
+                else:
+                    result.descriptions = op_result.descriptions
+
             if op_result.status:
-                status_ref = op_result.status
+                resp_obj.status = op_result.status
+
             if op_result.headers_delta:
-                # Apply explicit header deltas
                 for k, v in op_result.headers_delta.items():
                     if v is None:
                         resp_obj.headers.pop(k, None)
                     else:
                         resp_obj.headers[k] = v
-        headers_ref = dict(getattr(resp_obj, "headers", headers_ref) or {})
-        return result, {"headers": headers_ref, "status": status_ref}
+
+        return result, {
+            "headers": dict(getattr(resp_obj, "headers", {}) or {}),
+            "status": getattr(resp_obj, "status", 200),
+        }
     
