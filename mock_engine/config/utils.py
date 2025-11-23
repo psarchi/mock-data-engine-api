@@ -423,7 +423,7 @@ class Logger:
         """
         stream = stream or sys.stdout
         for e in self.entries:
-            print(str(e), file=stream)
+            stream.write(f"{str(e)}\n")
 
     def summary(self, stream=None) -> None:
         """Print a one-line summary with counts per log level.
@@ -435,6 +435,6 @@ class Logger:
         counts: Dict[str, int] = {}
         for e in self.entries:
             counts[e.level] = counts.get(e.level, 0) + 1
-        print("SUMMARY " + " ".join(
-            f"{k.lower()}={v}" for k, v in sorted(counts.items())),
-              file=stream)
+        summary_line = "SUMMARY " + " ".join(
+            f"{k.lower()}={v}" for k, v in sorted(counts.items()))
+        stream.write(f"{summary_line}\n")
