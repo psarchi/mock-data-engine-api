@@ -18,6 +18,14 @@ class OneOfDataDrift(DriftSpec):
                         cfg: Dict[str, Any]) -> Optional[str]:
         if len(weights) < 2:
             return None
+
+        force_weight = cfg.get("force_weight", False)
+        if force_weight:
+            i = rng.randint(0, len(weights) - 1)
+            for idx in range(len(weights)):
+                weights[idx] = 1.0 if idx == i else 0.0
+            return f"weights[{i}]=1.0(forced)"
+
         delta_cfg = cfg.get("weight_delta", 0.1)
         if isinstance(delta_cfg, (list, tuple)) and len(delta_cfg) == 2:
             delta = rng.uniform(float(delta_cfg[0]), float(delta_cfg[1]))
@@ -33,7 +41,7 @@ class OneOfDataDrift(DriftSpec):
         weights[j] = clamp(weights[j] - delta, 0.0, 1.0)
         total = sum(weights) or 1.0
         for idx in range(len(weights)):
-            weights[idx] = weights[idx] / total
+            weights[idx] = round(weights[idx] / total, 2)
         return f"weights[{i}]delta={delta}"
 
     @classmethod
