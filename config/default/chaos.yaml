@@ -56,7 +56,7 @@ chaos:
         description: Toggle latency injection.
       p:
         type: float
-        value: 0.35
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -86,7 +86,7 @@ chaos:
         description: Toggle HTTP error short-circuit.
       p:
         type: float
-        value: 0.05
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -115,7 +115,7 @@ chaos:
         description: Toggle HTTP status/body mismatch faults.
       p:
         type: float
-        value: 0.05
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -152,7 +152,7 @@ chaos:
         description: Toggle post-generation item order randomization.
       p:
         type: float
-        value: 0.1
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -172,7 +172,7 @@ chaos:
         description: Toggle payload truncation/corruption.
       p:
         type: float
-        value: 0.05
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -204,7 +204,7 @@ chaos:
         description: Toggle schema bloat string inflation.
       p:
         type: float
-        value: 0.05
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -234,7 +234,7 @@ chaos:
         description: Toggle schema field nulling.
       p:
         type: float
-        value: 0.1
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -260,7 +260,7 @@ chaos:
         description: Toggle timestamp skew mutations.
       p:
         type: float
-        value: 0.05
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -283,7 +283,7 @@ chaos:
         description: Direction of skew ('past', 'future', or 'both').
       fields:
         type: list
-        value: []
+        value: [event_timestamp]
         description: Timestamp field names (ISO8601 or epoch) to skew.
         items:
           type: string
@@ -296,7 +296,7 @@ chaos:
         description: Toggle duplication of list items throughout the body.
       p:
         type: float
-        value: 0.1
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -331,7 +331,7 @@ chaos:
         description: Toggle auth failures or anomalies.
       p:
         type: float
-        value: 0.05
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -368,7 +368,7 @@ chaos:
         description: Toggle anomalous headers on the request.
       p:
         type: float
-        value: 0.1
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -388,7 +388,7 @@ chaos:
         description: Toggle random header casing mutations.
       p:
         type: float
-        value: 0.1
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -438,7 +438,7 @@ chaos:
         description: Toggle cutting the list mid-way to simulate partial responses.
       p:
         type: float
-        value: 0.1
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -459,7 +459,7 @@ chaos:
         description: Toggle light string corruption within items (replacement char).
       p:
         type: float
-        value: 0.05
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -485,7 +485,7 @@ chaos:
         description: Toggle shifting numeric time fields by +/- seconds.
       p:
         type: float
-        value: 0.1
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -524,7 +524,7 @@ chaos:
           drift.
       p:
         type: float
-        value: 0.1
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -575,7 +575,7 @@ chaos:
           bias/jitter).
       p:
         type: float
-        value: 0.15
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
@@ -599,6 +599,12 @@ chaos:
         constraints:
           ge: 0.0
           le: 1.0
+      max_hits:
+        type: int
+        value: 3
+        description: Maximum number of times a drift layer can be used before it expires.
+        constraints:
+          ge: 1.0
       config:
         type: group
         value:
@@ -611,7 +617,8 @@ chaos:
               ge: 1.0
           default:
             type: group
-            value: {}
+            value:
+              force_weight: true
             description: Baseline overrides merged into every spec config.
           specs:
             type: group
@@ -631,6 +638,8 @@ chaos:
                     type: list
                     value: [-5, 5]
                     description: Absolute range for integer bound offsets (lo, hi).
+                    items:
+                      type: int
                   step_delta:
                     type: int
                     value: 2
@@ -645,6 +654,8 @@ chaos:
                         type: list
                         value: [0.2, 0.6]
                         description: Inclusive range for p_null sampling when wrapping ints.
+                        items:
+                          type: float
               float:
                 type: group
                 value:
@@ -669,6 +680,8 @@ chaos:
                         type: list
                         value: [0.1, 0.4]
                         description: Inclusive range for p_null sampling when wrapping floats.
+                        items:
+                          type: float
               string:
                 type: group
                 value:
@@ -681,6 +694,8 @@ chaos:
                         type: list
                         value: [0.3, 0.6]
                         description: Inclusive range for p_null sampling when strings become nullable.
+                        items:
+                          type: float
               array:
                 type: group
                 value:
@@ -707,6 +722,8 @@ chaos:
                             type: list
                             value: [-2, 2]
                             description: Absolute jitter for nested integer bounds.
+                            items:
+                              type: int
                       float:
                         type: group
                         value:
@@ -759,6 +776,10 @@ chaos:
                     description: Max weight adjustment applied between two enum entries.
                     constraints:
                       ge: 0.0
+                  force_weight:
+                    type: bool
+                    value: true
+                    description: Force one weight to 1.0 for testing purposes.
               select:
                 type: group
                 value:
@@ -801,6 +822,10 @@ chaos:
                     description: Max additive delta applied between one_of weights.
                     constraints:
                       ge: 0.0
+                  force_weight:
+                    type: bool
+                    value: true
+                    description: Force one weight to 1.0 for testing purposes.
                   child:
                     type: group
                     value:
@@ -843,6 +868,8 @@ chaos:
                     type: list
                     value: [-3600, 3600]
                     description: Absolute offset bounds in seconds for timestamps.
+                    items:
+                      type: int
                   nullable:
                     type: group
                     value:
@@ -886,7 +913,7 @@ chaos:
           items.'
       p:
         type: float
-        value: 0.1
+        value: 0.0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
