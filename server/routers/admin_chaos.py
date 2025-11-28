@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pprint import pprint
 from typing import Mapping, Any
 
 from fastapi import APIRouter, Response
@@ -61,10 +60,7 @@ def wrap_output(body, status: int, headers: dict | None = None):
 
 @router.get("/test")
 def chaos_test():
-    # list of ops
     list_of_ops = ["duplicate_items"]
-
-    # minimal payload
     items = []
     name = "ga4"
     gen = get_generator(name)
@@ -79,7 +75,6 @@ def chaos_test():
     out_resp, _meta = mgr.apply(response=payload, meta_enabled=False,
                                 names=list_of_ops)
     body = out_resp.get("body")
-    pprint(type(body))
     headers = out_resp.get("headers") or {
         "Content-Type": "application/json; charset=utf-8"}
     return JSONResponse(content=body, status_code=200)
@@ -88,12 +83,67 @@ def chaos_test():
 @router.get("/debug")
 def chaos_ops():
     """Return the current chaos ops config and registry."""
+    from mock_engine.config.access import ensure_config_fresh
+    ensure_config_fresh()
     cfg = get_config_manager().get_root("chaos")
     mgr = get_chaos_manager(GenContext())
     registry = mgr.registry.items()
-    pprint(registry)
     cfg_dict = dict(cfg) if cfg else {}
     cfg_dict.pop("ops_registry", None)
     registry = {k: v.__module__ + "." + v.__name__ for k, v in
                 mgr.registry.items()}
     return {"config": cfg_dict, "registry": registry}
+
+
+@router.post("/clear-drift")
+def clear_drift_layers():
+    """Clear all drift layers for testing."""
+    from mock_engine.chaos.drift import get_drift_coordinator
+    coordinator = get_drift_coordinator()
+    coordinator._schemas.clear()  # Clear all schema drift states
+    return {"status": "ok", "message": "All drift layers cleared"}
+
+
+@router.post("/reload-config")
+def reload_chaos_config():
+    """Reload chaos config and reset chaos manager."""
+    from mock_engine.config.access import reload_config
+    from mock_engine.chaos import access as chaos_access
+
+    # Reload config from disk
+    reload_config()
+
+    # Reset chaos manager singleton
+    chaos_access._manager = None
+
+    return {"status": "ok", "message": "Chaos config reloaded and manager reset"}
+
+
+@router.get("/drift-state")
+def get_drift_state():
+    """Return current drift layer state for all schemas."""
+    from mock_engine.chaos.drift import get_drift_coordinator
+    coordinator = get_drift_coordinator()
+
+    result = {}
+    for schema_name, state in coordinator._schemas.items():
+        result[schema_name] = {
+            "layering_enabled": state.layering_enabled,
+            "current_revision": state.current_revision,
+            "cooldown_active": state.cooldown_active,
+            "layers": [
+                {
+                    "strategy": layer.strategy,
+                    "index": layer.index,
+                    "revision": layer.revision,
+                    "hits": layer.hits,
+                    "max_hits": layer.max_hits,
+                    "approvals": layer.approvals,
+                    "request_quota": layer.request_quota,
+                    "exhausted": layer.exhausted(),
+                    "modifications": layer.modifications,
+                }
+                for layer in state.layers
+            ],
+        }
+    return result

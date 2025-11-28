@@ -28,11 +28,28 @@ def _load_schema_from_disk(name: str):
 
 def get_generator(name: str):
     """Return a generator built from the latest registered revision of ``name``."""
+    from mock_engine.chaos.drift import get_drift_coordinator
+
+    coordinator = get_drift_coordinator()
+    active_layers = coordinator.active_layers(name)
+
+    if active_layers:
+        newest_layer = active_layers[-1]
+        target_name = newest_layer.revision
+    else:
+        target_name = name
+
+    for layer in active_layers:
+        remaining = coordinator.record_hit(name, layer.strategy)
+        if not remaining:
+            continue
+
     try:
-        doc = SchemaRegistry.get_latest_revision(name)
+        doc = SchemaRegistry.get(target_name)
     except KeyError:
         doc = _load_schema_from_disk(name)
-    latest_name = SchemaRegistry.get_latest_name(name)
+
+    latest_name = target_name
     revision = SchemaRegistry.get_revision(latest_name)
 
     cached = _GENERATOR_CACHE.get(latest_name)
