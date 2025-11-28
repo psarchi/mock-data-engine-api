@@ -1,0 +1,4 @@
+type: object
+fields:
+  flag:
+    type: bool

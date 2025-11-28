@@ -1,0 +1,14 @@
+type: object
+fields:
+  always_null:
+    type: maybe
+    p_null: 1.0
+    child:
+      type: string
+      template: X
+  never_null:
+    type: maybe
+    p_null: 0.0
+    child:
+      type: string
+      template: X

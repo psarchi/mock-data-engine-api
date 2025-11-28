@@ -1,0 +1,17 @@
+type: object
+fields:
+  template_upper:
+    type: string
+    template: "ISO-{nnn}"
+  template_numeric:
+    type: string
+    template: "ID-{nn}"
+    n_type: numeric
+  regex_plain:
+    type: string
+    regex: "^[a-z0-9]{8}$"
+    min_length: 8
+    max_length: 12
+  faker_name:
+    type: string
+    string_type: first_name

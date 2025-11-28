@@ -1,0 +1,14 @@
+type: object
+fields:
+  rec:
+    type: object
+    fields:
+      required_null:
+        required: true
+        of:
+          type: maybe
+          p_null: 1.0
+          child:
+            type: int
+            min: 1
+            max: 1

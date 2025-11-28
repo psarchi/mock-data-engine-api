@@ -1,0 +1,6 @@
+type: object
+fields:
+  bias:
+    type: enum
+    values: [x, y]
+    weights: [1, 100]

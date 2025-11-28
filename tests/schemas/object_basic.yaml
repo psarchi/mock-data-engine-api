@@ -1,0 +1,14 @@
+type: object
+fields:
+  obj:
+    type: object
+    fields:
+      id:
+        type: int
+        min: 1
+        max: 5
+      ok:
+        type: bool
+      label:
+        type: string
+        string_type: word

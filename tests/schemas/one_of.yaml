@@ -1,0 +1,17 @@
+type: object
+fields:
+  choice_uniform:
+    type: one_of
+    choices:
+      - type: string
+        template: A
+      - type: string
+        template: B
+  choice_weighted:
+    type: one_of
+    choices:
+      - type: string
+        template: A
+      - type: string
+        template: B
+    weights: [1, 100]

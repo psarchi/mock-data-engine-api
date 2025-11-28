@@ -1,0 +1,12 @@
+type: object
+fields:
+  step_int:
+    type: int
+    min: 0
+    max: 10
+    step: 5
+  precise_float:
+    type: float
+    min: 0.0
+    max: 1.0
+    precision: 3
