@@ -69,6 +69,9 @@ class GenContext:
             a random 64-bit seed is generated.
         rng (Random | None): Preconstructed RNG. If provided, takes precedence over ``seed``.
         locale (str | None): Locale for the Faker provider (e.g., ``"en_US"``).
+
+    Attributes:
+        temporal_tracker: Reference to TemporalTracker singleton for timeline state management.
     """
 
     __slots__ = (
@@ -87,6 +90,7 @@ class GenContext:
         "emit_meta",
         "schema_name",
         "schema_version",
+        "temporal_tracker",
     )
 
     def __init__(self, seed: int | None = None, rng: Random | None = None, locale: str | None = None) -> None:
@@ -130,6 +134,7 @@ class GenContext:
         self.emit_meta = True
         self.schema_name: str | None = None
         self.schema_version = "unknown"
+        self.temporal_tracker: Any = None
 
     @property
     def faker(self) -> faker.Faker:

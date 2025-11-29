@@ -13,6 +13,8 @@ from mock_engine.contracts.maybe import MaybeGeneratorSpec
 from mock_engine.contracts.object_or_null import ObjectOrNullGeneratorSpec
 from mock_engine.contracts.string_or_null import StringOrNullGeneratorSpec
 from mock_engine.contracts.select import SelectGeneratorSpec
+from mock_engine.contracts.stateful_timestamp import StatefulTimestampGeneratorSpec
+from mock_engine.contracts.stateful_datetime import StatefulDateTimeGeneratorSpec
 
 __all__ = [
     "ContractModel",
@@ -30,4 +32,6 @@ __all__ = [
     "ObjectOrNullGeneratorSpec",
     "StringOrNullGeneratorSpec",
     "SelectGeneratorSpec",
+    "StatefulTimestampGeneratorSpec",
+    "StatefulDateTimeGeneratorSpec",
 ]

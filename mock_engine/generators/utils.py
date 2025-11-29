@@ -5,14 +5,14 @@ This module intentionally keeps behavior minimal and side-effect free.
 from __future__ import annotations
 
 import inspect
+from datetime import datetime, timezone
 from random import Random
 from typing import TYPE_CHECKING, Any, Type, Sequence
 
-if TYPE_CHECKING:  # import only for typing to avoid cycles
+if TYPE_CHECKING:
     from mock_engine.types import JsonValue  # noqa: F401
 
-
-# TODO (core): Wire all utils here for generators.
+UTC = timezone.utc
 
 def get_init_fields(cls: Type[object]) -> list[str]:
     """Return constructor field names for a generator class.
@@ -30,6 +30,61 @@ def get_init_fields(cls: Type[object]) -> list[str]:
     fields = [param.name for param in sig.parameters.values() if param.name != "self"]
     setattr(cls, "_cached_init_fields", fields)
     return fields
+
+
+def infer_epoch_divisor(value: float) -> float:
+    """Infer divisor for numeric epochs (seconds/millis/micros).
+
+    Args:
+        value: Numeric epoch as provided.
+
+    Returns:
+        Divisor to convert value to seconds.
+    """
+    if value >= 1_000_000_000_000_000:
+        return 1_000_000.0
+    if value >= 1_000_000_000_000:
+        return 1_000.0
+    return 1.0
+
+
+def parse_timestamp_to_microseconds(value: int | float | str | None, default_dt: datetime | None = None) -> int | None:
+    """Parse a timestamp value into microseconds.
+
+    Args:
+        value: ISO8601 string, epoch value, or None.
+        default_dt: Datetime to use when value is None.
+
+    Returns:
+        Microseconds since epoch, or None if value and default_dt are both None.
+    """
+    from mock_engine.generators.errors import InvalidParameterError
+
+    if value is None:
+        if default_dt is None:
+            return None
+        return int(round(default_dt.timestamp() * 1_000_000))
+
+    if isinstance(value, (int, float)):
+        divisor = infer_epoch_divisor(float(value))
+        dt = datetime.fromtimestamp(float(value) / divisor, tz=UTC)
+        return int(round(dt.timestamp() * 1_000_000))
+
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            raise InvalidParameterError(
+                "timestamp value must be ISO8601 or numeric epoch"
+            )
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        dt = parsed.astimezone(UTC)
+        return int(round(dt.timestamp() * 1_000_000))
+
+    raise InvalidParameterError(
+        "timestamp value must be ISO8601 or numeric epoch"
+    )
 
 
 def _pick_index(cls: object, rng: Random) -> int:

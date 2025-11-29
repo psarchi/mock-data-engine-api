@@ -13,9 +13,12 @@ from mock_engine.generators.composites import OneOfGenerator
 from mock_engine.generators.composites import SelectGenerator
 from mock_engine.generators.composites import StringOrNullGenerator
 from mock_engine.generators.composites import ArrayGenerator
+from mock_engine.generators.stateful import StatefulTimestampGenerator
+from mock_engine.generators.stateful import StatefulDateTimeGenerator
 
 __all__ = ['IntGenerator', 'FloatGenerator', 'StringGenerator',
            'BoolGenerator', 'EnumGenerator', 'ArrayGenerator',
            'ObjectGenerator', 'MaybeGenerator', 'OneOfGenerator',
            'ObjectOrNullGenerator', 'SelectGenerator', 'StringOrNullGenerator',
-           'TimestampGenerator', 'DateTimeGenerator']
+           'TimestampGenerator', 'DateTimeGenerator',
+           'StatefulTimestampGenerator', 'StatefulDateTimeGenerator']
