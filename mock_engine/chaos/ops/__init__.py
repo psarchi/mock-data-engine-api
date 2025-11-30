@@ -58,3 +58,6 @@ def _autoload() -> None:
 
 
 _autoload()
+
+from mock_engine.chaos.ops.body.late_arrival import LateArrivalOp
+__all__.append('LateArrivalOp')
