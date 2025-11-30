@@ -77,6 +77,38 @@ chaos:
         type: int
         value: 300
         description: Upper bound for injected latency in milliseconds.
+    late_arrival:
+      description: Response-phase; mutates timestamp fields to random past values simulating out-of-order events.
+      type: group
+      enabled:
+        type: bool
+        value: true
+        description: Toggle late arrival chaos operation.
+      p:
+        type: float
+        value: 0.8
+        description: Independent activation probability for this op.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 1.0
+        description: Relative selection weight; higher increases sampling likelihood.
+        constraints:
+          gt: 0.0
+      min_elapsed_seconds:
+        type: int
+        value: 10
+        description: Minimum elapsed timeline seconds before late arrival becomes eligible.
+        constraints:
+          ge: 0.0
+      late_window_seconds:
+        type: int
+        value: 5
+        description: Maximum seconds back from current to generate late timestamps.
+        constraints:
+          ge: 1.0
     http_error:
       description: Request-phase; returns one of the configured error codes immediately.
       type: group
