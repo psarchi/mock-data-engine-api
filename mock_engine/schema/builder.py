@@ -140,6 +140,7 @@ def _preflight_sample(
     try:
         for seed in seeds:
             ctx = GenContext(seed=seed)
+            ctx.schema_name = name
             row = gen.generate(ctx)
             report.samples += 1
             for path, min_needed in array_requirements:
