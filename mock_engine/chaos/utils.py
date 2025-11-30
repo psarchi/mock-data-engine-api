@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import time
 from typing import Any, List, Tuple
 
@@ -37,3 +38,36 @@ def weighted_pick_one(rng, items: List[Tuple[Any, float]]):
         if r <= upto:
             return item
     return items[-1][0]
+
+
+def parse_timestamp(val: Any) -> Tuple[datetime.datetime | None, str | None]:
+    """Parse a value into a datetime object and format type.
+
+    Args:
+        val: Value to parse (int, float, or string).
+
+    Returns:
+        Tuple of (datetime object, format type) where format type is:
+        - "iso": ISO8601 string format
+        - "epoch": Unix timestamp in seconds
+        - "epoch_micro": Unix timestamp in microseconds
+        - None: Could not parse
+    """
+    try:
+        return datetime.datetime.fromisoformat(
+            str(val).replace("Z", "+00:00")
+        ), "iso"
+    except Exception:
+        pass
+
+    try:
+        return datetime.datetime.utcfromtimestamp(float(val)), "epoch"
+    except Exception:
+        pass
+
+    try:
+        return datetime.datetime.utcfromtimestamp(float(val) / 1_000_000), "epoch_micro"
+    except Exception:
+        pass
+
+    return None, None

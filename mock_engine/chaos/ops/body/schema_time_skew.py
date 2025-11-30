@@ -2,22 +2,7 @@ from __future__ import annotations
 import random, datetime
 from typing import Any, List
 from mock_engine.chaos.ops.base import BaseChaosOp, ApplyResult
-
-
-def _try_parse_ts(val: Any):
-    try:
-        return datetime.datetime.fromisoformat(
-            str(val).replace("Z", "+00:00")), "iso"
-    except Exception:
-        pass
-    try:
-        return datetime.datetime.utcfromtimestamp(float(val)), "epoch"
-    except Exception:
-        pass
-    try:
-        return datetime.datetime.utcfromtimestamp(float(val) / 1_000_000), "epoch_micro"
-    except Exception:
-        return None, None
+from mock_engine.chaos.utils import parse_timestamp
 
 
 class SchemaTimeSkewOp(BaseChaosOp):
@@ -58,7 +43,7 @@ class SchemaTimeSkewOp(BaseChaosOp):
             if not isinstance(rec, dict): continue
             for f in self.fields:
                 if f in rec:
-                    ts, kind = _try_parse_ts(rec[f])
+                    ts, kind = parse_timestamp(rec[f])
                     if ts:
                         skew = int(rng.random() * self.max_skew_s)
                         if self.direction in (
