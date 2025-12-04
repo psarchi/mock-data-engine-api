@@ -13,6 +13,7 @@ class TimestampGeneratorSpec(ContractModel):
 
     start: Optional[datetime] = None
     end: Optional[datetime] = None
+    depends_on: Optional[str] = None
 
     def to_spec(self, name: str, adapt):
         def enc(x):
@@ -29,4 +30,6 @@ class TimestampGeneratorSpec(ContractModel):
             out["start"] = enc(self.start)
         if self.end is not None:
             out["end"] = enc(self.end)
+        if self.depends_on is not None:
+            out["depends_on"] = self.depends_on
         return out

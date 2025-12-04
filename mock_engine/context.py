@@ -91,6 +91,7 @@ class GenContext:
         "schema_name",
         "schema_version",
         "temporal_tracker",
+        "_depends_on",
     )
 
     def __init__(self, seed: int | None = None, rng: Random | None = None, locale: str | None = None) -> None:
@@ -135,6 +136,7 @@ class GenContext:
         self.schema_name: str | None = None
         self.schema_version = "unknown"
         self.temporal_tracker: Any = None
+        self._depends_on: Any = None
 
     @property
     def faker(self) -> faker.Faker:

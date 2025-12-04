@@ -119,7 +119,17 @@ class ObjectGenerator(BaseGenerator):
         if fields is not None:
             self._built = fields
         return self
-
+    def _value_checker(self, value, default_value, is_required, field_name):
+        """Check and apply defaults/required validation for a field value."""
+        if value is None:
+            if default_value is not None:
+                value = default_value
+            elif is_required:
+                # TODO(errors): consider a more specific error (e.g., RequiredFieldMissingError)
+                raise InvalidParameterError(
+                    f"required field '{field_name}' generated None")
+        return value
+    
     def generate(self, ctx: GenContext) -> dict[str, "JsonValue"]:
         """Produce an object with values from each child generator.
 
@@ -134,18 +144,43 @@ class ObjectGenerator(BaseGenerator):
         """
         self._sanity_check(ctx)
         output: dict[str, Any] = {}
+        depends_on = []
         for field_name, child_gen in self._built.items():
             field_meta = self._meta.get(field_name, {})
             is_required = bool(field_meta.get("required"))
             default_value = field_meta.get("default", None)
-
+            depends = getattr(child_gen, "depends_on", None)
+            if depends and depends not in output:
+                depends_on.append([field_name, child_gen, depends])
+                continue
+            if depends and depends in output:
+                ctx._depends_on = output[depends]
             value = child_gen.generate(ctx)
-            if value is None:
-                if default_value is not None:
-                    value = default_value
-                elif is_required:
-                    # TODO(errors): consider a more specific error (e.g., RequiredFieldMissingError)
-                    raise InvalidParameterError(
-                        f"required field '{field_name}' generated None")
+            value = self._value_checker(value, default_value, is_required, field_name)
             output[field_name] = value
+
+        while depends_on:
+            resolved_any = False
+            indx = len(depends_on) - 1
+            while indx >= 0:
+                d_field_name, d_child_gen, d_depends_on = depends_on[indx]
+                if d_depends_on in output:
+                    value_depends_on = output[d_depends_on]
+                    ctx._depends_on = value_depends_on
+                    value = d_child_gen.generate(ctx)
+                    d_field_meta = self._meta.get(d_field_name, {})
+                    d_is_required = bool(d_field_meta.get("required"))
+                    d_default_value = d_field_meta.get("default", None)
+                    value = self._value_checker(value, d_default_value, d_is_required, d_field_name)
+                    output[d_field_name] = value
+                    depends_on.pop(indx)
+                    resolved_any = True
+                indx -= 1
+
+            if not resolved_any:
+                unresolved = [item[0] for item in depends_on]
+                raise InvalidParameterError(
+                    f"Cannot resolve dependencies: {', '.join(unresolved)}") 
+           
+            
         return output

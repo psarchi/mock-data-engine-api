@@ -33,11 +33,11 @@ class TimestampGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"end": "end", "start": "start"},
+        "aliases": {"end": "end", "start": "start", "depends_on": "depends_on"},
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("start", "end")
+    __slots__ = ("start", "end", "depends_on")
     __aliases__ = ("timestamp",)
 
     # TODO(defaults): Make the fallback window configurable (currently last 365 days).
@@ -46,15 +46,18 @@ class TimestampGenerator(BaseGenerator):
         self,
         start: int | float | str | None = None,
         end: int | float | str | None = None,
+        depends_on: str | None = None,
     ) -> None:
         """Initialize bounds.
 
         Args:
             start (int | float | str | None): Start moment as ISO8601 string or epoch.
             end (int | float | str | None): End moment as ISO8601 string or epoch.
+            depends_on (str | None): Field name to derive from (e.g., "event_date").
         """
         self.start = start
         self.end = end
+        self.depends_on = depends_on
 
     @classmethod
     def from_spec(
@@ -66,12 +69,16 @@ class TimestampGenerator(BaseGenerator):
 
         Args:
             builder (Any): Unused builder/factory (kept for signature parity).
-            spec (Mapping[str, Any]): Mapping possibly containing ``start`` and ``end``.
+            spec (Mapping[str, Any]): Mapping possibly containing ``start``, ``end``, and ``depends_on``.
 
         Returns:
             TimestampGenerator: Configured instance.
         """
-        return cls(start=spec.get("start"), end=spec.get("end"))
+        return cls(
+            start=spec.get("start"),
+            end=spec.get("end"),
+            depends_on=spec.get("depends_on"),
+        )
 
     # TODO(move): Move to utils
     def _infer_div(self, value: float) -> float:
@@ -137,12 +144,45 @@ class TimestampGenerator(BaseGenerator):
     def generate(self, ctx: GenContext) -> "JsonValue":
         """Produce a timestamp (microseconds) according to configuration.
 
+        If ``depends_on`` is set, derives the timestamp from ``ctx._depends_on`` (a datetime string).
+        Otherwise, generates a random timestamp within the configured bounds.
+
         Args:
             ctx (GenContext): Generation context providing RNG via ``ctx.rng``.
 
         Returns:
             JsonValue: Integer microseconds since Unix epoch.
         """
+        if self.depends_on:
+            if not hasattr(ctx, "_depends_on") or ctx._depends_on is None:
+                raise InvalidParameterError(
+                    f"timestamp generator depends on '{self.depends_on}' but ctx._depends_on is not set"
+                )
+
+            datetime_value = ctx._depends_on
+            if not isinstance(datetime_value, str):
+                raise InvalidParameterError(
+                    f"depends_on source must be datetime string, got {type(datetime_value)}"
+                )
+
+            try:
+                dt = datetime.fromisoformat(datetime_value)
+            except ValueError:
+                try:
+                    dt = datetime.strptime(datetime_value, "%Y%m%d")
+                except ValueError:
+                    raise InvalidParameterError(
+                        f"Could not parse datetime string '{datetime_value}' "
+                        "(expected ISO8601 or YYYYMMDD format)"
+                    )
+
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=UTC)
+            else:
+                dt = dt.astimezone(UTC)
+
+            return int(round(dt.timestamp() * 1_000_000))
+
         self._sanity_check(ctx)
         now = datetime.now(tz=UTC)
         start_dt = self._parse_dt(self.start, now.replace(year=now.year - 1))

@@ -40,12 +40,13 @@ class DateTimeGenerator(BaseGenerator):
             "time_end": "time_end",
             "time_start": "time_start",
             "tz": "tz",
+            "depends_on": "depends_on",
         },
         "deprecations": [],
         "rules": [],
         # TODO(versioning): introduce per-generator semver once contracts stabilize.
     }
-    __slots__ = ("start", "end", "format", "time_start", "time_end", "tz")
+    __slots__ = ("start", "end", "format", "time_start", "time_end", "tz", "depends_on")
     __aliases__ = ("datetime",)
 
     def __init__(
@@ -56,6 +57,7 @@ class DateTimeGenerator(BaseGenerator):
         time_start: Optional[str] = None,
         time_end: Optional[str] = None,
         tz: Optional[str] = None,
+        depends_on: Optional[str] = None,
     ) -> None:
         """Initialize the generator.
 
@@ -66,6 +68,7 @@ class DateTimeGenerator(BaseGenerator):
             time_start (str | None): Lower time-of-day bound ("HH:MM" or "HH:MM:SS").
             time_end (str | None): Upper time-of-day bound ("HH:MM" or "HH:MM:SS").
             tz (str | None): Fixed offset like "+04:00"; if ``None``, UTC is used.
+            depends_on (str | None): Field name to derive from (e.g., "event_timestamp").
         """
         self.start = start
         self.end = end
@@ -73,6 +76,7 @@ class DateTimeGenerator(BaseGenerator):
         self.time_start = time_start
         self.time_end = time_end
         self.tz = tz
+        self.depends_on = depends_on
 
     @classmethod
     def from_spec(cls, builder: Any, spec: Mapping[str, Any]) -> "DateTimeGenerator":
@@ -92,6 +96,7 @@ class DateTimeGenerator(BaseGenerator):
             time_start=spec.get("time_start"),
             time_end=spec.get("time_end"),
             tz=spec.get("tz"),
+            depends_on=spec.get("depends_on"),
         )
 
     def _infer_div(self, epoch_value: float) -> float:
@@ -188,6 +193,9 @@ class DateTimeGenerator(BaseGenerator):
     def generate(self, ctx: GenContext) -> str:
         """Produce a formatted datetime string within configured bounds.
 
+        If ``depends_on`` is set, derives the datetime from ``ctx._depends_on`` (a timestamp).
+        Otherwise, generates a random datetime within the configured bounds.
+
         If ``time_start``/``time_end`` are provided without absolute bounds, a
         time-of-day window for "today" is used. Otherwise, absolute bounds are
         parsed with UTC normalization.
@@ -201,7 +209,27 @@ class DateTimeGenerator(BaseGenerator):
         Raises:
             InvalidParameterError: On invalid bounds or ``format``.
         """
-        # TODO(defaults): Make the fallback window configurable (currently last 365 days).
+        if self.depends_on:
+            if not hasattr(ctx, "_depends_on") or ctx._depends_on is None:
+                raise InvalidParameterError(
+                    f"datetime generator depends on '{self.depends_on}' but ctx._depends_on is not set"
+                )
+
+            timestamp = ctx._depends_on
+            if not isinstance(timestamp, (int, float)):
+                raise InvalidParameterError(
+                    f"depends_on source must be numeric timestamp, got {type(timestamp)}"
+                )
+
+            divisor = self._infer_div(float(timestamp))
+            dt = datetime.fromtimestamp(float(timestamp) / divisor, tz=UTC)
+            dt = self._apply_tz(dt)
+
+            try:
+                return dt.strftime(self.format)
+            except Exception as exc:
+                raise InvalidParameterError(f"invalid datetime.format: {exc}")
+
         now = datetime.now(tz=UTC)
         if self.start is None and self.end is None and (self.time_start or self.time_end):
             base = now.replace(hour=0, minute=0, second=0, microsecond=0)

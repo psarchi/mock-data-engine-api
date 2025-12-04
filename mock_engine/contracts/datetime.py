@@ -11,3 +11,4 @@ class DateTimeGeneratorSpec(ContractModel):
     type_aliases: ClassVar[Set[str]] = set()
 
     format: Optional[str] = None
+    depends_on: Optional[str] = None
