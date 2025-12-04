@@ -18,8 +18,10 @@ from mock_engine.contracts.string import StringGeneratorSpec
 from mock_engine.contracts.timestamp import TimestampGeneratorSpec
 from mock_engine.schema.builder import _flatten
 from mock_engine.schema.registry import SchemaRegistry
+from mock_engine.registry import Registry
 
 
+@Registry.register(BaseChaosOp)
 class DataDriftOp(BaseChaosOp):
     """Apply contract-level drift using registered spec handlers."""
 

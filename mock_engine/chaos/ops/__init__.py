@@ -1,63 +1,49 @@
+"""Auto-load all chaos ops and provide registry access."""
+
 from __future__ import annotations
 
 import importlib
 import pkgutil
-from types import ModuleType
-from typing import List
-
-__all__: List[str] = []
-
-try:
-    from mock_engine.chaos.ops.base import BaseChaosOp
-except Exception:
-    BaseChaosOp = None  # type: ignore
+from mock_engine.registry import Registry
+from mock_engine.chaos.ops.base import BaseChaosOp
 
 
-def _export_public_from_module(mod: ModuleType) -> None:
-    global __all__
-    exported: List[str] = []
-    names = getattr(mod, "__all__", None)
-    if isinstance(names, (list, tuple)):
-        for n in names:
-            try:
-                globals()[n] = getattr(mod, n)
-                exported.append(n)
-            except Exception:
-                pass
-    else:
-        if BaseChaosOp is not None:
-            for attr, val in vars(mod).items():
-                try:
-                    if isinstance(val, type) and issubclass(val,
-                                                            BaseChaosOp) and val is not BaseChaosOp:
-                        globals()[attr] = val
-                        exported.append(attr)
-                except Exception:
-                    continue
-    if exported:
-        __all__.extend(exported)
-
-
-def _autoload() -> None:
-    pkg_name = __name__
-    try:
-        pkg = importlib.import_module(pkg_name)
-        pkg_path = pkg.__path__  # type: ignore[attr-defined]
-    except Exception:
-        return
-    for _finder, name, _ispkg in pkgutil.walk_packages(pkg_path,
-                                                       prefix=pkg_name + "."):
-        short = name.rsplit(".", 1)[-1]
-        if short.startswith("_"):
-            continue
+for _, name, _ in pkgutil.walk_packages(__path__, prefix=__name__ + "."):
+    if not name.split(".")[-1].startswith("_"):
         try:
-            mod = importlib.import_module(name)
-        except Exception:
-            continue
-        _export_public_from_module(mod)
+            importlib.import_module(name)
+        except Exception as e:
+            print(f"Warning: Failed to load chaos op module {name}: {e}")
 
 
-_autoload()
+def get(key: str):
+    """Get a chaos op class by key.
 
-from mock_engine.chaos.ops.body.late_arrival import LateArrivalOp
-__all__.append('LateArrivalOp')
+    Args:
+        key: Chaos op key (e.g., "late_arrival", "time_skew", "delay")
+
+    Returns:
+        Chaos op class, or None if not found
+
+    Example:
+        op_cls = get("late_arrival")
+        if op_cls:
+            op = op_cls(enabled=True, p=0.15)
+    """
+    return Registry.get(BaseChaosOp, key)
+
+
+def get_all():
+    """Get all registered chaos op classes.
+
+    Returns:
+        Dictionary mapping keys to chaos op classes
+
+    Example:
+        all_ops = get_all()
+        print(f"Available chaos ops: {list(all_ops.keys())}")
+    """
+    return Registry.get_all(BaseChaosOp)
+
+
+__all__ = ["get", "get_all", "Registry", "BaseChaosOp"]

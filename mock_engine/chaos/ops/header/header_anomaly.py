@@ -2,8 +2,10 @@ from __future__ import annotations
 import random, string
 from typing import Any
 from mock_engine.chaos.ops.base import BaseChaosOp, ApplyResult
+from mock_engine.registry import Registry
 
 
+@Registry.register(BaseChaosOp)
 class HeaderAnomalyOp(BaseChaosOp):
     """Header anomaly chaos operation.
 

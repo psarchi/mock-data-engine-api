@@ -11,11 +11,13 @@ from mock_engine.generators.errors import (
     MissingChildError,
 )
 from mock_engine.generators.utils import _pick_index
+from mock_engine.registry import Registry
+
 
 if TYPE_CHECKING:  # avoid import cycles at runtime
-    from mock_engine.contracts.types import JsonValue  # noqa: F401
+    from mock_engine.contracts.types import JsonValue  # noqa : F401
 
-
+@Registry.register(BaseGenerator)
 class OneOfGenerator(BaseGenerator):
     """Generate a value by choosing one child (uniformly or by weights).
 

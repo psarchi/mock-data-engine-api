@@ -11,11 +11,13 @@ from mock_engine.context import GenContext
 from mock_engine.errors import ContextError
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.generators.errors import InvalidParameterError
+from mock_engine.registry import Registry
+
 
 if TYPE_CHECKING:  # avoid import cycles at runtime
-    from mock_engine.contracts.types import JsonValue  # pragma: no cover
+    from mock_engine.contracts.types import JsonValue  # noqa : F401
 
-
+@Registry.register(BaseGenerator)
 class BoolGenerator(BaseGenerator):
     """Generate boolean values based on a Bernoulli parameter.
 

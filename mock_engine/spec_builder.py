@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
-from mock_engine.core.registry import GeneratorRegistry
+from mock_engine.registry import Registry
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.errors import (
     MissingTypeError,
@@ -22,21 +22,19 @@ if TYPE_CHECKING:  # import only for typing to avoid cycles
 
 
 class SpecBuilder:
-    """Normalize specs and construct generators using a registry.
+    """Normalize specs and construct generators using the unified registry.
 
-    Args:
-        registry (GeneratorRegistry): Registry used to resolve names to implementations.
+    Generators are auto-registered via @Registry.register decorators.
     """
 
-    __slots__ = ("registry",)
+    __slots__ = ()
 
-    def __init__(self, registry: GeneratorRegistry) -> None:
-        """Initialize the builder with a generator registry.
+    def __init__(self) -> None:
+        """Initialize the builder.
 
-        Args:
-            registry (GeneratorRegistry): Registry used to resolve generator classes.
+        Note: No registry parameter needed - generators auto-register on import.
         """
-        self.registry = registry
+        pass
 
     # TODO(types): Make ``path`` consistently ``tuple[str, ...]``; callers pass mixed types today.
     # TODO(compat): Keep current string/list/dict normalization behavior until all callers migrate.
@@ -96,9 +94,12 @@ class SpecBuilder:
         if not isinstance(type_name, str):
             raise InvalidSpecStructureError("'type' must be string", path=path)
 
-        try:
-            gen_cls = self.registry.get_cls(type_name)
-        except Exception as exc:  # noqa: BLE001 (preserve behavior)
-            raise UnknownTypeError(str(exc), path=path) from exc
+        gen_cls = Registry.get(BaseGenerator, type_name)
+        if gen_cls is None:
+            available = list(Registry.get_all(BaseGenerator).keys())
+            raise UnknownTypeError(
+                f"unknown generator '{type_name}'. available: {', '.join(sorted(available))}",
+                path=path
+            )
 
         return gen_cls.from_spec(self, normalized)

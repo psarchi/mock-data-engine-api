@@ -4,8 +4,10 @@ import random
 from typing import Any, Sequence
 
 from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
+from mock_engine.registry import Registry
 
 
+@Registry.register(BaseChaosOp)
 class HttpMismatchOp(BaseChaosOp):
     """HTTP mismatch chaos operation.
 

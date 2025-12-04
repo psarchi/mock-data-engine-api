@@ -9,14 +9,13 @@ from mock_engine.errors import ContextError
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.generators.errors import InvalidParameterError, \
     MissingChildError
-
-if TYPE_CHECKING:  # avoid runtime import cycles
-    from mock_engine.contracts.types import JsonValue  # noqa: F401
+from mock_engine.registry import Registry
 
 
-# TODO(refactor): consider whole file refactor to reduce code duplication with ObjectGenerator
-# TODO: maybe merge with ObjectGenerator and add selection options there?
+if TYPE_CHECKING:  # avoid import cycles at runtime
+    from mock_engine.contracts.types import JsonValue  # noqa : F401
 
+@Registry.register(BaseGenerator)
 class SelectGenerator(BaseGenerator):
     """Generate a mapping by selecting some of the configured options.
 

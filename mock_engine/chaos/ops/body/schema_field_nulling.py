@@ -4,8 +4,10 @@ import random
 from typing import Any, Iterable, List, Sequence, Tuple
 
 from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
+from mock_engine.registry import Registry
 
 
+@Registry.register(BaseChaosOp)
 class SchemaFieldNullingOp(BaseChaosOp):
     """Null out a single schema field inside the response body.
 

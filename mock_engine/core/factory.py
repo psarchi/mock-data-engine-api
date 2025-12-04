@@ -3,29 +3,25 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from mock_engine.core.errors import MissingConfigureMethodError
-from mock_engine.core.registry import GeneratorRegistry
+from mock_engine.registry import Registry
+from mock_engine.generators.base import BaseGenerator
 
 if TYPE_CHECKING:
-    from mock_engine.generators.base import BaseGenerator
+    pass
 
 
-# TODO(arch): depend on a registry *protocol* instead of the concrete class
-# (e.g., an interface with ``get_cls(name: str) -> type[BaseGenerator]``)
 class GeneratorFactory:
     """Factory for instantiating and configuring registered generators.
-        Resolves a generator class from the registry, instantiates it, and calls its
-        ``configure(**kwargs)`` method to return a configured instance.
-    Args:
-        registry (GeneratorRegistry): Registry used to resolve generator classes.
+
+    Resolves generator classes from the unified Registry and instantiates them.
     """
 
-    def __init__(self, registry: GeneratorRegistry) -> None:
-        """Initialize the factory with a generator registry.
+    def __init__(self) -> None:
+        """Initialize the factory.
 
-        Args:
-            registry (GeneratorRegistry): Registry used to resolve names to implementations.
+        Note: No registry parameter needed - generators auto-register on import.
         """
-        self._registry: GeneratorRegistry = registry
+        pass
 
     def resolve(self, name: str, **kwargs: Any) -> BaseGenerator:
         """Resolve, instantiate, and configure a generator by name.
@@ -35,20 +31,26 @@ class GeneratorFactory:
         returned.
 
         Args:
-            name (str): Canonical generator name or alias.
+            name (str): Generator key (e.g., "timestamp", "int", "string").
             **kwargs (Any): Keyword arguments forwarded to ``configure``.
 
         Returns:
             BaseGenerator: Configured generator instance.
 
         Raises:
+            KeyError: If no generator is registered for ``name``.
             MissingConfigureMethodError: The resolved generator instance has no
                 callable ``configure`` method.
         """
-        cls = self._registry.get_cls(name)
+        cls = Registry.get(BaseGenerator, name)
+        if cls is None:
+            available = list(Registry.get_all(BaseGenerator).keys())
+            raise KeyError(
+                f"unknown generator '{name}'. available: {', '.join(sorted(available))}"
+            )
+
         instance: BaseGenerator = cls()
         configure = getattr(instance, "configure", None)
         if not callable(configure):
-            # TODO(errors): consider raising a more specific error with the missing method signature
             raise MissingConfigureMethodError(f"{cls.__name__} has no configure() method")
         return configure(**kwargs)

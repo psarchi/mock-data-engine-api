@@ -8,8 +8,10 @@ from typing import Any
 
 from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
 from mock_engine.chaos.utils import parse_timestamp
+from mock_engine.registry import Registry
 
 
+@Registry.register(BaseChaosOp)
 class LateArrivalOp(BaseChaosOp):
     """Simulate out-of-order event timestamps for stream processing testing.
 

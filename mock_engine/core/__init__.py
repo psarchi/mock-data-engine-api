@@ -1,4 +1,3 @@
 from __future__ import annotations
 from mock_engine.core.factory import GeneratorFactory
-from mock_engine.core.registry import GeneratorRegistry
 from mock_engine.core.errors import FactoryError, GeneratorInstantiationError, InvalidRegistrationError, MissingConfigureMethodError, RegistryError, DuplicateAliasError, UnknownGeneratorError

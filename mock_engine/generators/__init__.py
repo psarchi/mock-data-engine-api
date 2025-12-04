@@ -1,24 +1,49 @@
-from __future__ import annotations
-from mock_engine.generators.leafs import DateTimeGenerator
-from mock_engine.generators.leafs import TimestampGenerator
-from mock_engine.generators.leafs import EnumGenerator
-from mock_engine.generators.leafs import BoolGenerator
-from mock_engine.generators.leafs import FloatGenerator
-from mock_engine.generators.leafs import IntGenerator
-from mock_engine.generators.leafs import StringGenerator
-from mock_engine.generators.composites import MaybeGenerator
-from mock_engine.generators.composites import ObjectGenerator
-from mock_engine.generators.composites import ObjectOrNullGenerator
-from mock_engine.generators.composites import OneOfGenerator
-from mock_engine.generators.composites import SelectGenerator
-from mock_engine.generators.composites import StringOrNullGenerator
-from mock_engine.generators.composites import ArrayGenerator
-from mock_engine.generators.stateful import StatefulTimestampGenerator
-from mock_engine.generators.stateful import StatefulDateTimeGenerator
+"""Auto-load all generators and provide registry access."""
 
-__all__ = ['IntGenerator', 'FloatGenerator', 'StringGenerator',
-           'BoolGenerator', 'EnumGenerator', 'ArrayGenerator',
-           'ObjectGenerator', 'MaybeGenerator', 'OneOfGenerator',
-           'ObjectOrNullGenerator', 'SelectGenerator', 'StringOrNullGenerator',
-           'TimestampGenerator', 'DateTimeGenerator',
-           'StatefulTimestampGenerator', 'StatefulDateTimeGenerator']
+from __future__ import annotations
+
+import importlib
+import pkgutil
+from mock_engine.registry import Registry
+from mock_engine.generators.base import BaseGenerator
+
+
+for _, name, _ in pkgutil.walk_packages(__path__, prefix=__name__ + "."):
+    if not name.split(".")[-1].startswith("_"):
+        try:
+            importlib.import_module(name)
+        except Exception as e:
+            print(f"Warning: Failed to load generator module {name}: {e}")
+
+
+def get(key: str):
+    """Get a generator class by key.
+
+    Args:
+        key: Generator key (e.g., "timestamp", "int", "string")
+
+    Returns:
+        Generator class, or None if not found
+
+    Example:
+        gen_cls = get("timestamp")
+        if gen_cls:
+            generator = gen_cls(...)
+    """
+    return Registry.get(BaseGenerator, key)
+
+
+def get_all():
+    """Get all registered generator classes.
+
+    Returns:
+        Dictionary mapping keys to generator classes
+
+    Example:
+        all_gens = get_all()
+        print(f"Available generators: {list(all_gens.keys())}")
+    """
+    return Registry.get_all(BaseGenerator)
+
+
+__all__ = ["get", "get_all", "Registry", "BaseGenerator"]

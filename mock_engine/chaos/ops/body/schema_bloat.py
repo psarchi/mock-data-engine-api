@@ -4,8 +4,10 @@ from typing import Any
 import string
 from mock_engine.chaos.ops.base import BaseChaosOp, ApplyResult
 from mock_engine.chaos.ops.utils import iter_leaf_refs
+from mock_engine.registry import Registry
 
 
+@Registry.register(BaseChaosOp)
 class SchemaBloatOp(BaseChaosOp):
     """Schema/response bloat chaos operation.
 

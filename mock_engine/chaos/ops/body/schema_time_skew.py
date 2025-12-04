@@ -3,8 +3,10 @@ import random, datetime
 from typing import Any, List
 from mock_engine.chaos.ops.base import BaseChaosOp, ApplyResult
 from mock_engine.chaos.utils import parse_timestamp
+from mock_engine.registry import Registry
 
 
+@Registry.register(BaseChaosOp)
 class SchemaTimeSkewOp(BaseChaosOp):
     """Time skew chaos operation.
 

@@ -10,11 +10,13 @@ from mock_engine.generators.errors import (
     InvalidParameterError,
     MissingChildError,
 )
+from mock_engine.registry import Registry
+
 
 if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa: F401
 
-
+@Registry.register(BaseGenerator)
 class MaybeGenerator(BaseGenerator):
     """Generate either ``None`` or the result of a child generator.
 

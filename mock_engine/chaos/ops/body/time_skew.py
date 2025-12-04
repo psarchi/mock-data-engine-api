@@ -4,8 +4,10 @@ import random
 from typing import Any, Iterable, List
 
 from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
+from mock_engine.registry import Registry
 
 
+@Registry.register(BaseChaosOp)
 class TimeSkewOp(BaseChaosOp):
     """Skew numeric timestamp fields by up to max_skew_s seconds."""
 

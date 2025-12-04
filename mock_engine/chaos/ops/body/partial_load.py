@@ -3,8 +3,10 @@ import random
 from typing import Any
 from mock_engine.chaos.ops.base import BaseChaosOp, ApplyResult
 from mock_engine.chaos.ops.utils import iter_dict_entries
+from mock_engine.registry import Registry
 
 
+@Registry.register(BaseChaosOp)
 class PartialLoadOp(BaseChaosOp):
     """Partial load chaos operation.
 

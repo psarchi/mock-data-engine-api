@@ -7,12 +7,13 @@ from mock_engine.context import GenContext
 from mock_engine.errors import ContextError
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.generators.errors import InvalidParameterError, MissingChildError
+from mock_engine.registry import Registry
+
 
 if TYPE_CHECKING:  # avoid import cycles at runtime
-    from mock_engine.contracts.types import JsonValue  # noqa: F401
+    from mock_engine.contracts.types import JsonValue  # noqa : F401
 
-
-# TODO: consider merging with MaybeGenerator and adding a weights option there?
+@Registry.register(BaseGenerator)
 class StringOrNullGenerator(BaseGenerator):
     """String-or-null composite generator.
         Delegates to a child generator that should return a string, or returns ``None``.

@@ -13,10 +13,13 @@ from mock_engine.generators.errors import (
 # TODO: Consider moving _pick_index to utils to share with OneOfGenerator
 from mock_engine.generators.utils import _pick_index
 
-if TYPE_CHECKING:  # import only for typing to avoid cycles
-    from mock_engine.types import JsonValue  # noqa: F401
+from mock_engine.registry import Registry
 
 
+if TYPE_CHECKING:  # avoid import cycles at runtime
+    from mock_engine.contracts.types import JsonValue  # noqa : F401
+
+@Registry.register(BaseGenerator)
 class EnumGenerator(BaseGenerator):
     """Pick an element from a configured list of values.
 

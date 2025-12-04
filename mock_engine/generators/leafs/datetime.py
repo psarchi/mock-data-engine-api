@@ -6,7 +6,7 @@ from typing import Any, Mapping, Optional, Tuple
 from mock_engine.generators.errors import InvalidParameterError
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.context import GenContext
-
+from mock_engine.registry import Registry
 UTC = timezone.utc
 ISO_DEFAULT = "%Y-%m-%dT%H:%M:%S%z"
 r_time = r'(\d{2}):(\d{2})(?::(\d{2}))?'
@@ -15,7 +15,7 @@ r_tz = r'([+-])(\d{2}):(\d{2})'
 # TODO(arch): use global timezone config from config/default.yaml
 # TODO(refractor): unify with TimestampGenerator maybe?
 
-
+@Registry.register(BaseGenerator)
 class DateTimeGenerator(BaseGenerator):
     """Generate formatted datetimes within optional bounds and timezone.
 

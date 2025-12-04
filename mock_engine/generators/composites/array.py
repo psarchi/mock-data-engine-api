@@ -12,11 +12,13 @@ from mock_engine.generators.errors import (
     MaxLessThanMinError,
     MissingChildError,
 )
+from mock_engine.registry import Registry
 
 if TYPE_CHECKING:  # keep annotations strict without import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa: F401
 
 
+@Registry.register(BaseGenerator)
 class ArrayGenerator(BaseGenerator):
     """Generate an array of items produced by a child generator.
 

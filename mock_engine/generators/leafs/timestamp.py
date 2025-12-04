@@ -8,6 +8,8 @@ from mock_engine.context import GenContext
 from mock_engine.errors import ContextError
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.generators.errors import InvalidParameterError
+from mock_engine.registry import Registry
+
 
 if TYPE_CHECKING:  # import only for typing to avoid cycles
     from mock_engine.types import JsonValue  # noqa: F401
@@ -17,7 +19,7 @@ if TYPE_CHECKING:  # import only for typing to avoid cycles
 # TODO(arch): use global timezone config from config/DEPRICATED.yaml
 UTC = timezone.utc
 
-
+@Registry.register(BaseGenerator)
 class TimestampGenerator(BaseGenerator):
     """Generate a Unix timestamp (microseconds) within a time window.
 

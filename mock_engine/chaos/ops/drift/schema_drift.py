@@ -8,13 +8,15 @@ from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
 from mock_engine.context import GenContext
 from mock_engine.contracts.maybe import MaybeGeneratorSpec
 from mock_engine.contracts.object import ObjectGeneratorSpec
-from mock_engine.core.registry import GeneratorRegistry
+# GeneratorRegistry no longer needed - using unified Registry
 from mock_engine.schema.builder import _flatten
 from mock_engine.schema.registry import SchemaRegistry
 from mock_engine.spec_builder import SpecBuilder
-import mock_engine.generators as gens
+import mock_engine.generators  # noqa: F401 - Triggers auto-registration
+from mock_engine.registry import Registry
 
 
+@Registry.register(BaseChaosOp)
 class SchemaDriftOp(BaseChaosOp):
     """Apply structural drift (add/drop/rename/flatten) to schema definitions."""
 
@@ -81,8 +83,7 @@ class SchemaDriftOp(BaseChaosOp):
 
     def _generate_word(self, rng: Any) -> str:
         """Generate a realistic word using StringGenerator with string_type=word."""
-        registry = GeneratorRegistry().register_from_module(gens)
-        builder = SpecBuilder(registry)
+        builder = SpecBuilder()
         try:
             word_spec = builder.build({"type": "string", "string_type": "word"})
             ctx = GenContext(rng=rng)
@@ -157,8 +158,7 @@ class SchemaDriftOp(BaseChaosOp):
         new_name = self._generate_field_name(existing, rng)
         new_spec_dict = self._generate_field_spec(rng)
 
-        registry = GeneratorRegistry().register_from_module(gens)
-        builder = SpecBuilder(registry)
+        builder = SpecBuilder()
         try:
             new_contract = builder.build(new_spec_dict)
         except Exception:

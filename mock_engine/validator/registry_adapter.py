@@ -1,15 +1,14 @@
 """Registry adapter for validator components.
 
-Resolves the framework's global :class:`~mock_engine.core.registry.GeneratorRegistry`
-from ``mock_engine.api`` and provides thin helpers to look up generator
-classes, aliases, and resolve a generator by name.
+Provides thin helpers to look up generator classes, aliases, and resolve
+generators by name using the unified Registry.
 """
 from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
-from mock_engine.core.registry import GeneratorRegistry
+from mock_engine.registry import Registry
 from mock_engine.generators.base import BaseGenerator
 
 if TYPE_CHECKING:  # import only for typing to avoid cycles
@@ -17,39 +16,37 @@ if TYPE_CHECKING:  # import only for typing to avoid cycles
 
 
 class RegistryAdapter:
-    """Adapter around :class:`GeneratorRegistry` for validator use.
+    """Adapter around unified Registry for validator use."""
 
-    Raises:
-        RuntimeError: If the global registry cannot be resolved or has an unexpected type.
-    """
-
-    __slots__ = ("_registry",)
+    __slots__ = ()
 
     def __init__(self) -> None:
-        """Initialize by resolving the global registry from ``mock_engine.api``.
+        """Initialize the adapter.
 
-        Returns:
-            None: Constructor performs resolution/validation only.
+        Note: Uses the unified Registry directly - generators auto-register on import.
         """
-        try:
-            from mock_engine import api as _api
-        except Exception as exc:  # noqa: BLE001 (preserve behavior)
-            raise RuntimeError("validator.registry_adapter: api module not available") from exc
-        registry = getattr(_api, "_registry", None)
-        if not isinstance(registry, GeneratorRegistry):
-            raise RuntimeError("validator.registry_adapter: _registry must be GeneratorRegistry")
-        self._registry: GeneratorRegistry = registry
+        # Ensure generators are loaded
+        import mock_engine.generators  # noqa: F401
 
     def get_class(self, generator_name: str) -> type[BaseGenerator]:
         """Return the generator class registered under ``generator_name``.
 
         Args:
-            generator_name (str): Canonical or alias generator name.
+            generator_name (str): Generator key (e.g., "timestamp", "int", "string").
 
         Returns:
             type[BaseGenerator]: Registered generator class.
+
+        Raises:
+            KeyError: If no generator is registered for ``generator_name``.
         """
-        return self._registry.get_cls(generator_name)
+        cls = Registry.get(BaseGenerator, generator_name)
+        if cls is None:
+            available = list(Registry.get_all(BaseGenerator).keys())
+            raise KeyError(
+                f"unknown generator '{generator_name}'. available: {', '.join(sorted(available))}"
+            )
+        return cls
 
     def get_aliases(self, generator_name: str) -> Mapping[str, str]:
         """Return alias mapping for a generator's metadata.
@@ -65,28 +62,20 @@ class RegistryAdapter:
         aliases = meta.get("aliases", {}) or {}
         return {str(key): str(value) for key, value in aliases.items()}
 
-    def resolve(self, generator_name: str) -> BaseGenerator | tuple[type[BaseGenerator], str]:
-        """Resolve a generator by alias or canonical name.
+    def resolve(self, generator_name: str) -> tuple[type[BaseGenerator], str]:
+        """Resolve a generator by name.
 
-        Uses ``GeneratorRegistry.resolve`` when available. If the registry does
-        not expose ``resolve``, falls back to returning ``(cls, canonical_name)``
-        for the caller to instantiate.
+        Returns a tuple of (class, canonical_name) for the caller to instantiate.
 
         Args:
-            generator_name (str): Canonical or alias generator name.
+            generator_name (str): Generator key (e.g., "timestamp", "int", "string").
 
         Returns:
-            BaseGenerator | tuple[type[BaseGenerator], str]: Resolved generator instance
-                or a tuple of ``(class, canonical_name)`` when the registry lacks a
-                resolver.
+            tuple[type[BaseGenerator], str]: Tuple of (class, canonical_name).
 
         Raises:
-            RuntimeError: If the class cannot be located (propagated from registry).
+            KeyError: If the class cannot be located.
         """
-        reg = self._registry
-        if hasattr(reg, "resolve") and callable(getattr(reg, "resolve")):
-            return reg.resolve(generator_name)  # type: ignore[return-value]
-        cls = reg.get_cls(generator_name)
+        cls = self.get_class(generator_name)
         canonical = getattr(cls, "__name__", "generator").lower()
-        # TODO(compat): Replace tuple fallback with an instance once all call sites expect objects.
         return (cls, canonical)

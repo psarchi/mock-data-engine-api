@@ -10,11 +10,13 @@ from mock_engine.generators.errors import (
     InvalidParameterError,
     MissingChildError,
 )
-
-if TYPE_CHECKING:  # avoid runtime import cycles
-    from mock_engine.contracts.types import JsonValue  # noqa: F401
+from mock_engine.registry import Registry
 
 
+if TYPE_CHECKING:  # avoid import cycles at runtime
+    from mock_engine.contracts.types import JsonValue  # noqa : F401
+
+@Registry.register(BaseGenerator)
 class ObjectGenerator(BaseGenerator):
     """Generate an object with fields produced by child generators.
 

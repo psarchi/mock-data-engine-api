@@ -15,10 +15,13 @@ from mock_engine.errors import ContextError
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.generators.errors import InvalidParameterError, OutOfBoundsError
 
-if TYPE_CHECKING:  # import only for typing to avoid cycles
-    from mock_engine.types import JsonValue  # noqa: F401
+from mock_engine.registry import Registry
 
 
+if TYPE_CHECKING:  # avoid import cycles at runtime
+    from mock_engine.contracts.types import JsonValue  # noqa : F401
+
+@Registry.register(BaseGenerator)
 class StringGenerator(BaseGenerator):
     """Produces strings using one of: plain synthesis, template expansion, regex
         (exrex), or Faker provider resolution.

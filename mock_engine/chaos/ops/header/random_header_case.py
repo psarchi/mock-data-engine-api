@@ -4,6 +4,7 @@ import random
 from typing import Any, Iterable, Sequence
 
 from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
+from mock_engine.registry import Registry
 
 
 def _randcase(s: str, rng: random.Random) -> str:
@@ -16,7 +17,7 @@ def _randcase(s: str, rng: random.Random) -> str:
             out.append(ch.lower())
     return "".join(out)
 
-
+@Registry.register(BaseChaosOp)
 class RandomHeaderCaseOp(BaseChaosOp):
     """Mutate header *values* by changing their casing.
 

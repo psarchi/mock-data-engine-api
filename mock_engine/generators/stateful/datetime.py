@@ -12,6 +12,7 @@ from mock_engine.errors import ContextError
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.generators.errors import InvalidParameterError
 from mock_engine.generators.utils import parse_timestamp_to_microseconds
+from mock_engine.registry import Registry
 
 if TYPE_CHECKING:
     from mock_engine.types import JsonValue
@@ -20,6 +21,7 @@ UTC = timezone.utc
 ISO_DEFAULT = "%Y-%m-%dT%H:%M:%S%z"
 
 
+@Registry.register(BaseGenerator)
 class StatefulDateTimeGenerator(BaseGenerator):
     """Generate incrementing formatted datetime strings.
 

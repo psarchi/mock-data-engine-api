@@ -4,8 +4,10 @@ from typing import Any, List, Dict
 from copy import deepcopy
 from mock_engine.chaos.ops.base import BaseChaosOp, ApplyResult
 from mock_engine.chaos.ops.utils import iter_lists
+from mock_engine.registry import Registry
 
 
+@Registry.register(BaseChaosOp)
 class DuplicateItemsOp(BaseChaosOp):
     """Duplicate *any* list in the body (recursive auto-detect).
 

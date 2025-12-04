@@ -4,8 +4,10 @@ import json
 from typing import Any
 from mock_engine.chaos.ops.base import BaseChaosOp, ApplyResult
 from mock_engine.chaos.ops.utils import iter_nodes
+from mock_engine.registry import Registry
 
 
+@Registry.register(BaseChaosOp)
 class TruncateOp(BaseChaosOp):
     # This op is terminal: stop running further ops after it
     terminal = True

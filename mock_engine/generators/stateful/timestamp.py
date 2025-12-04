@@ -10,11 +10,13 @@ from mock_engine.errors import ContextError
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.generators.errors import InvalidParameterError
 from mock_engine.generators.utils import parse_timestamp_to_microseconds
-
-if TYPE_CHECKING:
-    from mock_engine.types import JsonValue
+from mock_engine.registry import Registry
 
 
+if TYPE_CHECKING:  # avoid import cycles at runtime
+    from mock_engine.contracts.types import JsonValue  # noqa : F401
+
+@Registry.register(BaseGenerator)
 class StatefulTimestampGenerator(BaseGenerator):
     """Generate incrementing Unix timestamps (microseconds).
 

@@ -5,6 +5,9 @@ from typing import Any
 
 from mock_engine.chaos.ops.base import BaseChaosOp, ApplyResult
 from mock_engine.chaos.ops.utils import iter_leaf_refs, iter_dict_entries
+from mock_engine.registry import Registry
+
+
 
 
 def _json_headers() -> dict[str, str]:
@@ -132,7 +135,7 @@ Strategies include visible-but-valid Unicode and subtle confusables.
     i = pick(len(s))
     return s[:i] + rng.choice(["́", "̀", "̂", "̈"]) + s[i:], "accent"
 
-
+@Registry.register(BaseChaosOp)
 class EncodingCorruptOp(BaseChaosOp):
     """Corrupt up to N string fields using mixed strategies.
 

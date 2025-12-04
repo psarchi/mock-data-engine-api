@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from mock_engine.core.registry import GeneratorRegistry
 from mock_engine.spec_builder import SpecBuilder
 
 
@@ -39,11 +38,7 @@ class SpecNormalizer:
 
         builder = getattr(_api, "_builder", None)
         if not isinstance(builder, SpecBuilder):
-            raise RuntimeError("validator.normalizer: _builder must be SpecBuilder(registry)")
-        if not isinstance(getattr(builder, "registry", None), GeneratorRegistry):
-            raise RuntimeError(
-                "validator.normalizer: builder.registry must be GeneratorRegistry"
-            )
+            raise RuntimeError("validator.normalizer: _builder must be SpecBuilder")
         self._builder = builder
 
     def normalize(
