@@ -11,6 +11,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.routers import admin_config, admin_chaos, meta, schemas
+from server.errors import build_error_response, build_unhandled_response
+from mock_engine.errors import MockEngineError
 
 __all__ = ["create_app", "app"]
 
@@ -45,6 +47,14 @@ def create_app() -> FastAPI:
     app.include_router(meta.router)
     app.include_router(admin_config.router)
     app.include_router(schemas.router)
+
+    @app.exception_handler(MockEngineError)
+    async def handle_engine_error(request, exc: MockEngineError):
+        return build_error_response(exc, request)
+
+    @app.exception_handler(Exception)
+    async def handle_unexpected_error(request, exc: Exception):
+        return build_unhandled_response(exc, request)
 
     return app
 
