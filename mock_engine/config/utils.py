@@ -8,6 +8,10 @@ from typing import Any, Dict, Iterable, List, Tuple, Union, Optional
 import unicodedata
 import yaml
 from mock_engine.config.constants import TYPE_MAP
+from mock_engine.config.errors import (
+    ConfigDefaultsFormatError,
+    DuplicateConfigRootError,
+)
 
 
 # Auto-discover CONF_ROOT by searching upwards for a directory that contains "config/default"
@@ -89,21 +93,25 @@ def discover_roots(defaults_dir: Path = DEFAULTS_DIR) -> Dict[
         Dict[str, Dict[str, Any]]: Mapping of ``root_name -> root_payload``.
 
     Raises:
-        ValueError: If a file is not a non-empty mapping or duplicate roots are
-            encountered.
+        ConfigDefaultsFormatError: If a file is not a non-empty mapping or a root payload is invalid.
+        DuplicateConfigRootError: If duplicate roots are encountered across files.
     """
     roots: Dict[str, Dict[str, Any]] = {}
     for p in find_yaml_files(defaults_dir):
         data = load_yaml(p)
         if not isinstance(data, dict) or not data:
-            raise ValueError(f"default file must be a non-empty object: {p}")
+            raise ConfigDefaultsFormatError(
+                f"default file must be a non-empty object: {p}", path=str(p)
+            )
         for root_name, root_payload in data.items():
             if not isinstance(root_payload, dict):
-                raise ValueError(
-                    f"root '{root_name}' in {p} must be an object")
+                raise ConfigDefaultsFormatError(
+                    f"root '{root_name}' in {p} must be an object", path=f"{p}:{root_name}"
+                )
             if root_name in roots:
-                raise ValueError(
-                    f"duplicate root '{root_name}' across default files; split/merge explicitly. File: {p}"  # noqa
+                raise DuplicateConfigRootError(
+                    f"duplicate root '{root_name}' across default files; split/merge explicitly. File: {p}",  # noqa
+                    path=root_name,
                 )
             roots[root_name] = root_payload
     return roots

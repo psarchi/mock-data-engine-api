@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from typing import Dict, Optional, Type
 
+from mock_engine.chaos.errors import (
+    ChaosOpNotFoundError,
+    DuplicateChaosOpKeyError,
+    MissingChaosOpKeyError,
+    ChaosOpValidationError,
+)
 from mock_engine.chaos.ops.base import BaseChaosOp
 
 
@@ -17,19 +23,21 @@ class _Registry:
                                                    None) or getattr(cls,
                                                                     "NAME",
                                                                     None)
-        if not isinstance(key,
-                          str) or not key.strip() or key.strip().lower() == "base":
-            raise ValueError(
-                f"Chaos op {cls.__name__} missing required 'key'.")
+        if not isinstance(key, str) or not key.strip() or key.strip().lower() == "base":
+            raise MissingChaosOpKeyError(f"Chaos op {cls.__name__} missing required 'key'.")
         key = key.strip()
         if key in self._by_key:
-            raise ValueError(f"Duplicate chaos op key: {key}")
+            raise DuplicateChaosOpKeyError(f"Duplicate chaos op key: {key}")
         # Contract check
         try:
             cls.validate_class()
-        except Exception:
-            BaseChaosOp.validate_class.__func__(
-                cls)  # type: ignore[attr-defined]
+        except Exception as exc:  # noqa: BLE001
+            try:
+                BaseChaosOp.validate_class.__func__(cls)  # type: ignore[attr-defined]
+            except Exception as fallback_exc:  # noqa: BLE001
+                raise ChaosOpValidationError(str(fallback_exc)) from fallback_exc
+            else:
+                raise ChaosOpValidationError(str(exc)) from exc
         self._by_key[key] = cls
 
     def as_dict(self) -> Dict[str, Type[BaseChaosOp]]:
@@ -66,4 +74,4 @@ def require_op(name: str) -> Type[BaseChaosOp]:
     try:
         return reg.get_cls(name)
     except KeyError as e:
-        raise KeyError(f"Unknown chaos op: {name!r}") from e
+        raise ChaosOpNotFoundError(f"Unknown chaos op: {name!r}") from e

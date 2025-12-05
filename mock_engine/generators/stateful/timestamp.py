@@ -74,12 +74,12 @@ class StatefulTimestampGenerator(BaseGenerator):
             increment: Microseconds to add per generation.
 
         Raises:
-            TypeError: If start or increment is None.
+            InvalidParameterError: If start or increment is None.
         """
         if start is None:
-            raise TypeError("StatefulTimestampGenerator requires 'start' parameter")
+            raise InvalidParameterError("StatefulTimestampGenerator requires 'start' parameter")
         if increment is None:
-            raise TypeError("StatefulTimestampGenerator requires 'increment' parameter")
+            raise InvalidParameterError("StatefulTimestampGenerator requires 'increment' parameter")
         self.start = start
         self.end = end
         self.increment = increment

@@ -88,12 +88,12 @@ class StatefulDateTimeGenerator(BaseGenerator):
             tz: Fixed timezone offset like "+04:00" (default UTC).
 
         Raises:
-            TypeError: If start or increment is None.
+            InvalidParameterError: If start or increment is None.
         """
         if start is None:
-            raise TypeError("StatefulDateTimeGenerator requires 'start' parameter")
+            raise InvalidParameterError("StatefulDateTimeGenerator requires 'start' parameter")
         if increment is None:
-            raise TypeError("StatefulDateTimeGenerator requires 'increment' parameter")
+            raise InvalidParameterError("StatefulDateTimeGenerator requires 'increment' parameter")
         self.start = start
         self.end = end
         self.increment = increment

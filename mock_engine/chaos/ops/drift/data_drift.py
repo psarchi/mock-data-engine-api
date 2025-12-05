@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from mock_engine.chaos.drift.registry import run_drift
 from mock_engine.chaos.drift import get_drift_coordinator
 from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
+from mock_engine.chaos.drift.errors import DriftMutationError
 from mock_engine.contracts.array import ArrayGeneratorSpec
 from mock_engine.contracts.enum import EnumGeneratorSpec
 from mock_engine.contracts.float import FloatGeneratorSpec
@@ -152,21 +153,21 @@ class DataDriftOp(BaseChaosOp):
             return
         if isinstance(node, ArrayGeneratorSpec):
             if segment != "[]":
-                raise ValueError(
+                raise DriftMutationError(
                     f"array child segment expected '[]', got {segment!r}"
                 )
             node.child = replacement
             return
         if isinstance(node, MaybeGeneratorSpec):
             if segment != "?":
-                raise ValueError(
+                raise DriftMutationError(
                     f"maybe child segment expected '?', got {segment!r}"
                 )
             node.child = replacement
             return
         if isinstance(node, OneOfGeneratorSpec):
             if not segment.startswith("|"):
-                raise ValueError(
+                raise DriftMutationError(
                     f"one_of choice segment expected '|idx', got {segment!r}"
                 )
             idx = int(segment[1:])
@@ -176,7 +177,7 @@ class DataDriftOp(BaseChaosOp):
             choices[idx] = replacement
             node.choices = choices
             return
-        raise TypeError(
+        raise DriftMutationError(
             f"Unsupported parent spec {type(node).__name__} for replacement"
         )
 

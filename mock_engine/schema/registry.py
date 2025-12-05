@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterable, Tuple
 
 from mock_engine.schema.models import SchemaDoc
+from mock_engine.schema.errors import SchemaRegistryKeyError, SchemaMutationError
 
 
 @dataclass
@@ -107,7 +108,7 @@ class SchemaRegistry:
         try:
             contract = doc.contracts_by_path[path]
         except KeyError as exc:
-            raise KeyError(f"path '{path}' not found for schema '{entry.name}'") from exc
+            raise SchemaRegistryKeyError(f"path '{path}' not found for schema '{entry.name}'") from exc
 
         mutator(contract)
         doc.contracts_by_path[path] = contract
@@ -168,12 +169,12 @@ class SchemaRegistry:
             path = change.get("path")
             attr = change.get("attr")
             if path is None or attr is None:
-                raise ValueError("each change must include 'path' and 'attr'")
+                raise SchemaMutationError("each change must include 'path' and 'attr'")
             value = change.get("value")
             try:
                 contract = doc.contracts_by_path[path]
             except KeyError as exc:
-                raise KeyError(f"path '{path}' not found for schema '{entry.name}'") from exc
+                raise SchemaRegistryKeyError(f"path '{path}' not found for schema '{entry.name}'") from exc
             cls._set_attr(contract, path, attr, value)
             doc.contracts_by_path[path] = contract
 
@@ -250,10 +251,10 @@ class SchemaRegistry:
         try:
             return cls._store[name]
         except KeyError as exc:
-            raise KeyError(f"schema '{name}' is not registered") from exc
+            raise SchemaRegistryKeyError(f"schema '{name}' is not registered") from exc
 
     @staticmethod
     def _set_attr(contract: Any, path: str, attr: str, value: Any) -> None:
         if not hasattr(contract, attr):
-            raise AttributeError(f"contract at '{path}' has no attribute '{attr}'")
+            raise SchemaMutationError(f"contract at '{path}' has no attribute '{attr}'")
         setattr(contract, attr, value)

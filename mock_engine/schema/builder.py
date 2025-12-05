@@ -6,6 +6,7 @@ import yaml
 
 from mock_engine.context import GenContext
 from mock_engine.schema.validator import Validator
+from mock_engine.schema.errors import SchemaPreflightError
 from mock_engine.schema.models import SchemaDoc, PreflightReport, \
     PreflightFailure
 from mock_engine import api as engine_api
@@ -153,11 +154,11 @@ def _preflight_sample(
     finally:
         _ = (time.perf_counter() - start) * 1000.0
     if report.failures:
-        raise RuntimeError(f"preflight failed: {report.failures[0].error}")
+        raise SchemaPreflightError(f"preflight failed: {report.failures[0].error}")
     if array_requirements and report.arrays_materialized == 0:
         report.failures.append(PreflightFailure(path=array_requirements[0][0],
                                                 error="array did not materialize with required min_items during preflight"))
-        raise RuntimeError(f"preflight failed: {report.failures[-1].error}")
+        raise SchemaPreflightError(f"preflight failed: {report.failures[-1].error}")
     return report, gen
 
 

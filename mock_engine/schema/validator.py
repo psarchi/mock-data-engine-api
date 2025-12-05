@@ -8,6 +8,7 @@ from mock_engine.contracts import ObjectGeneratorSpec
 
 from mock_engine.schema.handlers import get_handlers
 from mock_engine.schema.contract_registry import get_class_for_token
+from mock_engine.schema.errors import SchemaTypeError, SchemaRegistryKeyError, SchemaValidationError
 
 
 class Validator:
@@ -19,14 +20,12 @@ class Validator:
     # helpers
     def _ensure_map(self, node: Any, path: str) -> Mapping[str, Any]:
         if not isinstance(node, Mapping):
-            raise TypeError(
-                f"{path}: expected mapping, got {type(node).__name__}")
+            raise SchemaTypeError(f"{path}: expected mapping, got {type(node).__name__}")
         return node
 
     def _ensure_list(self, node: Any, path: str) -> List[Any]:
         if not isinstance(node, list):
-            raise TypeError(
-                f"{path}: expected list, got {type(node).__name__}")
+            raise SchemaTypeError(f"{path}: expected list, got {type(node).__name__}")
         return node
 
     def _coerce_map(self, node: Any, path: str) -> Mapping[str, Any]:
@@ -39,7 +38,7 @@ class Validator:
                      path: str) -> BaseModel:
         cls = get_class_for_token(token)
         if cls is None:
-            raise KeyError(f"{path}: unknown type '{token}'")
+            raise SchemaRegistryKeyError(f"{path}: unknown type '{token}'")
         payload = dict(data)
         payload.pop("type", None)
         try:
@@ -51,7 +50,7 @@ class Validator:
     def _read_node(self, node: Mapping[str, Any], path: str) -> BaseModel:
         token = node.get("type")
         if not isinstance(token, str):
-            raise TypeError(f"{path}: missing or non-string 'type'")
+            raise SchemaTypeError(f"{path}: missing or non-string 'type'")
         token_key = token.strip().lower()
         handler = self._handlers.get(token_key)
         payload = dict(node)
@@ -64,6 +63,5 @@ class Validator:
         """Parse a schema mapping into a contract tree rooted at an object."""
         root = self._read_node(self._ensure_map(spec, "$"), "$")
         if not isinstance(root, ObjectGeneratorSpec):
-            raise TypeError(
-                "root must be an object contract (ObjectGeneratorSpec)")
+            raise SchemaValidationError("root must be an object contract (ObjectGeneratorSpec)")
         return root

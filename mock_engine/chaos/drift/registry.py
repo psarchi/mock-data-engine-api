@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from random import Random
 from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
 
+from mock_engine.chaos.drift.errors import InvalidDriftResultError
+
 
 @dataclass
 class DriftResult:
@@ -71,7 +73,7 @@ def run_drift(
         return outcome
     if isinstance(outcome, str):
         return DriftResult(summary=outcome)
-    raise TypeError(
+    raise InvalidDriftResultError(
         f"Drift handler for {type(spec_obj).__name__} returned unsupported "
         f"type: {type(outcome)!r}"
     )

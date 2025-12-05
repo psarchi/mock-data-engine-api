@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Dict, Type, TypeVar
+from mock_engine.errors import DuplicateRegistryKeyError, MissingRegistryKeyError
 
 if TYPE_CHECKING:
     from typing import Any
@@ -26,7 +27,8 @@ class Registry:
             Decorator function that registers the target class
 
         Raises:
-            ValueError: If class is missing 'key' attribute or key is duplicated
+            MissingRegistryKeyError: If class is missing 'key'/'__aliases__'.
+            DuplicateRegistryKeyError: If a key or alias is already registered.
 
         Example:
             @Registry.register(BaseGenerator)
@@ -45,13 +47,13 @@ class Registry:
                 if aliases and len(aliases) > 0:
                     key = aliases[0]
                 else:
-                    raise ValueError(
+                    raise MissingRegistryKeyError(
                         f"{target_class.__name__} must have 'key' or '__aliases__' attribute for registration"
                     )
 
             if key in cls._registry[base_class]:
                 existing = cls._registry[base_class][key]
-                raise ValueError(
+                raise DuplicateRegistryKeyError(
                     f"Duplicate {base_class.__name__} key '{key}': "
                     f"{target_class.__name__} conflicts with {existing.__name__}"
                 )

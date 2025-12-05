@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from random import Random
 from typing import TYPE_CHECKING, Any, Type, Sequence
 
+from mock_engine.generators.errors import EmptyEnumError
+
 if TYPE_CHECKING:
     from mock_engine.types import JsonValue  # noqa: F401
 
@@ -102,12 +104,11 @@ def _pick_index(cls: object, rng: Random) -> int:
         int: Index selected in ``[0, len(cls.values) - 1]``.
 
     Raises:
-        ValueError: If ``cls.values`` is empty.
+        EmptyEnumError: If ``cls.values`` is empty.
     """
     values: Sequence[Any] = getattr(cls, "values")
     if not values:
-        # TODO(errors): Consider a domain-specific error (e.g., MissingChildError) at call sites.
-        raise ValueError("values must be a non-empty sequence")
+        raise EmptyEnumError("values must be a non-empty sequence")
 
     weights: Sequence[float] | None = getattr(cls, "weights", None)
     if not weights:

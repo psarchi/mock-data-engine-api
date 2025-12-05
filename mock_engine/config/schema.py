@@ -3,9 +3,12 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Tuple, Type, Annotated
 from typing import Literal as _Literal
 from pydantic import BaseModel, Field, ConfigDict, create_model
-from mock_engine.config.utils import (normalize_declared_type,
-                                      pytype_for_declared,
-                                      _safe_field_name)
+from mock_engine.config.utils import (
+    normalize_declared_type,
+    pytype_for_declared,
+    _safe_field_name,
+)
+from mock_engine.config.errors import ConfigSchemaError, MetaKindError
 
 
 class MetaNode(BaseModel):
@@ -212,10 +215,10 @@ def _build_group_model(meta: MetaNode, *, model_name: str) -> Type[BaseModel]:
         Type[BaseModel]: Generated model class with children as fields.
 
     Raises:
-        ValueError: If ``meta.kind`` is not ``'group'``.
+        MetaKindError: If ``meta.kind`` is not ``'group'``.
     """
     if meta.kind != "group":
-        raise ValueError("meta must be kind='group'")
+        raise MetaKindError("meta must be kind='group'")
 
     fields: Dict[str, tuple[Any, Any]] = {}
     if meta.children:
@@ -256,7 +259,7 @@ def _dispatch_type(meta: MetaNode) -> Any:
         return _object_type(meta)
     if k == "group":
         return _group_type(meta)
-    raise ValueError(f"unknown meta.kind: {k!r}")
+    raise ConfigSchemaError(f"unknown meta.kind: {k!r}")
 
 
 def _runtime_default_from_meta(meta: MetaNode) -> Any:
@@ -297,8 +300,8 @@ def build_runtime_model(root_name: str,
         Type[BaseModel]: The generated Pydantic model class.
 
     Raises:
-        ValueError: If ``meta_root.kind`` is not ``'group'``.
+        MetaKindError: If ``meta_root.kind`` is not ``'group'``.
     """
     if meta_root.kind != "group":
-        raise ValueError("root meta must be a group")
+        raise MetaKindError("root meta must be a group")
     return _build_group_model(meta_root, model_name=f"Config_{root_name}")

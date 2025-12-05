@@ -4,6 +4,7 @@ from random import Random
 from typing import Any, Iterable, Optional, Sequence, Tuple, TypeVar
 
 from mock_engine.contracts import MaybeGeneratorSpec
+from mock_engine.chaos.drift.errors import DriftSelectionError
 
 T = TypeVar("T")
 
@@ -11,7 +12,7 @@ T = TypeVar("T")
 def rng_choice(rng: Random, items: Iterable[T]) -> T:
     seq = list(items)
     if not seq:
-        raise ValueError("rng_choice called with empty iterable")
+        raise DriftSelectionError("rng_choice called with empty iterable")
     choice_fn = getattr(rng, "choice", None)
     if choice_fn is None:
         import random

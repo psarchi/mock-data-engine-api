@@ -13,6 +13,7 @@ from mock_engine.contracts import (
     SelectGeneratorSpec,
     StringOrNullGeneratorSpec,
 )
+from mock_engine.schema.errors import SchemaTypeError, SchemaValidationError
 
 if TYPE_CHECKING:  # only for type hints to avoid circular import at runtime
     from .validator import Validator
@@ -81,9 +82,9 @@ def handle_array(
     if min_items is not None and max_items is not None:
         try:
             if int(min_items) > int(max_items):
-                raise ValueError("min_items > max_items")
-        except Exception as exc:
-            raise ValueError(f"{path}: {exc}")
+                raise SchemaValidationError("min_items > max_items")
+        except Exception as exc:  # noqa: BLE001
+            raise SchemaValidationError(f"{path}: {exc}")
     return validator._instantiate(token, data, path)
 
 
@@ -97,7 +98,7 @@ def handle_one_of(
     choices_raw = validator._coerce_list(payload.get("choices"),
                                          f"{path}.choices")
     if not choices_raw:
-        raise ValueError(f"{path}.choices: must be non-empty")
+        raise SchemaValidationError(f"{path}.choices: must be non-empty")
     choices_conv = [
         validator._read_node(validator._ensure_map(choice, f"{path}|{idx}"),
                              f"{path}|{idx}")
@@ -107,15 +108,14 @@ def handle_one_of(
     weights = data.get("weights")
     if weights is not None:
         if not isinstance(weights, list):
-            raise TypeError(f"{path}.weights: expected list")
+            raise SchemaTypeError(f"{path}.weights: expected list")
         if len(weights) != len(choices_conv):
-            raise ValueError(
-                f"{path}.weights: length must equal choices length")
+            raise SchemaValidationError(f"{path}.weights: length must equal choices length")
         for idx, weight in enumerate(weights):
             if not isinstance(weight, (int, float)):
-                raise TypeError(f"{path}.weights[{idx}]: must be number")
+                raise SchemaTypeError(f"{path}.weights[{idx}]: must be number")
             if weight < 0:
-                raise ValueError(f"{path}.weights[{idx}]: must be >= 0")
+                raise SchemaValidationError(f"{path}.weights[{idx}]: must be >= 0")
     return validator._instantiate(token, data, path)
 
 
@@ -135,9 +135,9 @@ def handle_maybe(
     p_null = data.get("p_null")
     if p_null is not None:
         if not isinstance(p_null, (int, float)):
-            raise TypeError(f"{path}.p_null: must be number between 0 and 1")
+            raise SchemaTypeError(f"{path}.p_null: must be number between 0 and 1")
         if not (0 <= float(p_null) <= 1):
-            raise ValueError(f"{path}.p_null: must be within [0,1]")
+            raise SchemaValidationError(f"{path}.p_null: must be within [0,1]")
     return validator._instantiate(token, data, path)
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from mock_engine.core.errors import MissingConfigureMethodError
+from mock_engine.core.errors import MissingConfigureMethodError, UnknownGeneratorError
 from mock_engine.registry import Registry
 from mock_engine.generators.base import BaseGenerator
 
@@ -38,14 +38,14 @@ class GeneratorFactory:
             BaseGenerator: Configured generator instance.
 
         Raises:
-            KeyError: If no generator is registered for ``name``.
+            UnknownGeneratorError: If no generator is registered for ``name``.
             MissingConfigureMethodError: The resolved generator instance has no
                 callable ``configure`` method.
         """
         cls = Registry.get(BaseGenerator, name)
         if cls is None:
             available = list(Registry.get_all(BaseGenerator).keys())
-            raise KeyError(
+            raise UnknownGeneratorError(
                 f"unknown generator '{name}'. available: {', '.join(sorted(available))}"
             )
 

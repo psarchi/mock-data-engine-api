@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
+from mock_engine.chaos.errors import ChaosOpValidationError
 
 @dataclass
 class ApplyResult:
@@ -40,7 +41,7 @@ class BaseChaosOp:
                                                                           "")
         if not isinstance(k,
                           str) or not k.strip() or k.strip().lower() == "base":
-            raise ValueError(
+            raise ChaosOpValidationError(
                 f"Chaos op {cls.__name__} must define non-empty 'key'.")
 
     def apply(self, *, request, response, body: Any, rng):
