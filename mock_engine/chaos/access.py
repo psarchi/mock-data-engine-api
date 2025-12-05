@@ -4,9 +4,10 @@ from threading import Lock
 from typing import Optional
 
 from .manager import ChaosManager
-from .registry import get_registry
+from .ops.base import BaseChaosOp
 from mock_engine.config.access import get_config_manager
 from mock_engine.context import GenContext
+from mock_engine.registry import Registry
 
 _manager: Optional[ChaosManager] = None
 _lock = Lock()
@@ -22,7 +23,7 @@ def get_chaos_manager(ctx=None) -> ChaosManager:
         with _lock:
             if _manager is None:
                 chaos_cfg = get_config_manager().get_root("chaos")
-                reg = get_registry()
+                reg = Registry.get_all(BaseChaosOp)
                 _manager = ChaosManager(
                     ctx=ctx or GenContext(),
                     config_snapshot=chaos_cfg,
