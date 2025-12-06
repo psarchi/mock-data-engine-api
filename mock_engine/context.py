@@ -7,11 +7,9 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import json
 import pickle
 import random
 import time
-import uuid
 from random import Random
 from typing import Any, Mapping
 
@@ -30,22 +28,6 @@ def _now_iso_utc_ms() -> str:
     seconds = int(now)
     millis = int((now - seconds) * 1000)
     return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(seconds)) + f".{millis:03d}Z"
-
-
-def _short_hash(value: object) -> str:
-    """Return a short SHA1-based hex fingerprint for ``value``.
-
-    Args:
-        value (object): Any JSON-serializable value (falls back to ``str(value)``).
-
-    Returns:
-        str: First 6 hex chars of the SHA1 digest.
-    """
-    try:
-        blob = json.dumps(value, sort_keys=True, default=str).encode("utf-8")
-    except TypeError:
-        blob = str(value).encode("utf-8")
-    return hashlib.sha1(blob).hexdigest()[:6]
 
 
 def _derive_seed64(*parts: object) -> int:
@@ -164,34 +146,16 @@ class GenContext:
         return self._faker
 
     def build_meta(self) -> dict[str, Any]:
-        """Build a metadata dictionary for a generated record.
+        """Build response metadata dictionary.
 
         Returns:
-            dict[str, Any]: Metadata including schema info, time, and trace fields.
+            dict[str, Any]: Metadata with seed, schema, timestamp, and placeholders
+                for count and chaos_applied (populated by server layer).
         """
-        if self.request_id is None:
-            self.request_id = str(uuid.uuid4())
-        if self.trace_id is None:
-            self.trace_id = self.request_id
-
-        self.sequence += 1
-
-        config_fp = self.config_hash or _short_hash(
-            {"schema": self.schema_name, "version": self.schema_version, "seed": self.seed}
-        )
-        meta: dict[str, Any] = {
-            "schema": self.schema_name,
-            "schema_version": self.schema_version,
+        return {
             "seed": self.seed,
-            "sequence": self.sequence,
+            "schema": self.schema_name,
             "generated_at": _now_iso_utc_ms(),
-            "scenario": self.scenario,
-            "config_hash": config_fp,
-            "request_id": self.request_id,
-            "trace_id": self.trace_id,
-            "generator_version": self.generator_version,
-            "source": "mock-data-api",
+            "count": None,
+            "chaos_applied": []
         }
-        if self.seed is None and self.rng_state_b64:
-            meta["rng_fp"] = hashlib.sha1(self.rng_state_b64.encode()).hexdigest()[:12]
-        return meta

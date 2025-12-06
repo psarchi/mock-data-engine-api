@@ -10,6 +10,7 @@ import yaml
 from mock_engine import api as engine_api
 from mock_engine.schema.builder import build_schema
 from mock_engine.schema.registry import SchemaRegistry
+from mock_engine.schema.errors import SchemaRegistryKeyError
 
 _SCHEMAS_DIR = Path("schemas")
 _GENERATOR_CACHE: Dict[str, Tuple[int, object]] = {}
@@ -46,7 +47,7 @@ def get_generator(name: str):
 
     try:
         doc = SchemaRegistry.get(target_name)
-    except KeyError:
+    except (KeyError, SchemaRegistryKeyError):
         doc = _load_schema_from_disk(name)
 
     latest_name = target_name
