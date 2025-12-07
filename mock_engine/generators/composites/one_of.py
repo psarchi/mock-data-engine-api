@@ -145,7 +145,7 @@ class OneOfGenerator(BaseGenerator):
                 return idx
         return len(self.choices) - 1
 
-    def generate(self, ctx: GenContext) -> "JsonValue":
+    def _generate_impl(self, ctx: GenContext) -> "JsonValue":
         """Produce a value by selecting one child according to weights.
 
         Args:

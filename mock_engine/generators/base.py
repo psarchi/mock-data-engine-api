@@ -2,15 +2,17 @@
 
 Provides a common construction and configuration contract used by concrete
 generators. Behavior is intentionally minimal; subclasses implement
-``generate`` and ``_sanity_check``.
+``_generate_impl`` and ``_sanity_check``.
 """
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping
 from typing import Any, TYPE_CHECKING, Self
 from abc import abstractmethod
 
 from mock_engine.generators.utils import get_init_fields
+from mock_engine.observability import generator_duration_seconds, generator_invocations_total
 
 if TYPE_CHECKING:  # import only for typing to avoid cycles
     from mock_engine.context import GenContext
@@ -20,14 +22,53 @@ if TYPE_CHECKING:  # import only for typing to avoid cycles
 class BaseGenerator:
     """Abstract base class for all generators.
 
-    Subclasses must implement :meth:`generate` and :meth:`_sanity_check`.
+    Subclasses must implement :meth:`_generate_impl` and :meth:`_sanity_check`.
+
+    The :meth:`generate` method is a concrete wrapper that automatically tracks
+    generator performance metrics.
     """
 
     __abstract__ = True
 
-    @abstractmethod
     def generate(self, ctx: "GenContext") -> "JsonValue":
         """Produce a value according to this generator's configuration.
+
+        This method wraps :meth:`_generate_impl` with performance tracking.
+        Subclasses should implement :meth:`_generate_impl` instead of this method.
+
+        Args:
+            ctx (GenContext): Execution context providing RNG, builder, and state.
+
+        Returns:
+            JsonValue: JSON-compatible value (str, int, float, bool, null, object, array).
+
+        Raises:
+            Exception: Subclasses should document specific errors.
+        """
+        gen_type = self.__class__.__name__
+        schema = getattr(ctx, 'schema_name', 'unknown')
+
+        generator_invocations_total.labels(
+            generator=gen_type,
+            schema=schema
+        ).inc()
+
+        start = time.perf_counter()
+        result = self._generate_impl(ctx)
+        duration = time.perf_counter() - start
+
+        generator_duration_seconds.labels(
+            generator=gen_type,
+            schema=schema
+        ).observe(duration)
+
+        return result
+
+    @abstractmethod
+    def _generate_impl(self, ctx: "GenContext") -> "JsonValue":
+        """Implementation of value generation logic.
+
+        Subclasses must implement this method instead of :meth:`generate`.
 
         Args:
             ctx (GenContext): Execution context providing RNG, builder, and state.

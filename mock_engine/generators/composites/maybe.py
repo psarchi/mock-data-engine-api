@@ -118,7 +118,7 @@ class MaybeGenerator(BaseGenerator):
             self.p_null = p_null
         return self
 
-    def generate(self, ctx: GenContext) -> "JsonValue":
+    def _generate_impl(self, ctx: GenContext) -> "JsonValue":
         """Return ``None`` with probability ``p_null``, else child value.
 
         Args:

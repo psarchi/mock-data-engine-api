@@ -123,7 +123,7 @@ class FloatGenerator(BaseGenerator):
             self.precision = int(precision)
         return self
 
-    def generate(self, ctx: GenContext) -> "JsonValue":
+    def _generate_impl(self, ctx: GenContext) -> "JsonValue":
         """Produce a float according to the configuration.
 
         Args:

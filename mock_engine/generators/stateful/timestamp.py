@@ -130,7 +130,7 @@ class StatefulTimestampGenerator(BaseGenerator):
         if end_ts is not None and end_ts < start_ts:
             raise InvalidParameterError("stateful_timestamp.end must be >= start")
 
-    def generate(self, ctx: GenContext) -> "JsonValue":
+    def _generate_impl(self, ctx: GenContext) -> "JsonValue":
         """Produce an incrementing timestamp according to configuration.
 
         Normal mode: Increments forward from current timeline position.

@@ -12,7 +12,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from server.routers import admin_config, admin_chaos, meta, schemas
 from server.errors import build_error_response, build_unhandled_response
+from server.logging import setup_logging
+from server.middleware.correlation import CorrelationMiddleware
 from mock_engine.errors import MockEngineError
+from mock_engine.observability import get_metrics_app
+from mock_engine.observability.middleware import MetricsMiddleware
 
 __all__ = ["create_app", "app"]
 
@@ -21,6 +25,9 @@ __all__ = ["create_app", "app"]
 async def lifespan(app: FastAPI):
     """Warm configuration and generator caches on startup."""
     from server.deps import get_settings, warmup_all
+
+    # Setup structured logging
+    setup_logging()
 
     warmup_all()
     get_settings()
@@ -35,6 +42,20 @@ def create_app() -> FastAPI:
     """
     app = FastAPI(title="Mock Data API", version="0.1.0", lifespan=lifespan)
 
+    app.add_middleware(CorrelationMiddleware)
+
+    from mock_engine.config import get_config_manager
+    try:
+        server_cfg = get_config_manager().get_root("server")
+        metrics_enabled = server_cfg.observability.metrics_enabled  # type: ignore
+        metrics_path = server_cfg.observability.prometheus_path  # type: ignore
+    except (AttributeError, TypeError):
+        metrics_enabled = False
+        metrics_path = "/metrics"
+
+    if metrics_enabled:
+        app.add_middleware(MetricsMiddleware)
+
     # TODO(config): Make CORS policy configurable via settings.
     app.add_middleware(
         CORSMiddleware,
@@ -47,6 +68,9 @@ def create_app() -> FastAPI:
     app.include_router(meta.router)
     app.include_router(admin_config.router)
     app.include_router(schemas.router)
+
+    if metrics_enabled:
+        app.mount(metrics_path, get_metrics_app())
 
     @app.exception_handler(MockEngineError)
     async def handle_engine_error(request, exc: MockEngineError):

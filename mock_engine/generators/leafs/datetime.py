@@ -190,7 +190,7 @@ class DateTimeGenerator(BaseGenerator):
         offset = timezone(sign * timedelta(hours=hours, minutes=minutes))
         return dt.astimezone(offset)
 
-    def generate(self, ctx: GenContext) -> str:
+    def _generate_impl(self, ctx: GenContext) -> str:
         """Produce a formatted datetime string within configured bounds.
 
         If ``depends_on`` is set, derives the datetime from ``ctx._depends_on`` (a timestamp).
@@ -252,5 +252,4 @@ class DateTimeGenerator(BaseGenerator):
         try:
             return dt.strftime(self.format)
         except Exception as exc:
-            # TODO(errors): narrow to ValueError when format normalization is enforced.
             raise InvalidParameterError(f"invalid datetime.format: {exc}")

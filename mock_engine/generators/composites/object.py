@@ -130,7 +130,7 @@ class ObjectGenerator(BaseGenerator):
                     f"required field '{field_name}' generated None")
         return value
     
-    def generate(self, ctx: GenContext) -> dict[str, "JsonValue"]:
+    def _generate_impl(self, ctx: GenContext) -> dict[str, "JsonValue"]:
         """Produce an object with values from each child generator.
 
         Args:

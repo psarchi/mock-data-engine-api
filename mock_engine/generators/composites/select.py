@@ -225,7 +225,7 @@ class SelectGenerator(BaseGenerator):
                                                 count)
         return required + chosen_optional
 
-    def generate(self, ctx: GenContext) -> dict[str, "JsonValue"]:
+    def _generate_impl(self, ctx: GenContext) -> dict[str, "JsonValue"]:
         """Produce a mapping according to the configured selection rule.
 
         Args:

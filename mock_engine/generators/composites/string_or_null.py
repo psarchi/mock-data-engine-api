@@ -120,7 +120,7 @@ class StringOrNullGenerator(BaseGenerator):
             self.weights = weights
         return self
 
-    def generate(self, ctx: GenContext) -> "JsonValue":
+    def _generate_impl(self, ctx: GenContext) -> "JsonValue":
         """Return the child's string or ``None`` according to weights.
 
         Args:

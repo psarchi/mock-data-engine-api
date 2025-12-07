@@ -67,7 +67,6 @@ class BoolGenerator(BaseGenerator):
         try:
             p = float(self.p_true if self.p_true is not None else 0.5)
         except (TypeError, ValueError) as exc:
-            # TODO(errors): introduce InvalidProbabilityError with offending value
             raise InvalidParameterError("p_true must be a float between 0 and 1") from exc
         if not 0.0 <= p <= 1.0:
             raise InvalidParameterError("p_true must be between 0 and 1")
@@ -86,7 +85,7 @@ class BoolGenerator(BaseGenerator):
             self.p_true = p_true
         return self
 
-    def generate(self, ctx: GenContext) -> "JsonValue":
+    def _generate_impl(self, ctx: GenContext) -> "JsonValue":
         """Return ``True`` with probability ``p_true``; else ``False``.
 
         Args:

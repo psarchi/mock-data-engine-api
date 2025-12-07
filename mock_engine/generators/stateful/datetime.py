@@ -172,7 +172,7 @@ class StatefulDateTimeGenerator(BaseGenerator):
         if end_ts is not None and end_ts < start_ts:
             raise InvalidParameterError("stateful_datetime.end must be >= start")
 
-    def generate(self, ctx: GenContext) -> str:
+    def _generate_impl(self, ctx: GenContext) -> str:
         """Produce an incrementing formatted datetime string.
 
         Normal mode: Increments forward from current timeline position.

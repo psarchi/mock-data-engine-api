@@ -5,3 +5,5 @@ pyyaml
 faker
 exrex
 pytest
+structlog
+prometheus-client

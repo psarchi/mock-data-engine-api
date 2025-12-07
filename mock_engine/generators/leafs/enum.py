@@ -150,7 +150,7 @@ class EnumGenerator(BaseGenerator):
                 return idx
         return len(self.values) - 1
 
-    def generate(self, ctx: GenContext) -> "JsonValue":
+    def _generate_impl(self, ctx: GenContext) -> "JsonValue":
         """Produce a value according to the configuration.
 
         Args:

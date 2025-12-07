@@ -117,7 +117,7 @@ class IntGenerator(BaseGenerator):
             self.step = int(step)
         return self
 
-    def generate(self, ctx: GenContext) -> "JsonValue":
+    def _generate_impl(self, ctx: GenContext) -> "JsonValue":
         """Produce an integer according to the configuration.
 
         Args:

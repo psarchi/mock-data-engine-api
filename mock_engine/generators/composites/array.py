@@ -126,7 +126,7 @@ class ArrayGenerator(BaseGenerator):
             self.child = child
         return self
 
-    def generate(self, ctx: GenContext) -> list[JsonValue]:
+    def _generate_impl(self, ctx: GenContext) -> list[JsonValue]:
         """Produce an array value using the configured child generator.
 
         Args:

@@ -141,7 +141,7 @@ class TimestampGenerator(BaseGenerator):
         _ = self._parse_dt(self.start, now.replace(year=now.year - 1))
         _ = self._parse_dt(self.end, now)
 
-    def generate(self, ctx: GenContext) -> "JsonValue":
+    def _generate_impl(self, ctx: GenContext) -> "JsonValue":
         """Produce a timestamp (microseconds) according to configuration.
 
         If ``depends_on`` is set, derives the timestamp from ``ctx._depends_on`` (a datetime string).

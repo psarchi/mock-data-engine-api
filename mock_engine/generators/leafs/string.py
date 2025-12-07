@@ -262,7 +262,7 @@ class StringGenerator(BaseGenerator):
         finally:
             random.setstate(state)
 
-    def generate(self, ctx: GenContext) -> "JsonValue":
+    def _generate_impl(self, ctx: GenContext) -> "JsonValue":
         """Produce a value according to the generator configuration.
 
         Args:
