@@ -1,72 +1,118 @@
-.PHONY: up down logs restart env
-.ONESHELL:
+.PHONY: help env up down logs restart ps shell test rebuild clean clean-all clean-data fmt lint lint-fix health db-shell redis-cli full-reset reset
 
-# Paths
+COMPOSE ?= docker-compose
 ENV_FILE ?= .env
 CONFIG ?= config/default/server.yaml
+ENV_SCRIPT ?= scripts/gen_env.py
 PY ?= python
+PROJECT_NAME ?= $(if $(COMPOSE_PROJECT_NAME),$(COMPOSE_PROJECT_NAME),$(notdir $(CURDIR)))
+NETWORK ?= $(PROJECT_NAME)_mock-engine
+SERVICES ?=
+EXTRA_GOALS := $(filter-out logs fmt lint lint-fix,$(MAKECMDGOALS))
+
+ifeq ($(strip $(EXTRA_GOALS)),)
+EXTRA_GOALS :=
+else
+.PHONY: $(EXTRA_GOALS)
+$(EXTRA_GOALS):
+	@:
+endif
+
+help:
+	@echo "make env                - generate .env from $(CONFIG)"
+	@echo "make up [SERVICES=...]  - start services (default all) detached"
+	@echo "make down               - stop all services"
+	@echo "make restart [SERVICES] - restart selected/all services"
+	@echo "make logs [SERVICES]    - follow logs"
+	@echo "make ps                 - list containers"
+	@echo "make shell [SERVICE=api]- shell into a service"
+	@echo "make test [ARGS=...]    - run pytest in api container"
+	@echo "make fmt | lint         - ruff format/check in api container"
+	@echo "make clean              - down + prune orphans/network"
+	@echo "make clean-data         - clean + drop pg/redis volumes"
+	@echo "make clean-all          - clean-data + docker system prune"
+	@echo "make health             - curl basic health checks"
+	@echo "make full-reset         - clean -> env -> build -> up (no volume drop)"
 
 env:
-	@printf '%s\n' \
-		'import pathlib' \
-		'import yaml' \
-		'' \
-		'cfg_path = pathlib.Path("$(CONFIG)")' \
-		'env_path = pathlib.Path("$(ENV_FILE)")' \
-		'data = yaml.safe_load(cfg_path.read_text()) or {}' \
-		'' \
-		'meta_keys = {"description", "type", "choices"}' \
-		'' \
-		'def flatten(node, prefix=""):' \
-		'    env = {}' \
-		'    if isinstance(node, dict):' \
-		'        if "value" in node:' \
-		'            env[prefix] = node["value"]' \
-		'            return env' \
-		'        if "list" in node and isinstance(node["list"], list):' \
-		'            env[prefix] = ",".join(str(v) for v in node["list"])' \
-		'        for k, v in node.items():' \
-		'            if k in meta_keys or k in {"value", "list"}:' \
-		'                continue' \
-		'            child_prefix = f"{prefix}_{k}" if prefix else k' \
-		'            env.update(flatten(v, child_prefix))' \
-		'    return env' \
-		'' \
-		'flat = flatten(data.get("server", {}))' \
-		'' \
-		'def to_env(k, v):' \
-		'    key = k.upper()' \
-		'    if isinstance(v, bool):' \
-		'        v = "true" if v else "false"' \
-		'    return f"{key}={v}"' \
-		'' \
-		'lines = [to_env(k, v) for k, v in flat.items()]' \
-		'env_path.write_text("\n".join(lines) + "\n")' \
-		'print(f"Wrote {env_path} with {len(lines)} entries from {cfg_path}")' \
-	| $(PY)
+	@$(PY) $(ENV_SCRIPT) --config $(CONFIG) --output $(ENV_FILE)
 
 up: env
-	docker-compose up -d
+	$(COMPOSE) $(SERVICES) up -d
+
+build:
+	$(COMPOSE) $(SERVICES) build
 
 down:
-	docker-compose down
+	$(COMPOSE) down $(SERVICES)
 
 logs:
-	@services="$(filter-out $@,$(MAKECMDGOALS))"; \
-	if [ -n "$$services" ]; then \
-		docker-compose logs -f $$services; \
-	else \
-		docker-compose logs -f; \
-	fi
+	$(COMPOSE) logs -f $(if $(SERVICES),$(SERVICES),$(EXTRA_GOALS))
 
 restart:
-	@services="$(filter-out $@,$(MAKECMDGOALS))"; \
-	if [ -n "$$services" ]; then \
-		docker-compose restart $$services; \
-	else \
-		docker-compose restart; \
-	fi
+	$(COMPOSE) restart $(SERVICES)
 
-# Allow `make logs api` style invocation without errors for the extra arg.
-%:
-	@:
+ps:
+	$(COMPOSE) ps
+
+shell:
+	@service=$${SERVICE:-api}; \
+	$(COMPOSE) exec $$service sh
+
+test:
+	$(COMPOSE) exec -T api pytest $(ARGS)
+
+rebuild:
+	@$(MAKE) clean-data
+	@$(MAKE) build
+	@$(MAKE) up
+
+full-reset:
+	@$(MAKE) clean
+	@$(MAKE) env
+	@$(MAKE) build
+	@$(MAKE) up
+
+reset:
+	@$(MAKE) down
+	@$(MAKE) env
+	@$(MAKE) up
+
+
+clean:
+	$(COMPOSE) down -v --remove-orphans || true
+	@docker ps -aq --filter "network=$(NETWORK)" | xargs -r docker rm -f
+	@docker network rm $(NETWORK) 2>/dev/null || true
+
+clean-all: clean-data
+	docker system prune -f
+
+clean-data: clean
+	docker volume rm mock-data-engine-api_pgdata mock-data-engine-api_redisdata 2>/dev/null || true
+
+fmt:
+	$(COMPOSE) exec -T api ruff format .
+
+lint:
+	$(COMPOSE) exec -T api ruff check .
+
+lint-fix:
+	$(COMPOSE) exec -T api ruff check --fix .
+
+health:
+	@echo "=== API Health ==="
+	@curl -s http://localhost:8000/health || echo "API not responding"
+	@echo "\n=== Prometheus Health ==="
+	@curl -s http://localhost:9090/-/healthy || echo "Prometheus not responding"
+	@echo "\n=== Grafana Health ==="
+	@curl -s http://localhost:3000/api/health || echo "Grafana not responding"
+
+db-shell:
+	@USER=$$(grep -E '^PERSISTENCE_POSTGRES_USER=' $(ENV_FILE) | cut -d'=' -f2); \
+	PASS=$$(grep -E '^PERSISTENCE_POSTGRES_PASSWORD=' $(ENV_FILE) | cut -d'=' -f2); \
+	DB=$$(grep -E '^PERSISTENCE_POSTGRES_DB=' $(ENV_FILE) | cut -d'=' -f2); \
+	USER=$${USER:-mock_user}; PASS=$${PASS:-mock_pass}; DB=$${DB:-mock_engine}; \
+	$(COMPOSE) exec postgres psql -U $$USER -d $$DB
+
+redis-cli:
+	$(COMPOSE) exec redis redis-cli
