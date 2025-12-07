@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, Tuple
 
 import yaml
+from fastapi import Request
 
 from mock_engine import api as engine_api
 from mock_engine.schema.builder import build_schema
@@ -81,3 +82,8 @@ def get_settings():
     cm = get_config_manager()
     ensure_config_fresh()
     return cm
+
+
+async def get_redis(request: Request):
+    """Get the shared Redis client from app state."""
+    return request.app.state.redis

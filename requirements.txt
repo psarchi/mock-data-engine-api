@@ -7,3 +7,6 @@ exrex
 pytest
 structlog
 prometheus-client
+redis>=5.0.0
+asyncpg>=0.29.0
+nanoid>=2.0.0

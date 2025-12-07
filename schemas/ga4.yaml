@@ -8,6 +8,8 @@ fields:
   event_date:
     type: datetime
     format: '%Y%m%d'
+    depends_on: event_timestamp
+
 
   event_name:
     type: one_of

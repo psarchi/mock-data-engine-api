@@ -1,15 +1,14 @@
-"""Observability instrumentation for mock data engine.
-
-Provides Prometheus metrics for monitoring API performance, data generation,
-and chaos operations.
-"""
-
 from __future__ import annotations
 
+import os
+
 from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry
-from prometheus_client import make_asgi_app
+from prometheus_client import make_asgi_app, multiprocess
 
 registry = CollectorRegistry()
+if os.getenv("PROMETHEUS_MULTIPROC_DIR"):
+    multiprocess.MultiProcessCollector(registry)
+
 
 http_requests_total = Counter(
     'http_requests_total',
@@ -119,6 +118,103 @@ temporal_tracker_resets_total = Counter(
     'temporal_tracker_resets_total',
     'Timeline resets',
     ['schema'],
+    registry=registry
+)
+
+persistence_writes_total = Counter(
+    'persistence_writes_total',
+    'Total datasets persisted',
+    ['schema', 'status'],
+    registry=registry
+)
+
+persistence_reads_total = Counter(
+    'persistence_reads_total',
+    'Total dataset retrievals',
+    ['schema', 'source'],
+    registry=registry
+)
+
+persistence_cache_hits_total = Counter(
+    'persistence_cache_hits_total',
+    'Redis cache hits',
+    ['schema'],
+    registry=registry
+)
+
+persistence_cache_misses_total = Counter(
+    'persistence_cache_misses_total',
+    'Redis cache misses (PostgreSQL fallback)',
+    ['schema'],
+    registry=registry
+)
+
+persistence_errors_total = Counter(
+    'persistence_errors_total',
+    'Persistence operation errors',
+    ['operation', 'error_type'],
+    registry=registry
+)
+
+persistence_sync_lag_seconds = Histogram(
+    'persistence_sync_lag_seconds',
+    'Time lag between Redis write and PostgreSQL sync',
+    ['schema'],
+    buckets=[0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 300.0],
+    registry=registry
+)
+
+persistence_dataset_size_bytes = Histogram(
+    'persistence_dataset_size_bytes',
+    'Size of persisted datasets',
+    ['schema'],
+    buckets=[1000, 10000, 100000, 1000000, 10000000],
+    registry=registry
+)
+
+persistence_redis_writes_total = Counter(
+    'persistence_redis_writes_total',
+    'Total writes to Redis cache',
+    ['schema', 'status'],
+    registry=registry
+)
+
+persistence_postgres_writes_total = Counter(
+    'persistence_postgres_writes_total',
+    'Total writes to PostgreSQL',
+    ['schema', 'status'],
+    registry=registry
+)
+
+persistence_redis_cache_size_mb = Gauge(
+    'persistence_redis_cache_size_mb',
+    'Total Redis cache size by schema (MB)',
+    ['schema'],
+    registry=registry
+)
+
+persistence_postgres_cache_size_mb = Gauge(
+    'persistence_postgres_cache_size_mb',
+    'Total PostgreSQL storage size by schema (MB)',
+    ['schema'],
+    registry=registry
+)
+
+persistence_batch_sync_datasets_synced = Counter(
+    'persistence_batch_sync_datasets_synced',
+    'Total datasets synced by batch sync job',
+    registry=registry
+)
+
+persistence_batch_sync_bytes_synced = Counter(
+    'persistence_batch_sync_bytes_synced',
+    'Total bytes synced by batch sync job',
+    registry=registry
+)
+
+persistence_batch_sync_last_run_timestamp = Gauge(
+    'persistence_batch_sync_last_run_timestamp',
+    'Timestamp of last batch sync run (epoch seconds)',
     registry=registry
 )
 

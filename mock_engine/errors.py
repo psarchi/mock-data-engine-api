@@ -104,3 +104,7 @@ class ChaosError(MockEngineError):
 
 class ValidationError(MockEngineError):
     """Schema/contract validation failures."""
+
+
+class PersistenceError(MockEngineError):
+    """Persistence subsystem failures."""

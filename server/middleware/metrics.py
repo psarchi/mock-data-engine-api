@@ -1,5 +1,3 @@
-"""FastAPI middleware for request instrumentation."""
-
 from __future__ import annotations
 
 import time
@@ -83,7 +81,6 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             Schema name or None if not found
         """
         parts = endpoint.strip('/').split('/')
-        # /v1/schemas/{name}/...
         if len(parts) >= 3 and parts[0] == 'v1' and parts[1] == 'schemas':
             return parts[2]
         return None

@@ -10,3 +10,21 @@ scrape_configs:
       - targets: ['api:8000']
     metrics_path: '/metrics/'
     scrape_interval: 5s
+
+  - job_name: 'mock-engine-batch-sync'
+    static_configs:
+      - targets: ['batch_sync:8001']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  - job_name: 'mock-engine-watcher'
+    static_configs:
+      - targets: ['watcher:8002']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  - job_name: 'mock-engine-metrics-collector'
+    static_configs:
+      - targets: ['metrics_collector:8003']
+    metrics_path: '/metrics'
+    scrape_interval: 5s

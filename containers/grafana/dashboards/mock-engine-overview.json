@@ -13,12 +13,30 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{schema!=\"unknown\"}[1m]))",
+          "expr": "avg(sum(rate(http_requests_total{schema!=\"unknown\",endpoint!=\"/metrics/\"}[1m])))",
           "legendFormat": "Requests/sec",
           "refId": "A"
         }
       ],
-      "gridPos": {"h": 4, "w": 8, "x": 0, "y": 0}
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0}
+    },
+    {
+      "id": 20,
+      "title": "Data Generation Rate (AVG)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(items_generated_total[1m]))",
+          "legendFormat": "Items/sec",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0}
     },
     {
       "id": 2,
@@ -31,7 +49,7 @@
           "refId": "A"
         }
       ],
-      "gridPos": {"h": 4, "w": 8, "x": 8, "y": 0}
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0}
     },
     {
       "id": 3,
@@ -39,12 +57,166 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "rate(http_request_duration_seconds_sum{schema!=\"unknown\"}[1m]) / rate(http_request_duration_seconds_count{schema!=\"unknown\"}[1m])",
-          "legendFormat": "Avg Duration (s)",
+          "expr": "(rate(http_request_duration_seconds_sum{schema!=\"unknown\",endpoint!=\"/metrics/\"}[1m]) / rate(http_request_duration_seconds_count{schema!=\"unknown\",endpoint!=\"/metrics/\"}[1m])) * 1000",
+          "legendFormat": "Avg Duration",
           "refId": "A"
         }
       ],
-      "gridPos": {"h": 4, "w": 8, "x": 16, "y": 0}
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0}
+    },
+    {
+      "id": 23,
+      "title": "Data Generation Over Time",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(items_generated_total[1m])",
+          "legendFormat": "{{schema}}",
+          "refId": "A"
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "nullPointMode": "null",
+      "percentage": false,
+      "aliasColors": {},
+      "seriesOverrides": [],
+      "legend": {
+        "show": true,
+        "values": false,
+        "min": false,
+        "max": false,
+        "current": false,
+        "total": false,
+        "avg": false,
+        "alignAsTable": false,
+        "rightSide": false
+      },
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "xaxis": {
+        "show": true,
+        "mode": "time",
+        "name": null,
+        "values": [],
+        "buckets": null
+      },
+      "yaxes": [
+        {
+          "show": true,
+          "format": "ops",
+          "label": "Items/sec",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        },
+        {
+          "show": false,
+          "format": "short",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        }
+      ],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 4}
+    },
+    {
+      "id": 21,
+      "title": "Response Latency (p50/p95)",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{endpoint!=\"/metrics/\"}[1m])) by (le)) * 1000",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{endpoint!=\"/metrics/\"}[1m])) by (le)) * 1000",
+          "legendFormat": "p95",
+          "refId": "B"
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "nullPointMode": "null",
+      "percentage": false,
+      "aliasColors": {},
+      "seriesOverrides": [],
+      "legend": {
+        "show": true,
+        "values": false,
+        "min": false,
+        "max": false,
+        "current": false,
+        "total": false,
+        "avg": false,
+        "alignAsTable": false,
+        "rightSide": false
+      },
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "xaxis": {
+        "show": true,
+        "mode": "time",
+        "name": null,
+        "values": [],
+        "buckets": null
+      },
+      "yaxes": [
+        {
+          "show": true,
+          "format": "ms",
+          "label": "Latency",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        },
+        {
+          "show": false,
+          "format": "short",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12}
     },
     {
       "id": 5,
@@ -52,56 +224,84 @@
       "type": "graph",
       "targets": [
         {
-          "expr": "rate(http_requests_total{schema!=\"unknown\"}[1m])",
+          "expr": "rate(http_requests_total{schema!=\"unknown\",endpoint!=\"/metrics/\"}[1m])",
           "legendFormat": "{{schema}}",
           "refId": "A"
         }
       ],
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4}
-    },
-    {
-      "id": 6,
-      "title": "Request Duration",
-      "type": "graph",
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{schema!=\"unknown\"}[1m]))",
-          "legendFormat": "{{schema}} - p50",
-          "refId": "A"
-        },
-        {
-          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{schema!=\"unknown\"}[1m]))",
-          "legendFormat": "{{schema}} - p95",
-          "refId": "B"
-        }
-      ],
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4}
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12}
     },
     {
       "id": 7,
       "title": "Generator Performance (p95)",
       "type": "graph",
+      "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, rate(generator_duration_seconds_bucket[1m]))",
-          "legendFormat": "{{generator}} - p95",
+          "expr": "histogram_quantile(0.95, rate(generator_duration_seconds_bucket[1m])) * 1000",
+          "legendFormat": "{{generator}}",
           "refId": "A"
         }
       ],
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12}
-    },
-    {
-      "id": 9,
-      "title": "Performance by Batch Size",
-      "type": "graph",
-      "targets": [
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "nullPointMode": "null",
+      "percentage": false,
+      "aliasColors": {},
+      "seriesOverrides": [],
+      "legend": {
+        "show": true,
+        "values": false,
+        "min": false,
+        "max": false,
+        "current": false,
+        "total": false,
+        "avg": false,
+        "alignAsTable": false,
+        "rightSide": false
+      },
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "xaxis": {
+        "show": true,
+        "mode": "time",
+        "name": null,
+        "values": [],
+        "buckets": null
+      },
+      "yaxes": [
         {
-          "expr": "rate(generation_duration_seconds_sum[1m]) / rate(generation_duration_seconds_count[1m])",
-          "legendFormat": "{{count_bucket}} items",
-          "refId": "A"
+          "show": true,
+          "format": "ms",
+          "label": "Duration",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        },
+        {
+          "show": false,
+          "format": "short",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
         }
       ],
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12}
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20}
     },
     {
       "id": 11,
@@ -114,25 +314,85 @@
           "refId": "A"
         }
       ],
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20}
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20}
     },
     {
       "id": 12,
       "title": "Response Size (p95)",
       "type": "graph",
+      "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, rate(http_response_size_bytes_bucket{schema!=\"unknown\"}[1m]))",
-          "legendFormat": "{{schema}} - p95",
+          "expr": "histogram_quantile(0.95, rate(http_response_size_bytes_bucket{schema!=\"unknown\",endpoint!=\"/metrics/\"}[1m])) / 1024",
+          "legendFormat": "{{schema}}",
           "refId": "A"
         }
       ],
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20}
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "nullPointMode": "null",
+      "percentage": false,
+      "aliasColors": {},
+      "seriesOverrides": [],
+      "legend": {
+        "show": true,
+        "values": false,
+        "min": false,
+        "max": false,
+        "current": false,
+        "total": false,
+        "avg": false,
+        "alignAsTable": false,
+        "rightSide": false
+      },
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "xaxis": {
+        "show": true,
+        "mode": "time",
+        "name": null,
+        "values": [],
+        "buckets": null
+      },
+      "yaxes": [
+        {
+          "show": true,
+          "format": "deckbytes",
+          "label": "Size",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        },
+        {
+          "show": false,
+          "format": "short",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28}
     },
     {
       "id": 13,
       "title": "Temporal Tracker - Elapsed Time",
       "type": "graph",
+      "datasource": "Prometheus",
       "targets": [
         {
           "expr": "temporal_tracker_elapsed_seconds",
@@ -140,7 +400,250 @@
           "refId": "A"
         }
       ],
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28}
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "nullPointMode": "null",
+      "percentage": false,
+      "aliasColors": {},
+      "seriesOverrides": [],
+      "legend": {
+        "show": true,
+        "values": false,
+        "min": false,
+        "max": false,
+        "current": false,
+        "total": false,
+        "avg": false,
+        "alignAsTable": false,
+        "rightSide": false
+      },
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "xaxis": {
+        "show": true,
+        "mode": "time",
+        "name": null,
+        "values": [],
+        "buckets": null
+      },
+      "yaxes": [
+        {
+          "show": true,
+          "format": "s",
+          "label": "Time",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        },
+        {
+          "show": false,
+          "format": "short",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28}
+    },
+    {
+      "id": 15,
+      "title": "Redis Cache Size (MB)",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "persistence_redis_cache_size_mb",
+          "legendFormat": "{{schema}} - Redis",
+          "refId": "A"
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "nullPointMode": "null",
+      "percentage": false,
+      "aliasColors": {},
+      "seriesOverrides": [],
+      "legend": {
+        "show": true,
+        "values": false,
+        "min": false,
+        "max": false,
+        "current": false,
+        "total": false,
+        "avg": false,
+        "alignAsTable": false,
+        "rightSide": false
+      },
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "xaxis": {
+        "show": true,
+        "mode": "time",
+        "name": null,
+        "values": [],
+        "buckets": null
+      },
+      "yaxes": [
+        {
+          "show": true,
+          "format": "decmbytes",
+          "label": "Size",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        },
+        {
+          "show": false,
+          "format": "short",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 36}
+    },
+    {
+      "id": 16,
+      "title": "PostgreSQL Storage Size (MB)",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "persistence_postgres_cache_size_mb",
+          "legendFormat": "{{schema}} - PostgreSQL",
+          "refId": "A"
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "nullPointMode": "null",
+      "percentage": false,
+      "aliasColors": {},
+      "seriesOverrides": [],
+      "legend": {
+        "show": true,
+        "values": false,
+        "min": false,
+        "max": false,
+        "current": false,
+        "total": false,
+        "avg": false,
+        "alignAsTable": false,
+        "rightSide": false
+      },
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "xaxis": {
+        "show": true,
+        "mode": "time",
+        "name": null,
+        "values": [],
+        "buckets": null
+      },
+      "yaxes": [
+        {
+          "show": true,
+          "format": "decmbytes",
+          "label": "Size",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        },
+        {
+          "show": false,
+          "format": "short",
+          "logBase": 1,
+          "min": null,
+          "max": null,
+          "decimals": null
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 36}
+    },
+    {
+      "id": 22,
+      "title": "Data Retrievals (Total)",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "sum(rate(persistence_cache_hits_total[1m])) + sum(rate(persistence_cache_misses_total[1m]))",
+          "legendFormat": "Total retrievals/sec",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(persistence_cache_hits_total[1m]))",
+          "legendFormat": "From Redis",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(persistence_cache_misses_total[1m]))",
+          "legendFormat": "From PostgreSQL",
+          "refId": "C"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 44}
+    },
+    {
+      "id": 19,
+      "title": "Persistence Sync Activity",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "sum by (schema) (persistence_postgres_writes_total)",
+          "legendFormat": "{{schema}} - Watcher writes",
+          "refId": "A"
+        },
+        {
+          "expr": "persistence_batch_sync_datasets_synced_total",
+          "legendFormat": "Batch sync (total)",
+          "refId": "B"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 52}
     }
   ]
 }

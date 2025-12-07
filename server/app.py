@@ -10,13 +10,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from server.routers import admin_config, admin_chaos, meta, schemas
+from server.routers import admin_config, admin_chaos, meta, schemas, data
 from server.errors import build_error_response, build_unhandled_response
 from server.logging import setup_logging
 from server.middleware.correlation import CorrelationMiddleware
+from server.middleware.metrics import MetricsMiddleware
 from mock_engine.errors import MockEngineError
 from mock_engine.observability import get_metrics_app
-from mock_engine.observability.middleware import MetricsMiddleware
 
 __all__ = ["create_app", "app"]
 
@@ -24,14 +24,48 @@ __all__ = ["create_app", "app"]
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Warm configuration and generator caches on startup."""
+    import asyncio
     from server.deps import get_settings, warmup_all
+    from mock_engine.persistence.metrics_collector import MetricsCollector
+    from mock_engine.persistence import StorageManager
 
     # Setup structured logging
     setup_logging()
 
     warmup_all()
-    get_settings()
+    cm = get_settings()
+
+    # Read persistence config
+    try:
+        persistence_cfg = cm.get_root("server").persistence  # type: ignore
+        redis_url = getattr(persistence_cfg.redis, "url", None)
+        metrics_interval = getattr(persistence_cfg.metrics_collector, "interval_seconds", 30)
+    except (AttributeError, TypeError):
+        redis_url = None
+        metrics_interval = 30
+
+    # Initialize shared Redis client (API only writes to Redis)
+    from mock_engine.persistence import RedisClient
+    redis = RedisClient(redis_url)
+    await redis.connect()
+    app.state.redis = redis
+
+    # Start metrics collector in background
+    metrics_collector = MetricsCollector(interval_seconds=metrics_interval)
+    collector_task = asyncio.create_task(metrics_collector.start())
+
     yield
+
+    # Stop metrics collector on shutdown
+    await metrics_collector.stop()
+    collector_task.cancel()
+    try:
+        await collector_task
+    except asyncio.CancelledError:
+        pass
+
+    # Close Redis connection
+    await redis.close()
 
 
 def create_app() -> FastAPI:
@@ -68,6 +102,7 @@ def create_app() -> FastAPI:
     app.include_router(meta.router)
     app.include_router(admin_config.router)
     app.include_router(schemas.router)
+    app.include_router(data.router)
 
     if metrics_enabled:
         app.mount(metrics_path, get_metrics_app())

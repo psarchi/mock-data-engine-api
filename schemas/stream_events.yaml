@@ -1,0 +1,22 @@
+type: object
+fields:
+  event_id:
+    type: string
+    string_type: uuid4
+
+  event_timestamp:
+    type: stateful_timestamp
+    start: 1732378800000000
+    increment: 1000000
+
+  event_datetime:
+    type: stateful_datetime
+    start: 1732378800000000
+    increment: 1000000
+    format: "%Y-%m-%d %H:%M:%S"
+    tz: "+00:00"
+
+  user_id:
+    type: int
+    min: 1000
+    max: 9999

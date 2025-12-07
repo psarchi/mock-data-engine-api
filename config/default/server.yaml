@@ -8,16 +8,60 @@ server:
     description: HTTP server port
     type: int
     value: 8000
+  workers:
+    description: Uvicorn worker count
+    type: int
+    value: 8
   observability:
     type: group
+    logging:
+      type: group
+      enabled:
+        description: enable structured logging
+        type: bool
+        value: true
+      level:
+        description: log level (DEBUG, INFO, WARNING, ERROR)
+        type: enum
+        choices:
+        - DEBUG,INFO,WARNING,ERROR
+        value: INFO
+      format:
+        description: log output format (json or console)
+        type: enum
+        choices:
+        - json,console
+        value: json
     metrics_enabled:
       description: expose Prometheus metrics endpoint
       type: bool
-      value: false
+      value: true
     prometheus_path:
       description: metrics endpoint path
       type: str
       value: /metrics
+    prometheus_port:
+      description: Prometheus service port
+      type: int
+      value: 9090
+    grafana:
+      type: group
+      port:
+        description: Grafana service port
+        type: int
+        value: 3000
+      admin_user:
+        description: Grafana admin username
+        type: str
+        value: admin
+      admin_password:
+        description: Grafana admin password
+        type: str
+        value: admin
+      allow_sign_up:
+        description: Allow Grafana sign ups
+        type: bool
+        value: false
     otel:
       type: group
       enabled:
@@ -93,3 +137,178 @@ server:
       description: simulate exactly-once delivery semantics
       type: bool
       value: false
+  persistence:
+    type: group
+    enabled:
+      description: enable dataset persistence (Redis + PostgreSQL)
+      type: bool
+      value: true
+    persist_by_default:
+      description: persist datasets by default (overridable per request)
+      type: bool
+      value: true
+    redis:
+      type: group
+      port:
+        description: Redis port
+        type: int
+        value: 6379
+      url:
+        description: Redis connection URL
+        type: str
+        value: redis://redis:6379
+      key_prefix:
+        description: Redis key prefix for datasets
+        type: str
+        value: "data:"
+      ttl_hours:
+        description: TTL for datasets in Redis (hours)
+        type: int
+        value: 24
+      maxmemory:
+        description: Redis maximum memory limit (e.g., 10gb, 512mb)
+        type: str
+        value: 10gb
+      maxmemory_policy:
+        description: Redis eviction policy when maxmemory is reached
+        type: enum
+        choices:
+        - allkeys-lru
+        - allkeys-lfu
+        - volatile-lru
+        - volatile-lfu
+        - allkeys-random
+        - volatile-random
+        - volatile-ttl
+        - noeviction
+        value: allkeys-lru
+      connection_pool:
+        type: group
+        max_connections:
+          description: maximum Redis connections in pool
+          type: int
+          value: 50
+        timeout_seconds:
+          description: connection timeout in seconds
+          type: int
+          value: 5
+    postgres:
+      type: group
+      port:
+        description: PostgreSQL port
+        type: int
+        value: 5432
+      db:
+        description: PostgreSQL database name
+        type: str
+        value: mock_engine
+      user:
+        description: PostgreSQL username
+        type: str
+        value: mock_user
+      password:
+        description: PostgreSQL password
+        type: str
+        value: mock_pass
+      url:
+        description: PostgreSQL connection URL
+        type: str
+        value: postgresql://mock_user:mock_pass@postgres:5432/mock_engine
+      retention_days:
+        description: dataset retention period in PostgreSQL (days)
+        type: int
+        value: 30
+      connection_pool:
+        type: group
+        min_size:
+          description: minimum PostgreSQL connections in pool
+          type: int
+          value: 5
+        max_size:
+          description: maximum PostgreSQL connections in pool
+          type: int
+          value: 20
+        timeout_seconds:
+          description: connection timeout in seconds
+          type: int
+          value: 30
+      cleanup:
+        type: group
+        enabled:
+          description: enable automatic cleanup of old datasets
+          type: bool
+          value: false
+        retention_days:
+          description: delete datasets older than N days
+          type: int
+          value: 7
+        interval_hours:
+          description: cleanup job interval (hours)
+          type: int
+          value: 24
+    batch_sync:
+      type: group
+      enabled:
+        description: enable batch sync daemon (Redis → PostgreSQL)
+        type: bool
+        value: true
+      drain_mode:
+        description: drain-until-empty mode (process all batches without sleep)
+        type: bool
+        value: true
+      interval_seconds:
+        description: sleep duration between drain cycles (seconds)
+        type: int
+        value: 3
+      batch_limit:
+        description: max datasets to process per batch
+        type: int
+        value: 1000
+      metrics_port:
+        description: Prometheus metrics port for batch_sync
+        type: int
+        value: 8001
+      retry:
+        type: group
+        max_attempts:
+          description: max retry attempts for failed writes
+          type: int
+          value: 3
+        backoff_seconds:
+          description: retry backoff delay (seconds)
+          type: int
+          value: 5
+      health_check:
+        type: group
+        enabled:
+          description: enable health check endpoint
+          type: bool
+          value: true
+        interval_seconds:
+          description: health check interval (seconds)
+          type: int
+          value: 60
+    metrics_collector:
+      type: group
+      enabled:
+        description: enable metrics collector daemon
+        type: bool
+        value: true
+      interval_seconds:
+        description: metrics collection interval (seconds)
+        type: int
+        value: 30
+      metrics_port:
+        description: Prometheus metrics port for metrics_collector
+        type: int
+        value: 8003
+      health_check:
+        type: group
+        enabled:
+          description: enable health check endpoint
+          type: bool
+          value: true
+        interval_seconds:
+          description: health check interval (seconds)
+          type: int
+          value: 60

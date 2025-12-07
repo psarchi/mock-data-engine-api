@@ -10,6 +10,12 @@ from dataclasses import dataclass
 from threading import Lock
 from typing import Dict, Optional, Tuple
 
+from mock_engine.observability import (
+    temporal_tracker_elapsed_seconds,
+    temporal_tracker_current_timestamp,
+    temporal_tracker_resets_total,
+)
+
 
 @dataclass
 class TimelineState:
@@ -89,6 +95,11 @@ class TemporalTracker:
             elif state.current_timestamp is None or timestamp > state.current_timestamp:
                 state.current_timestamp = timestamp
 
+            if state.first_timestamp and state.current_timestamp:
+                elapsed_seconds = (state.current_timestamp - state.first_timestamp) / 1_000_000
+                temporal_tracker_elapsed_seconds.labels(schema=schema_name).set(elapsed_seconds)
+                temporal_tracker_current_timestamp.labels(schema=schema_name).set(state.current_timestamp)
+
     def get_range(self, schema_name: str) -> Tuple[Optional[int], Optional[int]]:
         """Return (first_timestamp, current_timestamp) for schema.
 
@@ -124,7 +135,9 @@ class TemporalTracker:
             schema_name: Schema to reset
         """
         with self._lock:
-            self._timelines.pop(schema_name, None)
+            if schema_name in self._timelines:
+                self._timelines.pop(schema_name)
+                temporal_tracker_resets_total.labels(schema=schema_name).inc()
 
     def clear_all(self) -> None:
         """Clear all timelines."""

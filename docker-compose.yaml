@@ -4,25 +4,39 @@ services:
   api:
     build:
       context: .
-      dockerfile: containers/app/Dockerfile
+      dockerfile: containers/api/Dockerfile
+    container_name: mock-engine-api
+    env_file:
+      - .env
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:8000"
     volumes:
       - .:/app
       - ./log:/app/log
     working_dir: /app
-    command: bash -c "mkdir -p log && uvicorn server.app:app --host 0.0.0.0 --port 8000 --reload 2>&1 | tee log/terminal.log"
+    command: >
+      sh -c "mkdir -p /tmp/prom-mp &&
+      rm -rf /tmp/prom-mp/* &&
+      uvicorn server.app:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WORKERS:-8}"
     environment:
       - PYTHONUNBUFFERED=1
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prom-mp
+      - REDIS_URL=${PERSISTENCE_REDIS_URL:-redis://redis:6379}
+      - DATABASE_URL=${PERSISTENCE_POSTGRES_URL:-postgresql://mock_user:mock_pass@postgres:5432/mock_engine}
+    tmpfs:
+      - /tmp/prom-mp
     networks:
       - mock-engine
+    depends_on:
+      - redis
+    restart: unless-stopped
 
   prometheus:
     build:
       context: containers/prometheus
       dockerfile: Dockerfile
     ports:
-      - "9090:9090"
+      - "${OBSERVABILITY_PROMETHEUS_PORT:-9090}:9090"
     networks:
       - mock-engine
     depends_on:
@@ -33,15 +47,120 @@ services:
       context: containers/grafana
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "${OBSERVABILITY_GRAFANA_PORT:-3000}:3000"
     networks:
       - mock-engine
     depends_on:
       - prometheus
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_ADMIN_USER=${OBSERVABILITY_GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${OBSERVABILITY_GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=${OBSERVABILITY_GRAFANA_ALLOW_SIGN_UP:-false}
+
+  redis:
+    build:
+      context: .
+      dockerfile: containers/redis/Dockerfile
+    container_name: mock-engine-redis
+    env_file:
+      - .env
+    ports:
+      - "${PERSISTENCE_REDIS_PORT:-6379}:6379"
+    volumes:
+      - ./redis-data:/data
+    environment:
+      - REDIS_MAXMEMORY=${PERSISTENCE_REDIS_MAXMEMORY:-10gb}
+      - REDIS_MAXMEMORY_POLICY=${PERSISTENCE_REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+    networks:
+      - mock-engine
+    restart: unless-stopped
+
+  postgres:
+    build:
+      context: .
+      dockerfile: containers/postgres/Dockerfile
+    container_name: mock-engine-postgres
+    ports:
+      - "${PERSISTENCE_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${PERSISTENCE_POSTGRES_DB:-mock_engine}
+      POSTGRES_USER: ${PERSISTENCE_POSTGRES_USER:-mock_user}
+      POSTGRES_PASSWORD: ${PERSISTENCE_POSTGRES_PASSWORD:-mock_pass}
+    networks:
+      - mock-engine
+    restart: unless-stopped
+
+  # watcher:
+  #   build:
+  #     context: .
+  #     dockerfile: containers/app/Dockerfile
+  #   container_name: mock-engine-watcher
+  #   command: python -m mock_engine.persistence.watcher
+  #   ports:
+  #     - "8002:8002"
+  #   depends_on:
+  #     - redis
+  #     - postgres
+  #   environment:
+  #     - REDIS_URL=redis://redis:6379
+  #     - DATABASE_URL=postgresql://mock_user:mock_pass@postgres:5432/mock_engine
+  #     - METRICS_PORT=8002
+  #   networks:
+  #     - mock-engine
+  #   restart: unless-stopped
+  #   volumes:
+  #     - .:/app
+  #   working_dir: /app
+
+  batch_sync:
+    build:
+      context: .
+      dockerfile: containers/batch_sync/Dockerfile
+    container_name: mock-engine-batch-sync
+    env_file:
+      - .env
+    ports:
+      - "${PERSISTENCE_BATCH_SYNC_METRICS_PORT:-8001}:${PERSISTENCE_BATCH_SYNC_METRICS_PORT:-8001}"
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - mock-engine
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - REDIS_URL=${PERSISTENCE_REDIS_URL:-redis://redis:6379}
+      - DATABASE_URL=${PERSISTENCE_POSTGRES_URL:-postgresql://mock_user:mock_pass@postgres:5432/mock_engine}
+      - SYNC_INTERVAL=${PERSISTENCE_BATCH_SYNC_INTERVAL_SECONDS:-3}
+      - METRICS_PORT=${PERSISTENCE_BATCH_SYNC_METRICS_PORT:-8001}
+
+  metrics_collector:
+    build:
+      context: .
+      dockerfile: containers/metrics_collector/Dockerfile
+    container_name: mock-engine-metrics-collector
+    env_file:
+      - .env
+    ports:
+      - "${PERSISTENCE_METRICS_COLLECTOR_METRICS_PORT:-8003}:${PERSISTENCE_METRICS_COLLECTOR_METRICS_PORT:-8003}"
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - mock-engine
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - REDIS_URL=${PERSISTENCE_REDIS_URL:-redis://redis:6379}
+      - DATABASE_URL=${PERSISTENCE_POSTGRES_URL:-postgresql://mock_user:mock_pass@postgres:5432/mock_engine}
+      - METRICS_PORT=${PERSISTENCE_METRICS_COLLECTOR_METRICS_PORT:-8003}
+      - INTERVAL_SECONDS=${PERSISTENCE_METRICS_COLLECTOR_INTERVAL_SECONDS:-30}
 
 networks:
   mock-engine:
