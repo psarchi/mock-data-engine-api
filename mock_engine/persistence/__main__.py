@@ -4,18 +4,14 @@ import sys
 
 
 def main():
-    """Dispatch to watcher, batch_sync, or metrics_collector based on command."""
+    """Dispatch to batch_sync or metrics_collector based on command."""
     if len(sys.argv) < 2:
-        print("Usage: python -m mock_engine.persistence [watcher|batch_sync|metrics_collector]")
+        print("Usage: python -m mock_engine.persistence [batch_sync|metrics_collector]")
         sys.exit(1)
 
     command = sys.argv[1]
 
-    if command == "watcher":
-        from mock_engine.persistence.watcher import main as watcher_main
-        import asyncio
-        asyncio.run(watcher_main())
-    elif command == "batch_sync":
+    if command == "batch_sync":
         from mock_engine.persistence.batch_sync import main as batch_sync_main
         import asyncio
         asyncio.run(batch_sync_main())
@@ -25,7 +21,7 @@ def main():
         asyncio.run(metrics_collector_main())
     else:
         print(f"Unknown command: {command}")
-        print("Available commands: watcher, batch_sync, metrics_collector")
+        print("Available commands: batch_sync, metrics_collector")
         sys.exit(1)
 
 
