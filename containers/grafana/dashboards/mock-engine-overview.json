@@ -1,0 +1,146 @@
+{
+  "uid": "mock-engine-overview",
+  "title": "Mock Engine API - Overview",
+  "tags": ["mock-engine", "observability"],
+  "timezone": "browser",
+  "schemaVersion": 16,
+  "version": 0,
+  "refresh": "5s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP Requests/sec",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{schema!=\"unknown\"}[1m]))",
+          "legendFormat": "Requests/sec",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 4, "w": 8, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "title": "Items Generated (Total)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(items_generated_total)",
+          "legendFormat": "Total Items",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 4, "w": 8, "x": 8, "y": 0}
+    },
+    {
+      "id": 3,
+      "title": "Avg Request Duration",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "rate(http_request_duration_seconds_sum{schema!=\"unknown\"}[1m]) / rate(http_request_duration_seconds_count{schema!=\"unknown\"}[1m])",
+          "legendFormat": "Avg Duration (s)",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 4, "w": 8, "x": 16, "y": 0}
+    },
+    {
+      "id": 5,
+      "title": "HTTP Request Rate by Schema",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{schema!=\"unknown\"}[1m])",
+          "legendFormat": "{{schema}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4}
+    },
+    {
+      "id": 6,
+      "title": "Request Duration",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{schema!=\"unknown\"}[1m]))",
+          "legendFormat": "{{schema}} - p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{schema!=\"unknown\"}[1m]))",
+          "legendFormat": "{{schema}} - p95",
+          "refId": "B"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4}
+    },
+    {
+      "id": 7,
+      "title": "Generator Performance (p95)",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(generator_duration_seconds_bucket[1m]))",
+          "legendFormat": "{{generator}} - p95",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12}
+    },
+    {
+      "id": 9,
+      "title": "Performance by Batch Size",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "rate(generation_duration_seconds_sum[1m]) / rate(generation_duration_seconds_count[1m])",
+          "legendFormat": "{{count_bucket}} items",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12}
+    },
+    {
+      "id": 11,
+      "title": "Chaos Operations (per op)",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "rate(chaos_op_executions_total{applied=\"true\"}[1m])",
+          "legendFormat": "{{op}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20}
+    },
+    {
+      "id": 12,
+      "title": "Response Size (p95)",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(http_response_size_bytes_bucket{schema!=\"unknown\"}[1m]))",
+          "legendFormat": "{{schema}} - p95",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20}
+    },
+    {
+      "id": 13,
+      "title": "Temporal Tracker - Elapsed Time",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "temporal_tracker_elapsed_seconds",
+          "legendFormat": "{{schema}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28}
+    }
+  ]
+}

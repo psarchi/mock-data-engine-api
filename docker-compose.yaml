@@ -4,7 +4,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: containers/app/Dockerfile
     ports:
       - "8000:8000"
     volumes:
@@ -14,3 +14,35 @@ services:
     command: bash -c "mkdir -p log && uvicorn server.app:app --host 0.0.0.0 --port 8000 --reload 2>&1 | tee log/terminal.log"
     environment:
       - PYTHONUNBUFFERED=1
+    networks:
+      - mock-engine
+
+  prometheus:
+    build:
+      context: containers/prometheus
+      dockerfile: Dockerfile
+    ports:
+      - "9090:9090"
+    networks:
+      - mock-engine
+    depends_on:
+      - api
+
+  grafana:
+    build:
+      context: containers/grafana
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    networks:
+      - mock-engine
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+
+networks:
+  mock-engine:
+    driver: bridge
