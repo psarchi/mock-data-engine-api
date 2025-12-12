@@ -7,6 +7,7 @@ from mock_engine.contracts.base import ContractModel
 
 class TimestampGeneratorSpec(ContractModel):
     """Timestamp generator (start/end datetimes)."""
+
     model_config = ConfigDict(extra="forbid")
     type_token: ClassVar[str] = "timestamp"
     type_aliases: ClassVar[Set[str]] = set()

@@ -4,8 +4,7 @@ from typing import Dict, Type
 from pydantic import BaseModel
 
 from mock_engine.config.utils import discover_roots
-from mock_engine.config.schema import MetaNode, build_meta_tree, \
-    build_runtime_model
+from mock_engine.config.schema import MetaNode, build_meta_tree, build_runtime_model
 
 
 class BuiltRoot:
@@ -18,8 +17,13 @@ class BuiltRoot:
         runtime (BaseModel): Instantiated model populated with defaults.
     """
 
-    def __init__(self, name: str, meta: MetaNode, runtime_cls: Type[BaseModel],
-                 runtime_instance: BaseModel) -> None:
+    def __init__(
+        self,
+        name: str,
+        meta: MetaNode,
+        runtime_cls: Type[BaseModel],
+        runtime_instance: BaseModel,
+    ) -> None:
         self.name = name
         self.meta = meta
         self.runtime_cls = runtime_cls
@@ -44,7 +48,6 @@ def build_config() -> Dict[str, BuiltRoot]:
         meta = build_meta_tree(payload)
         runtime_cls = build_runtime_model(root_name, meta)
         runtime_inst = runtime_cls()  # defaults already placed
-        built[root_name] = BuiltRoot(root_name, meta, runtime_cls,
-                                     runtime_inst)
+        built[root_name] = BuiltRoot(root_name, meta, runtime_cls, runtime_inst)
 
     return built

@@ -8,6 +8,7 @@ class StringGeneratorSpec(ContractModel):
     """String generator.
     Supports templates, regex, length bounds, and provider shortcuts via string_type/n_type.
     """
+
     model_config = ConfigDict(extra="forbid")
     type_token: ClassVar[str] = "string"
     type_aliases: ClassVar[Set[str]] = {"str", "text"}

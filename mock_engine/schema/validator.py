@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Mapping
+from typing import Any, List, Mapping
 
 from pydantic import BaseModel
 
@@ -8,7 +8,11 @@ from mock_engine.contracts import ObjectGeneratorSpec
 
 from mock_engine.schema.handlers import get_handlers
 from mock_engine.schema.contract_registry import get_class_for_token
-from mock_engine.schema.errors import SchemaTypeError, SchemaRegistryKeyError, SchemaValidationError
+from mock_engine.schema.errors import (
+    SchemaTypeError,
+    SchemaRegistryKeyError,
+    SchemaValidationError,
+)
 
 
 class Validator:
@@ -20,7 +24,9 @@ class Validator:
     # helpers
     def _ensure_map(self, node: Any, path: str) -> Mapping[str, Any]:
         if not isinstance(node, Mapping):
-            raise SchemaTypeError(f"{path}: expected mapping, got {type(node).__name__}")
+            raise SchemaTypeError(
+                f"{path}: expected mapping, got {type(node).__name__}"
+            )
         return node
 
     def _ensure_list(self, node: Any, path: str) -> List[Any]:
@@ -34,8 +40,7 @@ class Validator:
     def _coerce_list(self, node: Any, path: str) -> List[Any]:
         return [] if node is None else self._ensure_list(node, path)
 
-    def _instantiate(self, token: str, data: Mapping[str, Any],
-                     path: str) -> BaseModel:
+    def _instantiate(self, token: str, data: Mapping[str, Any], path: str) -> BaseModel:
         cls = get_class_for_token(token)
         if cls is None:
             raise SchemaRegistryKeyError(f"{path}: unknown type '{token}'")
@@ -63,5 +68,7 @@ class Validator:
         """Parse a schema mapping into a contract tree rooted at an object."""
         root = self._read_node(self._ensure_map(spec, "$"), "$")
         if not isinstance(root, ObjectGeneratorSpec):
-            raise SchemaValidationError("root must be an object contract (ObjectGeneratorSpec)")
+            raise SchemaValidationError(
+                "root must be an object contract (ObjectGeneratorSpec)"
+            )
         return root

@@ -7,13 +7,15 @@ from mock_engine.generators.errors import InvalidParameterError
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.context import GenContext
 from mock_engine.registry import Registry
+
 UTC = timezone.utc
 ISO_DEFAULT = "%Y-%m-%dT%H:%M:%S%z"
-r_time = r'(\d{2}):(\d{2})(?::(\d{2}))?'
-r_tz = r'([+-])(\d{2}):(\d{2})'
+r_time = r"(\d{2}):(\d{2})(?::(\d{2}))?"
+r_tz = r"([+-])(\d{2}):(\d{2})"
 # TODO(config): Allow overriding ISO_DEFAULT via global settings.
 # TODO(arch): use global timezone config from config/default.yaml
 # TODO(refractor): unify with TimestampGenerator maybe?
+
 
 @Registry.register(BaseGenerator)
 class DateTimeGenerator(BaseGenerator):
@@ -114,7 +116,9 @@ class DateTimeGenerator(BaseGenerator):
             return 1_000.0
         return 1.0  # seconds
 
-    def _parse_moment(self, value: int | float | str | None, default_dt: datetime) -> datetime:
+    def _parse_moment(
+        self, value: int | float | str | None, default_dt: datetime
+    ) -> datetime:
         """Parse a bound value into a UTC ``datetime``.
 
         Args:
@@ -161,8 +165,14 @@ class DateTimeGenerator(BaseGenerator):
         """
         match = re.fullmatch(r_time, time_text or "")
         if not match:
-            raise InvalidParameterError("time_start/time_end must be 'HH:MM' or 'HH:MM:SS'")
-        hour, minute, second = int(match.group(1)), int(match.group(2)), int(match.group(3) or 0)
+            raise InvalidParameterError(
+                "time_start/time_end must be 'HH:MM' or 'HH:MM:SS'"
+            )
+        hour, minute, second = (
+            int(match.group(1)),
+            int(match.group(2)),
+            int(match.group(3) or 0),
+        )
         if not (0 <= hour < 24 and 0 <= minute < 60 and 0 <= second < 60):
             raise InvalidParameterError("time_start/time_end out of range")
         return hour, minute, second
@@ -231,11 +241,21 @@ class DateTimeGenerator(BaseGenerator):
                 raise InvalidParameterError(f"invalid datetime.format: {exc}")
 
         now = datetime.now(tz=UTC)
-        if self.start is None and self.end is None and (self.time_start or self.time_end):
+        if (
+            self.start is None
+            and self.end is None
+            and (self.time_start or self.time_end)
+        ):
             base = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            start_hour, start_minute, start_second = self._parse_time(self.time_start or "00:00:00")
-            end_hour, end_minute, end_second = self._parse_time(self.time_end or "23:59:59")
-            start_dt = base.replace(hour=start_hour, minute=start_minute, second=start_second)
+            start_hour, start_minute, start_second = self._parse_time(
+                self.time_start or "00:00:00"
+            )
+            end_hour, end_minute, end_second = self._parse_time(
+                self.time_end or "23:59:59"
+            )
+            start_dt = base.replace(
+                hour=start_hour, minute=start_minute, second=start_second
+            )
             end_dt = base.replace(hour=end_hour, minute=end_minute, second=end_second)
         else:
             start_dt = self._parse_moment(self.start, now - timedelta(days=365))

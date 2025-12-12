@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 import keyword
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Tuple, Union, Optional
+from typing import Any, Dict, Iterable, List, Tuple, Optional
 
 import unicodedata
 import yaml
@@ -26,6 +26,7 @@ def _discover_conf_root(start: Path | None = None) -> Path:
     # fallback to project root if known via env var or cwd
     try:
         import os
+
         env = os.getenv("MDE_CONF_ROOT")
         if env:
             p = Path(env)
@@ -78,8 +79,7 @@ def load_yaml(p: Path) -> Any:
         return yaml.safe_load(f)
 
 
-def discover_roots(defaults_dir: Path = DEFAULTS_DIR) -> Dict[
-    str, Dict[str, Any]]:
+def discover_roots(defaults_dir: Path = DEFAULTS_DIR) -> Dict[str, Dict[str, Any]]:
     """Load default root documents from ``/config/default``.
 
     Reads each YAML file and expects a single top-level mapping per file where
@@ -106,7 +106,8 @@ def discover_roots(defaults_dir: Path = DEFAULTS_DIR) -> Dict[
         for root_name, root_payload in data.items():
             if not isinstance(root_payload, dict):
                 raise ConfigDefaultsFormatError(
-                    f"root '{root_name}' in {p} must be an object", path=f"{p}:{root_name}"
+                    f"root '{root_name}' in {p} must be an object",
+                    path=f"{p}:{root_name}",
                 )
             if root_name in roots:
                 raise DuplicateConfigRootError(
@@ -117,8 +118,9 @@ def discover_roots(defaults_dir: Path = DEFAULTS_DIR) -> Dict[
     return roots
 
 
-def discover_overrides(overrides_dir: Path = OVERRIDES_DIR) -> Dict[
-    str, List[Tuple[Path, Dict[str, Any]]]]:
+def discover_overrides(
+    overrides_dir: Path = OVERRIDES_DIR,
+) -> Dict[str, List[Tuple[Path, Dict[str, Any]]]]:
     """Collect per-root override mappings from ``/config``.
 
     Scans YAML files in ``overrides_dir`` (excluding ``/config/default``),
@@ -301,8 +303,14 @@ def type_of_value(v):
         str: One of ``"bool"``, ``"int"``, ``"float"``, ``"string"``,
             ``"array"``, ``"object"``, or ``"null"``.
     """
-    for typ, name in ((bool, "bool"), (int, "int"), (float, "float"),
-                      (str, "string"), (list, "array"), (dict, "object")):
+    for typ, name in (
+        (bool, "bool"),
+        (int, "int"),
+        (float, "float"),
+        (str, "string"),
+        (list, "array"),
+        (dict, "object"),
+    ):
         if isinstance(v, typ):
             return name
     return "null" if v is None else "string"
@@ -328,9 +336,9 @@ def _safe_attr_name(name: str) -> str:
     return safe
 
 
-def _safe_field_name(name: str,
-                     *,
-                     ascii_only: bool = False) -> Tuple[str, Optional[str]]:
+def _safe_field_name(
+    name: str, *, ascii_only: bool = False
+) -> Tuple[str, Optional[str]]:
     """Return a valid identifier and optional alias for a schema field name.
 
     If `name` isn’t a valid identifier (or is a keyword), return a sanitized
@@ -356,8 +364,11 @@ def _safe_field_name(name: str,
     while "__" in safe:
         safe = safe.replace("__", "_")
     safe = safe.strip("_") or "f_field"
-    if keyword.iskeyword(safe) or not safe.isidentifier() or (
-            ascii_only and any(ord(ch) > 127 for ch in safe)):
+    if (
+        keyword.iskeyword(safe)
+        or not safe.isidentifier()
+        or (ascii_only and any(ord(ch) > 127 for ch in safe))
+    ):
         safe = f"f_{safe}"
         if not safe[0].isalpha() and safe[0] != "_":
             safe = f"f_{safe}"
@@ -376,11 +387,17 @@ class LogEntry:
         file (Optional[Path]): Source file responsible for the action.
         extra (Dict[str, Any]): Arbitrary structured context.
     """
+
     __slots__ = ("level", "path", "msg", "file", "extra")
 
-    def __init__(self, level: str, path: str, msg: str,
-                 file: Optional[Path] = None,
-                 extra: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        level: str,
+        path: str,
+        msg: str,
+        file: Optional[Path] = None,
+        extra: Optional[Dict[str, Any]] = None,
+    ):
         """Initialize a log entry.
 
         Args:
@@ -410,8 +427,9 @@ class Logger:
     def __init__(self) -> None:
         self.entries: List[LogEntry] = []
 
-    def add(self, level: str, path: str, msg: str, file: Optional[Path] = None,
-            **extra: Any) -> None:
+    def add(
+        self, level: str, path: str, msg: str, file: Optional[Path] = None, **extra: Any
+    ) -> None:
         """Append a new log entry to the buffer.
 
         Args:
@@ -444,5 +462,6 @@ class Logger:
         for e in self.entries:
             counts[e.level] = counts.get(e.level, 0) + 1
         summary_line = "SUMMARY " + " ".join(
-            f"{k.lower()}={v}" for k, v in sorted(counts.items()))
+            f"{k.lower()}={v}" for k, v in sorted(counts.items())
+        )
         stream.write(f"{summary_line}\n")

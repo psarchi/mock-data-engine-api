@@ -1,0 +1,124 @@
+type: object
+fields:
+  int_field:
+    type: int
+    min: 1
+    max: 100
+
+  float_field:
+    type: float
+    min: 0.0
+    max: 1000.0
+    precision: 3
+
+  bool_field:
+    type: bool
+
+  string_template:
+    type: string
+    template: "SMOKE-{nnn}"
+    n_type: numeric
+
+  string_regex:
+    type: string
+    regex: "^[A-Z]{3}[0-9]{3}$"
+    min_length: 6
+    max_length: 6
+
+  enum_field:
+    type: enum
+    values: [alpha, beta, gamma]
+
+  maybe_field:
+    type: maybe
+    p_null: 0.4
+    child:
+      type: string
+      string_type: word
+
+  one_of_field:
+    type: one_of
+    choices:
+      - type: int
+        min: 10
+        max: 20
+      - type: string
+        template: choice-{nn}
+        n_type: numeric
+    weights: [2, 3]
+
+  array_field:
+    type: array
+    min_items: 1
+    max_items: 4
+    child:
+      type: string
+      string_type: word
+
+  object_field:
+    type: object
+    fields:
+      nested_id:
+        type: int
+        min: 1000
+        max: 9999
+      nested_flag:
+        type: bool
+      nested_list:
+        type: array
+        min_items: 1
+        max_items: 2
+        child:
+          type: float
+          min: 0.0
+          max: 1.0
+          precision: 2
+
+  select_field:
+    type: select
+    options:
+      required_int:
+        of:
+          type: int
+          min: 1
+          max: 1
+        required: true
+      optional_bool:
+        of:
+          type: bool
+      optional_word:
+        of:
+          type: string
+          string_type: word
+    pick:
+      mode: range
+      min: 1
+      max: 2
+
+  string_or_null_field:
+    type: string_or_null
+    of:
+      type: string
+      string_type: city
+    weights: [3, 1]
+
+  timestamp_field:
+    type: timestamp
+    start: '2024-01-01T00:00:00+00:00'
+    end:   '2026-01-01T00:00:00+00:00'
+
+  datetime_field:
+    type: datetime
+    format: "%Y-%m-%dT%H:%M:%S"
+
+  stateful_timestamp_field:
+    type: stateful_timestamp
+    start: 1732378800000000
+    increment: 1000000
+
+  stateful_datetime_field:
+    type: stateful_datetime
+    start: 1732378800000000
+    increment: 1000000
+    format: "%Y-%m-%dT%H:%M:%S"
+    tz: "+00:00"

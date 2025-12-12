@@ -3,10 +3,11 @@
 Provides thin helpers to look up generator classes, aliases, and resolve
 generators by name using the unified Registry.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from mock_engine.registry import Registry
 from mock_engine.generators.base import BaseGenerator

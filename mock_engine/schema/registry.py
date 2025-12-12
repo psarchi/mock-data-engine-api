@@ -37,7 +37,9 @@ class SchemaRegistry:
 
     # public API
     @classmethod
-    def register(cls, name: str, sd: SchemaDoc, *, parent: str | None = None) -> SchemaDoc:
+    def register(
+        cls, name: str, sd: SchemaDoc, *, parent: str | None = None
+    ) -> SchemaDoc:
         """Register ``sd`` under ``name`` as a new schema (revision = 1)."""
         entry = SchemaEntry(name=name, doc=sd, revision=1, parent=parent)
         cls._store[name] = entry
@@ -108,7 +110,9 @@ class SchemaRegistry:
         try:
             contract = doc.contracts_by_path[path]
         except KeyError as exc:
-            raise SchemaRegistryKeyError(f"path '{path}' not found for schema '{entry.name}'") from exc
+            raise SchemaRegistryKeyError(
+                f"path '{path}' not found for schema '{entry.name}'"
+            ) from exc
 
         mutator(contract)
         doc.contracts_by_path[path] = contract
@@ -174,7 +178,9 @@ class SchemaRegistry:
             try:
                 contract = doc.contracts_by_path[path]
             except KeyError as exc:
-                raise SchemaRegistryKeyError(f"path '{path}' not found for schema '{entry.name}'") from exc
+                raise SchemaRegistryKeyError(
+                    f"path '{path}' not found for schema '{entry.name}'"
+                ) from exc
             cls._set_attr(contract, path, attr, value)
             doc.contracts_by_path[path] = contract
 

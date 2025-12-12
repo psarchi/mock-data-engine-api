@@ -8,8 +8,8 @@ class FloatGeneratorSpec(BaseModel):
 
     # type aliasing
     type_token: ClassVar[str] = "float"
-    type_aliases: ClassVar[Set[str]] = ['double', 'number']
-    model_config = ConfigDict(extra='forbid')
+    type_aliases: ClassVar[Set[str]] = ["double", "number"]
+    model_config = ConfigDict(extra="forbid")
 
     min: Optional[float] = None
     max: Optional[float] = None

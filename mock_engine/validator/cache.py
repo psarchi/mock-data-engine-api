@@ -3,9 +3,9 @@
 Holds a simple in-memory mapping from canonical names to Pydantic model types.
 Thread safety and eviction are intentionally out of scope here.
 """
+
 from __future__ import annotations
 
-from typing import Any
 
 from pydantic import BaseModel
 

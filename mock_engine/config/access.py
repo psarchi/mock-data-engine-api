@@ -7,7 +7,12 @@ from typing import Optional
 from mock_engine.config.manager import ConfigManager
 from mock_engine.config.utils import OVERRIDES_DIR
 
-__all__ = ["ConfigAccess", "get_config_manager", "reset_config_manager", "reload_config"]
+__all__ = [
+    "ConfigAccess",
+    "get_config_manager",
+    "reset_config_manager",
+    "reload_config",
+]
 
 
 class ConfigAccess:
@@ -20,6 +25,7 @@ class ConfigAccess:
     Prefer this in application code where a long-lived manager is desirable.
     For tests, consider constructing a dedicated ``ConfigManager`` per test.
     """
+
     _manager_singleton: Optional[ConfigManager] = None
     _manager_lock: Lock = Lock()
 
@@ -37,8 +43,7 @@ class ConfigAccess:
         if cls._manager_singleton is None:
             with cls._manager_lock:
                 if cls._manager_singleton is None:
-                    cls._manager_singleton = ConfigManager(
-                        overrides_dir=OVERRIDES_DIR)
+                    cls._manager_singleton = ConfigManager(overrides_dir=OVERRIDES_DIR)
                     cls._manager_singleton.load()
         return cls._manager_singleton
 
@@ -105,6 +110,7 @@ def _hash_file(p: Path, h):
 
 def _dir_digest(root: Path) -> str:
     from mock_engine.config.utils import YAML_GLOBS
+
     h = hashlib.sha1()
     for pat in YAML_GLOBS:
         for p in sorted(root.rglob(pat)):
@@ -114,9 +120,11 @@ def _dir_digest(root: Path) -> str:
 
 _last_conf_hash: str | None = None
 
+
 def get_config_hash() -> str:
     """Return a digest over defaults+overrides YAML trees."""
     from mock_engine.config.utils import DEFAULTS_DIR, OVERRIDES_DIR
+
     h = hashlib.sha1()
     # Defaults
     try:

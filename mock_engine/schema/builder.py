@@ -7,11 +7,14 @@ import yaml
 from mock_engine.context import GenContext
 from mock_engine.schema.validator import Validator
 from mock_engine.schema.errors import SchemaPreflightError
-from mock_engine.schema.models import SchemaDoc, PreflightReport, \
-    PreflightFailure
+from mock_engine.schema.models import SchemaDoc, PreflightReport, PreflightFailure
 from mock_engine import api as engine_api
-from mock_engine.contracts import ArrayGeneratorSpec, OneOfGeneratorSpec, \
-    ObjectGeneratorSpec, MaybeGeneratorSpec
+from mock_engine.contracts import (
+    ArrayGeneratorSpec,
+    OneOfGeneratorSpec,
+    ObjectGeneratorSpec,
+    MaybeGeneratorSpec,
+)
 
 
 def _flatten(node: Any, prefix: str = "") -> Dict[str, Any]:
@@ -75,10 +78,10 @@ def _get_by_path(value: Any, path: str) -> Any:
     """
     if path == "" or value is None:
         return value
-    parts = [p for p in path.split('.') if p]
+    parts = [p for p in path.split(".") if p]
     cur = value
     for part in parts:
-        clean = part.replace("[]", "").split('|')[0].replace("?", "")
+        clean = part.replace("[]", "").split("|")[0].replace("?", "")
         if not isinstance(cur, dict):
             return None
         cur = cur.get(clean)
@@ -127,9 +130,10 @@ def _preflight_sample(
     Raises:
         RuntimeError: When generation fails across the attempted seeds.
     """
-    seeds = [101, 202, 303][:max(1, samples)]
-    report = PreflightReport(seeds=seeds, samples=0, failures=[],
-                             arrays_materialized=0, union_choices_hit={})
+    seeds = [101, 202, 303][: max(1, samples)]
+    report = PreflightReport(
+        seeds=seeds, samples=0, failures=[], arrays_materialized=0, union_choices_hit={}
+    )
     # Build engine generator
     gen = engine_api.build(contracts_by_path)
     start = time.perf_counter()
@@ -156,8 +160,12 @@ def _preflight_sample(
     if report.failures:
         raise SchemaPreflightError(f"preflight failed: {report.failures[0].error}")
     if array_requirements and report.arrays_materialized == 0:
-        report.failures.append(PreflightFailure(path=array_requirements[0][0],
-                                                error="array did not materialize with required min_items during preflight"))
+        report.failures.append(
+            PreflightFailure(
+                path=array_requirements[0][0],
+                error="array did not materialize with required min_items during preflight",
+            )
+        )
         raise SchemaPreflightError(f"preflight failed: {report.failures[-1].error}")
     return report, gen
 

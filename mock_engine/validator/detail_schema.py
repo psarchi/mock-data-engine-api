@@ -1,21 +1,25 @@
 from __future__ import annotations
-from collections.abc import Callable, Iterable, Mapping, MutableMapping, \
-    Sequence
+from collections.abc import Mapping
 from typing import Any, Mapping, Optional
 from .errors import IssueCode
 
 DETAIL_KEYS: dict[IssueCode, tuple[str, ...]] = {
-    IssueCode.REQUIRED: ('field',), IssueCode.EXTRA: ('key',),
-    IssueCode.TYPE: ('expected', 'received'),
-    IssueCode.RANGE: ('allowed', 'received'),
-    IssueCode.REGEX: ('pattern', 'received'),
-    IssueCode.ENUM: ('allowed', 'received'),
-    IssueCode.ALIAS: ('alias', 'canonical'),
-    IssueCode.DEPRECATION: ('name', 'since'), IssueCode.RULE: ('reason',)}
+    IssueCode.REQUIRED: ("field",),
+    IssueCode.EXTRA: ("key",),
+    IssueCode.TYPE: ("expected", "received"),
+    IssueCode.RANGE: ("allowed", "received"),
+    IssueCode.REGEX: ("pattern", "received"),
+    IssueCode.ENUM: ("allowed", "received"),
+    IssueCode.ALIAS: ("alias", "canonical"),
+    IssueCode.DEPRECATION: ("name", "since"),
+    IssueCode.RULE: ("reason",),
+}
+
 
 # TODO: Unused?
-def shape_detail(code: IssueCode, detail: Optional[Mapping[str, Any]] = None,
-                 **kwargs: Any) -> Optional[dict[str, Any]]:
+def shape_detail(
+    code: IssueCode, detail: Optional[Mapping[str, Any]] = None, **kwargs: Any
+) -> Optional[dict[str, Any]]:
     """Shape detail.
 
         Args:

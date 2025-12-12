@@ -22,7 +22,9 @@ class MockEngineError(Exception):
         super().__init__(formatted)
 
     @staticmethod
-    def _normalize_path(path: Sequence[str | int] | str | None) -> tuple[str | int, ...] | None:
+    def _normalize_path(
+        path: Sequence[str | int] | str | None,
+    ) -> tuple[str | int, ...] | None:
         if path is None:
             return None
         if isinstance(path, str):
@@ -108,3 +110,7 @@ class ValidationError(MockEngineError):
 
 class PersistenceError(MockEngineError):
     """Persistence subsystem failures."""
+
+
+class StreamingError(MockEngineError):
+    """Streaming subsystem failures."""

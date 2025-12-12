@@ -3,11 +3,11 @@ from typing import Dict, Any
 
 
 # placeholders
-CONSTRAINT_KEYS = ('ge', 'gt', 'le', 'lt', 'in', 'regex')
-DEFAULT_CHAOS_CONFIG = Path('config/chaos.yaml')
-DEFAULT_CONFIG_DIR = Path('config/default')
-DEFAULT_GENERATION_CONFIG = Path('config/generation.yaml')
-DEFAULT_SERVER_CONFIG = Path('config/server.yaml')
+CONSTRAINT_KEYS = ("ge", "gt", "le", "lt", "in", "regex")
+DEFAULT_CHAOS_CONFIG = Path("config/chaos.yaml")
+DEFAULT_CONFIG_DIR = Path("config/default")
+DEFAULT_GENERATION_CONFIG = Path("config/generation.yaml")
+DEFAULT_SERVER_CONFIG = Path("config/server.yaml")
 # --
 
 

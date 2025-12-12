@@ -4,6 +4,7 @@ Builds Pydantic models from ``contracts`` *Spec classes by reflecting their
 annotations and applying strict scalar types. Behavior is side-effect free and
 keeps a small in-process cache keyed by generator name.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -67,7 +68,11 @@ class ModelProvider:
             str: Inferred spec class name (e.g., ``"IntGeneratorSpec"``).
         """
         base = generator_name.split(".")[-1]
-        stem = base if base.endswith("Generator") else f"{base[:1].upper()}{base[1:]}Generator"
+        stem = (
+            base
+            if base.endswith("Generator")
+            else f"{base[:1].upper()}{base[1:]}Generator"
+        )
         return f"{stem}Spec"
 
     def _strictify(self, annotation: Any) -> Any:

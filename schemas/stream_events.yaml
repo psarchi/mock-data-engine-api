@@ -4,19 +4,109 @@ fields:
     type: string
     string_type: uuid4
 
-  event_timestamp:
-    type: stateful_timestamp
-    start: 1732378800000000
-    increment: 1000000
+  event_name:
+    type: one_of
+    choices:
+      - type: string
+        template: user_created
+      - type: string
+        template: user_updated
+      - type: string
+        template: order_created
+      - type: string
+        template: order_completed
+      - type: string
+        template: payment_failed
+      - type: string
+        template: refund_initiated
+      - type: string
+        template: system_alert
+    weights: [10, 15, 25, 20, 15, 10, 5]
 
-  event_datetime:
-    type: stateful_datetime
-    start: 1732378800000000
-    increment: 1000000
-    format: "%Y-%m-%d %H:%M:%S"
-    tz: "+00:00"
+  event_type:
+    type: one_of
+    choices:
+      - type: string
+        template: business
+      - type: string
+        template: system
+      - type: string
+        template: audit
+      - type: string
+        template: security
+    weights: [55, 20, 15, 10]
 
-  user_id:
-    type: int
-    min: 1000
-    max: 9999
+  occurred_at:
+    type: timestamp
+    start: '2024-01-01T00:00:00+00:00'
+    end:   '2026-01-01T00:00:00+00:00'
+
+  producer:
+    type: string
+    string_type: word
+
+  source:
+    type: string
+    string_type: word
+
+  schema_version:
+    type: string
+    template: v{n}
+    n_type: numeric
+
+  trace_id:
+    type: maybe
+    p_null: 0.35
+    child:
+      type: string
+      string_type: uuid4
+
+  span_id:
+    type: maybe
+    p_null: 0.45
+    child:
+      type: string
+      string_type: uuid4
+
+  parent_event_id:
+    type: maybe
+    p_null: 0.65
+    child:
+      type: string
+      string_type: uuid4
+
+  payload:
+    type: array
+    min_items: 1
+    max_items: 5
+    child:
+      type: object
+      fields:
+        key:
+          type: string
+          string_type: word
+        value:
+          type: one_of
+          choices:
+            - type: object
+              fields:
+                string_value:
+                  type: string
+                  string_type: word
+            - type: object
+              fields:
+                int_value:
+                  type: int
+                  min: 0
+                  max: 100000
+            - type: object
+              fields:
+                float_value:
+                  type: float
+                  min: 0
+                  max: 100000
+                  precision: 2
+            - type: object
+              fields:
+                bool_value:
+                  type: bool

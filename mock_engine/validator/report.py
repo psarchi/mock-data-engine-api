@@ -3,6 +3,7 @@
 Defines the :class:`Report` data class used by the validator to return
 normalization results and structured issues.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

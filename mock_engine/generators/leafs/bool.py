@@ -2,6 +2,7 @@
 
 Produces ``True`` with probability ``p_true``; otherwise returns ``False``.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -16,6 +17,7 @@ from mock_engine.registry import Registry
 
 if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
+
 
 @Registry.register(BaseGenerator)
 class BoolGenerator(BaseGenerator):
@@ -67,7 +69,9 @@ class BoolGenerator(BaseGenerator):
         try:
             p = float(self.p_true if self.p_true is not None else 0.5)
         except (TypeError, ValueError) as exc:
-            raise InvalidParameterError("p_true must be a float between 0 and 1") from exc
+            raise InvalidParameterError(
+                "p_true must be a float between 0 and 1"
+            ) from exc
         if not 0.0 <= p <= 1.0:
             raise InvalidParameterError("p_true must be between 0 and 1")
 

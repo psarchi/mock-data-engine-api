@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Dict, Type, TypeVar
 from mock_engine.errors import DuplicateRegistryKeyError, MissingRegistryKeyError
 
 if TYPE_CHECKING:
-    from typing import Any
+    pass
 
 T = TypeVar("T")
 

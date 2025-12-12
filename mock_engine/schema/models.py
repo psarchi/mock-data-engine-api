@@ -11,6 +11,7 @@ class PreflightFailure(BaseModel):
 
 class PreflightReport(BaseModel):
     """Summary of deterministic preflight generation attempts."""
+
     model_config = ConfigDict(extra="allow")
     seeds: List[int]
     samples: int
@@ -21,6 +22,7 @@ class PreflightReport(BaseModel):
 
 class SchemaDoc(BaseModel):
     """Top-level schema artifact returned by the schema pipeline."""
+
     model_config = ConfigDict(extra="allow")
     name: str
     source_path: Optional[str] = None

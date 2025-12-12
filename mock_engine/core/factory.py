@@ -52,5 +52,7 @@ class GeneratorFactory:
         instance: BaseGenerator = cls()
         configure = getattr(instance, "configure", None)
         if not callable(configure):
-            raise MissingConfigureMethodError(f"{cls.__name__} has no configure() method")
+            raise MissingConfigureMethodError(
+                f"{cls.__name__} has no configure() method"
+            )
         return configure(**kwargs)

@@ -7,13 +7,13 @@ from random import Random
 from mock_engine.context import GenContext
 from mock_engine.errors import ContextError
 from mock_engine.generators.base import BaseGenerator
-from mock_engine.generators.errors import InvalidParameterError, \
-    MissingChildError
+from mock_engine.generators.errors import InvalidParameterError, MissingChildError
 from mock_engine.registry import Registry
 
 
 if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
+
 
 @Registry.register(BaseGenerator)
 class SelectGenerator(BaseGenerator):
@@ -28,8 +28,7 @@ class SelectGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"options": "options", "pick": "pick",
-                    "weights": "weights"},
+        "aliases": {"options": "options", "pick": "pick", "weights": "weights"},
         "deprecations": [],
         "rules": [],
     }
@@ -37,9 +36,9 @@ class SelectGenerator(BaseGenerator):
     __aliases__ = ("select",)
 
     def __init__(
-            self,
-            options: dict[str, Any] | None = None,
-            pick: dict[str, Any] | None = None,
+        self,
+        options: dict[str, Any] | None = None,
+        pick: dict[str, Any] | None = None,
     ) -> None:
         """Initialize with optional options and pick rule."""
         self.options: dict[str, Any] = options or {"built": {}, "meta": {}}
@@ -48,9 +47,9 @@ class SelectGenerator(BaseGenerator):
     # TODO(arch): depend on a builder/factory protocol instead of a concrete object
     @classmethod
     def from_spec(
-            cls,
-            builder: Any,
-            spec: Mapping[str, object],
+        cls,
+        builder: Any,
+        spec: Mapping[str, object],
     ) -> "SelectGenerator":
         """Construct an instance from a generator specification.
 
@@ -90,14 +89,16 @@ class SelectGenerator(BaseGenerator):
         mode = pick.get("mode", "any")
         if mode not in ("any", "at_least_one", "exact", "range"):
             raise InvalidParameterError(
-                "pick.mode must be any|at_least_one|exact|range")
+                "pick.mode must be any|at_least_one|exact|range"
+            )
         if mode == "exact" and pick.get("min") is None:
             raise InvalidParameterError(
-                "pick.min is required when mode=exact (exact count)")
-        if mode == "range" and (
-                pick.get("min") is None or pick.get("max") is None):
+                "pick.min is required when mode=exact (exact count)"
+            )
+        if mode == "range" and (pick.get("min") is None or pick.get("max") is None):
             raise InvalidParameterError(
-                "pick.min and pick.max are required when mode=range")
+                "pick.min and pick.max are required when mode=range"
+            )
 
         return cls(options={"built": built, "meta": meta}, pick=pick)
 
@@ -117,11 +118,11 @@ class SelectGenerator(BaseGenerator):
             raise MissingChildError("select requires options")
 
     def configure(
-            self,
-            *,
-            options: dict[str, Any] | None = None,
-            pick: dict[str, Any] | None = None,
-            **_: Any,
+        self,
+        *,
+        options: dict[str, Any] | None = None,
+        pick: dict[str, Any] | None = None,
+        **_: Any,
     ) -> "SelectGenerator":
         """Update configuration in place and return ``self``.
 
@@ -141,11 +142,11 @@ class SelectGenerator(BaseGenerator):
 
     # TODO(utils): move weighted sampling helper to a shared utils module if reused
     def _weighted_sample(
-            self,
-            rng: Random,
-            items: Sequence[str],
-            weights: Mapping[str, float],
-            k: int,
+        self,
+        rng: Random,
+        items: Sequence[str],
+        weights: Mapping[str, float],
+        k: int,
     ) -> list[str]:
         """Draw ``k`` distinct items without replacement, biased by ``weights``.
 
@@ -217,12 +218,13 @@ class SelectGenerator(BaseGenerator):
             max_k = int(pick.get("max", len(optional)))
             if max_k < min_k:
                 max_k = min_k
-            count = rng.randint(min_k, max_k) if (
-                        min_k or max_k != len(optional)) else rng.randint(0,
-                                                                          len(optional))
+            count = (
+                rng.randint(min_k, max_k)
+                if (min_k or max_k != len(optional))
+                else rng.randint(0, len(optional))
+            )
 
-        chosen_optional = self._weighted_sample(rng, optional, weights_map,
-                                                count)
+        chosen_optional = self._weighted_sample(rng, optional, weights_map, count)
         return required + chosen_optional
 
     def _generate_impl(self, ctx: GenContext) -> dict[str, "JsonValue"]:

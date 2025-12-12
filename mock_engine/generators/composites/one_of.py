@@ -10,12 +10,12 @@ from mock_engine.generators.errors import (
     InvalidParameterError,
     MissingChildError,
 )
-from mock_engine.generators.utils import _pick_index
 from mock_engine.registry import Registry
 
 
 if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
+
 
 @Registry.register(BaseGenerator)
 class OneOfGenerator(BaseGenerator):
@@ -26,26 +26,32 @@ class OneOfGenerator(BaseGenerator):
         weights (Sequence[float] | None): Relative weights aligned with ``choices``.
     """
 
-    __meta__ = {"aliases": {"choices": "choices", "of": "choices"},
-                "deprecations": [], "rules": []}
-    __slots__ = ("choices", "weights")
+    __meta__ = {
+        "aliases": {"choices": "choices", "of": "choices"},
+        "deprecations": [],
+        "rules": [],
+    }
+    __slots__ = ("choices", "weights", "_cumulative_weights")
     __aliases__ = ("one_of",)
 
     def __init__(
-            self,
-            choices: list[BaseGenerator] | None = None,
-            weights: Sequence[float] | None = None,
+        self,
+        choices: list[BaseGenerator] | None = None,
+        weights: Sequence[float] | None = None,
     ) -> None:
         """Initialize the generator with optional child list and weights."""
         self.choices: list[BaseGenerator] = choices or []
         self.weights: Sequence[float] | None = weights
+        self._cumulative_weights: list[float] | None = None
+        if weights:
+            self._cumulative_weights = self._build_cumulative_weights()
 
     # TODO(arch): depend on a builder/factory protocol instead of a concrete object
     @classmethod
     def from_spec(
-            cls,
-            builder: Any,
-            spec: Mapping[str, object],
+        cls,
+        builder: Any,
+        spec: Mapping[str, object],
     ) -> "OneOfGenerator":
         """Construct an instance from a generator specification.
 
@@ -97,8 +103,7 @@ class OneOfGenerator(BaseGenerator):
 
         if not isinstance(self.weights, (list, tuple)):
             # TODO(errors): consider a typed error (e.g., InvalidWeightsTypeError)
-            raise InvalidParameterError(
-                "weights must be a list/tuple of numbers")
+            raise InvalidParameterError("weights must be a list/tuple of numbers")
         if len(self.weights) != len(self.choices):
             raise InvalidParameterError("weights length must match choices")
         try:
@@ -110,10 +115,10 @@ class OneOfGenerator(BaseGenerator):
             raise InvalidParameterError("sum(weights) must be > 0")
 
     def configure(
-            self,
-            choices: list[BaseGenerator] | None = None,
-            weights: Sequence[float] | None = None,
-            **_: Any,
+        self,
+        choices: list[BaseGenerator] | None = None,
+        weights: Sequence[float] | None = None,
+        **_: Any,
     ) -> "OneOfGenerator":
         """Update configuration values in place and return ``self``.
 
@@ -129,19 +134,39 @@ class OneOfGenerator(BaseGenerator):
             self.choices = choices
         if weights is not None:
             self.weights = weights
+            self._cumulative_weights = (
+                self._build_cumulative_weights() if weights else None
+            )
         return self
 
-    # TODO: consider moving to utils.py
-    def _pick_index(self, rng):
-        if not self.weights:
-            return rng.randint(0, len(self.choices) - 1)
-        # weighted pick without external deps
-        total = float(sum(self.weights))
-        r = rng.random() * total
+    def _build_cumulative_weights(self) -> list[float]:
+        """Precompute cumulative weights for efficient weighted selection.
+
+        Returns:
+            list[float]: Cumulative sum of weights.
+        """
+        cumsum = []
         acc = 0.0
-        for idx, w in enumerate(self.weights):
+        for w in self.weights:  # type: ignore[union-attr]
             acc += float(w)
-            if r <= acc:
+            cumsum.append(acc)
+        return cumsum
+
+    def _pick_index(self, rng):
+        """Select index using uniform or weighted distribution.
+
+        Args:
+            rng: Random number generator instance.
+
+        Returns:
+            int: Selected choice index.
+        """
+        if not self._cumulative_weights:
+            return rng.randint(0, len(self.choices) - 1)
+        # Use precomputed cumulative weights for O(n) selection
+        r = rng.random() * self._cumulative_weights[-1]
+        for idx, cum_weight in enumerate(self._cumulative_weights):
+            if r <= cum_weight:
                 return idx
         return len(self.choices) - 1
 

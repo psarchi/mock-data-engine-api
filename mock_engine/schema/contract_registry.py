@@ -7,6 +7,7 @@ _CLASS_TOKEN: Dict[Type, str] = {}
 
 def _load_contracts_module():
     from mock_engine import contracts as _contracts
+
     return _contracts
 
 

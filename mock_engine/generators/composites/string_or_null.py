@@ -13,6 +13,7 @@ from mock_engine.registry import Registry
 if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
 
+
 @Registry.register(BaseGenerator)
 class StringOrNullGenerator(BaseGenerator):
     """String-or-null composite generator.
@@ -26,7 +27,11 @@ class StringOrNullGenerator(BaseGenerator):
         weights (Sequence[float] | None): Two-item sequence ``[string_w, null_w]``.
     """
 
-    __meta__ = {"aliases": {"of": "of", "weights": "weights"}, "deprecations": [], "rules": []}
+    __meta__ = {
+        "aliases": {"of": "of", "weights": "weights"},
+        "deprecations": [],
+        "rules": [],
+    }
     __slots__ = ("child", "weights")
     __aliases__ = ("string_or_null",)
 
@@ -61,7 +66,7 @@ class StringOrNullGenerator(BaseGenerator):
         Raises:
             MissingChildError: If ``of`` is missing.
         """
-        of_spec = spec.get("of")
+        of_spec = spec.get("of") or spec.get("child")
         if of_spec is None:
             raise MissingChildError("string_or_null requires an 'of' child spec")
         child = builder.build(of_spec)
@@ -86,7 +91,9 @@ class StringOrNullGenerator(BaseGenerator):
         if self.weights is None:
             return
         if not isinstance(self.weights, (list, tuple)) or len(self.weights) != 2:
-            raise InvalidParameterError("weights must be a two-item list: [string, null]")
+            raise InvalidParameterError(
+                "weights must be a two-item list: [string, null]"
+            )
         try:
             string_w = float(self.weights[0])
             null_w = float(self.weights[1])

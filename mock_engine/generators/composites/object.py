@@ -16,6 +16,7 @@ from mock_engine.registry import Registry
 if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
 
+
 @Registry.register(BaseGenerator)
 class ObjectGenerator(BaseGenerator):
     """Generate an object with fields produced by child generators.
@@ -29,7 +30,7 @@ class ObjectGenerator(BaseGenerator):
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("_built", "_meta")
+    __slots__ = ("_built", "_meta", "_field_configs")
     __aliases__ = ("object",)
 
     def __init__(self, fields: dict[str, BaseGenerator] | None = None) -> None:
@@ -37,13 +38,15 @@ class ObjectGenerator(BaseGenerator):
         self._built: dict[str, BaseGenerator] = fields or {}
         # Field metadata: {field_name: {"required": bool, "default": Any}}
         self._meta: dict[str, dict[str, Any]] = {}
+        # Cached field configurations for fast lookup during generation
+        self._field_configs: dict[str, dict[str, Any]] = {}
 
     # TODO(arch): depend on a builder/factory *protocol* instead of a concrete object
     @classmethod
     def from_spec(
-            cls,
-            builder: Any,
-            spec: Mapping[str, object],
+        cls,
+        builder: Any,
+        spec: Mapping[str, object],
     ) -> "ObjectGenerator":
         """Construct an instance from a generator specification.
 
@@ -84,6 +87,7 @@ class ObjectGenerator(BaseGenerator):
 
         instance = cls(fields=built)
         instance._meta = meta
+        instance._build_field_configs()
         return instance
 
     def _sanity_check(self, ctx: GenContext) -> None:
@@ -102,10 +106,10 @@ class ObjectGenerator(BaseGenerator):
             raise MissingChildError("object has no fields")
 
     def configure(
-            self,
-            *,
-            fields: dict[str, BaseGenerator] | None = None,
-            **_: Any,
+        self,
+        *,
+        fields: dict[str, BaseGenerator] | None = None,
+        **_: Any,
     ) -> "ObjectGenerator":
         """Update configuration and return ``self``.
 
@@ -118,7 +122,21 @@ class ObjectGenerator(BaseGenerator):
         """
         if fields is not None:
             self._built = fields
+            self._build_field_configs()
         return self
+
+    def _build_field_configs(self) -> None:
+        """Precompute field configurations for fast lookup during generation."""
+        self._field_configs = {}
+        for field_name, child_gen in self._built.items():
+            field_meta = self._meta.get(field_name, {})
+            self._field_configs[field_name] = {
+                "is_required": bool(field_meta.get("required")),
+                "default_value": field_meta.get("default", None),
+                "depends": getattr(child_gen, "depends_on", None),
+                "child_gen": child_gen,
+            }
+
     def _value_checker(self, value, default_value, is_required, field_name):
         """Check and apply defaults/required validation for a field value."""
         if value is None:
@@ -127,9 +145,10 @@ class ObjectGenerator(BaseGenerator):
             elif is_required:
                 # TODO(errors): consider a more specific error (e.g., RequiredFieldMissingError)
                 raise InvalidParameterError(
-                    f"required field '{field_name}' generated None")
+                    f"required field '{field_name}' generated None"
+                )
         return value
-    
+
     def _generate_impl(self, ctx: GenContext) -> dict[str, "JsonValue"]:
         """Produce an object with values from each child generator.
 
@@ -145,42 +164,45 @@ class ObjectGenerator(BaseGenerator):
         self._sanity_check(ctx)
         output: dict[str, Any] = {}
         depends_on = []
-        for field_name, child_gen in self._built.items():
-            field_meta = self._meta.get(field_name, {})
-            is_required = bool(field_meta.get("required"))
-            default_value = field_meta.get("default", None)
-            depends = getattr(child_gen, "depends_on", None)
+
+        # Use cached field configs for fast lookup
+        for field_name, config in self._field_configs.items():
+            depends = config["depends"]
             if depends and depends not in output:
-                depends_on.append([field_name, child_gen, depends])
+                depends_on.append(field_name)
                 continue
             if depends and depends in output:
                 ctx._depends_on = output[depends]
-            value = child_gen.generate(ctx)
-            value = self._value_checker(value, default_value, is_required, field_name)
+            value = config["child_gen"].generate(ctx)
+            value = self._value_checker(
+                value, config["default_value"], config["is_required"], field_name
+            )
             output[field_name] = value
 
         while depends_on:
             resolved_any = False
             indx = len(depends_on) - 1
             while indx >= 0:
-                d_field_name, d_child_gen, d_depends_on = depends_on[indx]
+                d_field_name = depends_on[indx]
+                d_config = self._field_configs[d_field_name]
+                d_depends_on = d_config["depends"]
                 if d_depends_on in output:
-                    value_depends_on = output[d_depends_on]
-                    ctx._depends_on = value_depends_on
-                    value = d_child_gen.generate(ctx)
-                    d_field_meta = self._meta.get(d_field_name, {})
-                    d_is_required = bool(d_field_meta.get("required"))
-                    d_default_value = d_field_meta.get("default", None)
-                    value = self._value_checker(value, d_default_value, d_is_required, d_field_name)
+                    ctx._depends_on = output[d_depends_on]
+                    value = d_config["child_gen"].generate(ctx)
+                    value = self._value_checker(
+                        value,
+                        d_config["default_value"],
+                        d_config["is_required"],
+                        d_field_name,
+                    )
                     output[d_field_name] = value
                     depends_on.pop(indx)
                     resolved_any = True
                 indx -= 1
 
             if not resolved_any:
-                unresolved = [item[0] for item in depends_on]
                 raise InvalidParameterError(
-                    f"Cannot resolve dependencies: {', '.join(unresolved)}") 
-           
-            
+                    f"Cannot resolve dependencies: {', '.join(depends_on)}"
+                )
+
         return output

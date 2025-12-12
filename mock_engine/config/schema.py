@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple, Type, Annotated
+from typing import Any, Dict, List, Optional, Type, Annotated
 from typing import Literal as _Literal
 from pydantic import BaseModel, Field, ConfigDict, create_model
 from mock_engine.config.utils import (
@@ -34,6 +34,7 @@ class MetaNode(BaseModel):
         default_value (Any): Default literal or structured default for the
             node.
     """
+
     model_config = ConfigDict(extra="allow")
     # TODO(config): Revisit extra=allow
     kind: str  # 'scalar' | 'array' | 'object' | 'group'
@@ -70,54 +71,66 @@ def build_meta_tree(root_payload: Dict[str, Any]) -> MetaNode:
         if isinstance(node, dict):
             t = normalize_declared_type(node.get("type"))
             # group
-            if t == "group" or ("value" not in node and (
-                    "properties" in node or any(isinstance(v, dict) for v in
-                                                node.values())) and "items" not in node):
+            if t == "group" or (
+                "value" not in node
+                and (
+                    "properties" in node
+                    or any(isinstance(v, dict) for v in node.values())
+                )
+                and "items" not in node
+            ):
                 children: Dict[str, MetaNode] = {}
                 for k, v in node.items():
                     if k in {"type", "description"}:
                         continue
                     if isinstance(v, dict):
                         children[k] = convert(v)
-                return MetaNode(kind="group", declared_type=t,
-                                description=node.get("description"),
-                                children=children or None)
+                return MetaNode(
+                    kind="group",
+                    declared_type=t,
+                    description=node.get("description"),
+                    children=children or None,
+                )
             # array
             if t in ("array", "list"):
                 item_node = None
                 if "items" in node and isinstance(node["items"], dict):
                     item_node = convert(node["items"])
-                return MetaNode(kind="array",
-                                declared_type=t,
-                                description=node.get("description"),
-                                constraints=node.get("constraints"),
-                                choices=node.get("choices"),
-                                item_schema=item_node,
-                                default_value=node.get("value"))
+                return MetaNode(
+                    kind="array",
+                    declared_type=t,
+                    description=node.get("description"),
+                    constraints=node.get("constraints"),
+                    choices=node.get("choices"),
+                    item_schema=item_node,
+                    default_value=node.get("value"),
+                )
             # object/dict
             if t in ("object", "dict"):
                 props: Dict[str, MetaNode] = {}
                 req = node.get("required") or []
-                if "properties" in node and isinstance(node["properties"],
-                                                       dict):
+                if "properties" in node and isinstance(node["properties"], dict):
                     for pk, pv in node["properties"].items():
                         if isinstance(pv, dict):
                             props[pk] = convert(pv)
-                return MetaNode(kind="object",
-                                declared_type=t,
-                                description=node.get("description"),
-                                properties=props or None,
-                                required=req or None,
-                                additionalProperties=bool(
-                                    node.get("additionalProperties", False)),
-                                default_value=node.get("value"))
+                return MetaNode(
+                    kind="object",
+                    declared_type=t,
+                    description=node.get("description"),
+                    properties=props or None,
+                    required=req or None,
+                    additionalProperties=bool(node.get("additionalProperties", False)),
+                    default_value=node.get("value"),
+                )
             # scalar
-            return MetaNode(kind="scalar",
-                            declared_type=t or "string",
-                            description=node.get("description"),
-                            constraints=node.get("constraints"),
-                            choices=node.get("choices"),
-                            default_value=node.get("value"))
+            return MetaNode(
+                kind="scalar",
+                declared_type=t or "string",
+                description=node.get("description"),
+                constraints=node.get("constraints"),
+                choices=node.get("choices"),
+                default_value=node.get("value"),
+            )
         # raw literal
         return MetaNode(kind="scalar", declared_type=None, default_value=node)
 
@@ -141,8 +154,7 @@ def _scalar_type(meta: MetaNode) -> Any:
         try:
             lit = _Literal[tuple(meta.choices)]  # type: ignore[index]
         except TypeError:
-            lit = _Literal[
-                tuple(str(x) for x in meta.choices)]  # type: ignore[index]
+            lit = _Literal[tuple(str(x) for x in meta.choices)]  # type: ignore[index]
         base_py = lit
     field_kwargs = {}
     if meta.constraints:
@@ -150,8 +162,7 @@ def _scalar_type(meta: MetaNode) -> Any:
             if k in meta.constraints:
                 field_kwargs[k] = meta.constraints[k]
     if field_kwargs:
-        base_py = Annotated[
-            base_py, Field(**field_kwargs)]  # type: ignore[index]
+        base_py = Annotated[base_py, Field(**field_kwargs)]  # type: ignore[index]
     return base_py
 
 
@@ -164,10 +175,10 @@ def _array_type(meta: MetaNode) -> Any:
     Returns:
         Any: ``List[item_type]`` typing annotation.
     """
-    item_meta = meta.item_schema or MetaNode(kind="scalar",
-                                             declared_type="string")
+    item_meta = meta.item_schema or MetaNode(kind="scalar", declared_type="string")
     item_t = _dispatch_type(item_meta)
     from typing import List as _List
+
     return _List[item_t]  # type: ignore[index]
 
 
@@ -188,8 +199,12 @@ def _object_type(meta: MetaNode) -> Any:
         for prop, pmeta in meta.properties.items():
             fname, alias = _safe_field_name(prop)
             ftype = _dispatch_type(pmeta)
-            required = (meta.required or [])
-            default = ... if prop in required and pmeta.default_value is None else pmeta.default_value
+            required = meta.required or []
+            default = (
+                ...
+                if prop in required and pmeta.default_value is None
+                else pmeta.default_value
+            )
             if alias:
                 fields[fname] = (ftype, Field(default, alias=alias))
             else:
@@ -197,8 +212,9 @@ def _object_type(meta: MetaNode) -> Any:
     model_name = "Obj_" + hex(id(meta))[-6:]
     model = create_model(
         model_name,
-        __config__=ConfigDict(populate_by_name=True, extra="forbid",
-                              validate_assignment=True),
+        __config__=ConfigDict(
+            populate_by_name=True, extra="forbid", validate_assignment=True
+        ),
         **fields,
     )
     return model
@@ -227,13 +243,14 @@ def _build_group_model(meta: MetaNode, *, model_name: str) -> Type[BaseModel]:
             ftype = _dispatch_type(child)
             default = _runtime_default_from_meta(child)
             fields[fname] = (
-                ftype, Field(default, alias=alias)) if alias else (
-                ftype, default)
+                (ftype, Field(default, alias=alias)) if alias else (ftype, default)
+            )
 
     return create_model(
         model_name,
-        __config__=ConfigDict(populate_by_name=True, extra="forbid",
-                              validate_assignment=True),
+        __config__=ConfigDict(
+            populate_by_name=True, extra="forbid", validate_assignment=True
+        ),
         **fields,
     )
 
@@ -285,8 +302,7 @@ def _runtime_default_from_meta(meta: MetaNode) -> Any:
     return None
 
 
-def build_runtime_model(root_name: str,
-                        meta_root: MetaNode) -> Type[BaseModel]:
+def build_runtime_model(root_name: str, meta_root: MetaNode) -> Type[BaseModel]:
     """Generate the top-level Pydantic model for a configuration root.
 
     Delegates to :func:`_build_group_model` after asserting ``meta_root`` is a

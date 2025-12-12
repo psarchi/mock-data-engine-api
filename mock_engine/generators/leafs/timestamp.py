@@ -19,6 +19,7 @@ if TYPE_CHECKING:  # import only for typing to avoid cycles
 # TODO(arch): use global timezone config from config/DEPRICATED.yaml
 UTC = timezone.utc
 
+
 @Registry.register(BaseGenerator)
 class TimestampGenerator(BaseGenerator):
     """Generate a Unix timestamp (microseconds) within a time window.
@@ -96,7 +97,9 @@ class TimestampGenerator(BaseGenerator):
             return 1_000.0
         return 1.0  # seconds
 
-    def _parse_dt(self, value: int | float | str | None, default_dt: datetime) -> datetime:
+    def _parse_dt(
+        self, value: int | float | str | None, default_dt: datetime
+    ) -> datetime:
         """Parse a bound value into a UTC ``datetime``.
 
         Args:
@@ -124,7 +127,9 @@ class TimestampGenerator(BaseGenerator):
             if parsed.tzinfo is None:
                 parsed = parsed.replace(tzinfo=UTC)
             return parsed.astimezone(UTC)
-        raise InvalidParameterError("timestamp.start/end must be ISO8601 or numeric epoch")
+        raise InvalidParameterError(
+            "timestamp.start/end must be ISO8601 or numeric epoch"
+        )
 
     def _sanity_check(self, ctx: GenContext) -> None:
         """Validate context and that bounds are parseable.
@@ -191,5 +196,9 @@ class TimestampGenerator(BaseGenerator):
             raise InvalidParameterError("timestamp.end must be >= start")
         span_seconds = (end_dt - start_dt).total_seconds()
         choose_seconds = ctx.rng.random() * span_seconds if span_seconds > 0 else 0.0
-        dt = start_dt + (end_dt - start_dt) * (choose_seconds / span_seconds) if span_seconds > 0 else start_dt
+        dt = (
+            start_dt + (end_dt - start_dt) * (choose_seconds / span_seconds)
+            if span_seconds > 0
+            else start_dt
+        )
         return int(round(dt.timestamp() * 1_000_000))

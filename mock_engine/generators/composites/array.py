@@ -29,7 +29,11 @@ class ArrayGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"child": "child", "max_items": "max_items", "min_items": "min_items"},
+        "aliases": {
+            "child": "child",
+            "max_items": "max_items",
+            "min_items": "min_items",
+        },
         "deprecations": [],
         "rules": [],
     }

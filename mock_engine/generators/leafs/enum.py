@@ -11,13 +11,13 @@ from mock_engine.generators.errors import (
 )
 
 # TODO: Consider moving _pick_index to utils to share with OneOfGenerator
-from mock_engine.generators.utils import _pick_index
 
 from mock_engine.registry import Registry
 
 
 if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
+
 
 @Registry.register(BaseGenerator)
 class EnumGenerator(BaseGenerator):
@@ -45,9 +45,9 @@ class EnumGenerator(BaseGenerator):
     # TODO(validation): Ensure each weight is non-negative and finite (no NaN/inf).
 
     def __init__(
-            self,
-            values: Sequence[Any] | None = None,
-            weights: Sequence[float] | None = None,
+        self,
+        values: Sequence[Any] | None = None,
+        weights: Sequence[float] | None = None,
     ) -> None:
         """Initialize with optional values and weights.
 
@@ -56,14 +56,15 @@ class EnumGenerator(BaseGenerator):
             weights (Sequence[float] | None): Relative weights; ``None`` means uniform.
         """
         self.values: list[Any] = list(values) if values else []
-        self.weights: list[float] | None = list(
-            weights) if weights is not None else None
+        self.weights: list[float] | None = (
+            list(weights) if weights is not None else None
+        )
 
     @classmethod
     def from_spec(
-            cls,
-            builder: Any,
-            spec: Mapping[str, Any],
+        cls,
+        builder: Any,
+        spec: Mapping[str, Any],
     ) -> "EnumGenerator":
         """Build an instance from a spec mapping.
 
@@ -78,9 +79,22 @@ class EnumGenerator(BaseGenerator):
         Returns:
             EnumGenerator: Configured instance.
         """
-        values = spec.get("values")
-        if not values or not isinstance(values, list):
+        raw_values = spec.get("values")
+        if not raw_values or not isinstance(raw_values, list):
             raise MissingChildError("enum requires 'values' list")
+
+        # Normalize values: flatten {'type': 'foo'} or {'value': 'foo'} to 'foo'
+        values: list[Any] = []
+        for v in raw_values:
+            if isinstance(v, dict):
+                if "value" in v:
+                    values.append(v.get("value"))
+                    continue
+                if "type" in v and len(v) == 1:
+                    values.append(v.get("type"))
+                    continue
+            values.append(v)
+
         return cls(values=values, weights=spec.get("weights"))
 
     def _sanity_check(self, ctx: GenContext) -> None:
@@ -113,10 +127,10 @@ class EnumGenerator(BaseGenerator):
             raise InvalidParameterError("sum(weights) must be > 0")
 
     def configure(
-            self,
-            values: Sequence[Any] | None = None,
-            weights: Sequence[float] | None = None,
-            **_: Any,
+        self,
+        values: Sequence[Any] | None = None,
+        weights: Sequence[float] | None = None,
+        **_: Any,
     ) -> Self:
         """Apply configuration in-place and return ``self``.
 

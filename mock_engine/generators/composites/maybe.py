@@ -16,6 +16,7 @@ from mock_engine.registry import Registry
 if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa: F401
 
+
 @Registry.register(BaseGenerator)
 class MaybeGenerator(BaseGenerator):
     """Generate either ``None`` or the result of a child generator.
@@ -92,7 +93,9 @@ class MaybeGenerator(BaseGenerator):
             p = float(self.p_null)
         except (TypeError, ValueError) as exc:
             # TODO(errors): consider a typed error (e.g., InvalidProbabilityError)
-            raise InvalidParameterError("p_null must be a float between 0 and 1") from exc
+            raise InvalidParameterError(
+                "p_null must be a float between 0 and 1"
+            ) from exc
         if not 0.0 <= p <= 1.0:
             raise InvalidParameterError("p_null must be between 0 and 1")
 

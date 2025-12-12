@@ -6,6 +6,7 @@ from mock_engine.contracts.base import ContractModel
 
 class ObjectGeneratorSpec(ContractModel):
     """Object with named fields."""
+
     model_config = ConfigDict(extra="forbid")
     type_token: ClassVar[str] = "object"
     type_aliases: ClassVar[Set[str]] = {"record"}

@@ -4,6 +4,7 @@ Performs structural validation of a spec and maps errors into the engine's
 issue types. Behavior keeps backward compatibility with current registry/model
 APIs while using golden-file docstrings and typing.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping as MappingABC
@@ -27,6 +28,7 @@ from mock_engine.validator.registry_adapter import RegistryAdapter
 from mock_engine.validator.report import Report
 
 JsonPath = tuple[str | int, ...]
+
 
 # TODO(refactor): too much complexity in this single class; break down
 class Validator:
@@ -110,7 +112,9 @@ class Validator:
             current: MappingABC[str, Any] = node
             gen_type = node.get("type")
             if gen_type is None:
-                issues.append(RequiredIssue(path=path + ("type",), msg="Field 'type' is required"))
+                issues.append(
+                    RequiredIssue(path=path + ("type",), msg="Field 'type' is required")
+                )
                 return
 
             # Resolve the generator; registry may return an instance *or* (class, canonical).
@@ -130,8 +134,7 @@ class Validator:
             if isinstance(resolved, BaseGenerator):
                 gen_cls = resolved.__class__
                 canonical = gen_cls.__name__.lower()
-            elif isinstance(resolved, type) and issubclass(resolved,
-                                                           BaseGenerator):
+            elif isinstance(resolved, type) and issubclass(resolved, BaseGenerator):
                 # Registry returned a class, not an instance; derive canonical from class name.
                 gen_cls = resolved
                 canonical = gen_cls.__name__.lower()
@@ -140,10 +143,18 @@ class Validator:
 
             model = self.models.get(gen_cls.__name__)
             model_fields = set(getattr(model, "model_fields", {}).keys())
-            allowed_meta = {"type", "required", "of"}  # TODO(policy): centralize meta keys
+            allowed_meta = {
+                "type",
+                "required",
+                "of",
+            }  # TODO(policy): centralize meta keys
 
             # Report or drop extras
-            extras = [key for key in node.keys() if key not in model_fields and key not in allowed_meta]
+            extras = [
+                key
+                for key in node.keys()
+                if key not in model_fields and key not in allowed_meta
+            ]
             if ignore_extras and extras:
                 current = {key: node[key] for key in node.keys() if key in model_fields}
             else:

@@ -12,7 +12,7 @@ generation:
     value: 123
 generation_meta:
     enabled:
-      status: false
+      status: true
       accepts: "bool"
       description: "include __meta in responses (per-item for schema GET; top-level for POST /v1/generate)"
     include_gen_ms:
@@ -23,3 +23,31 @@ generation_meta:
         status: true
         accepts: "bool"
         description: "include end-to-end handler time (e2e_ms)"
+
+pregeneration:
+  enabled: true
+  schemas:
+    - ga4
+    - smoke
+
+  queue_size: 100000
+  batch_size: 100
+
+  key_prefix: "pregen"  # Results in pregen:{schema}:queue and pregen:{schema}:meta
+
+temporal:
+  # - actual_time_based: Adjust timestamps based on real elapsed time
+  # - per_generation: Increment by fixed step per item
+  default_mode: "actual_time_based"
+
+  # Time multiplier for actual_time_based mode
+  # 1.0 = real-time, 2.0 = 2x speed, 0.5 = half speed
+  time_multiplier: 1.0
+
+  schema_overrides:
+    ga4:
+      mode: "actual_time_based"
+      time_multiplier: 1.0
+
+    stream_events:
+      mode: "per_generation"

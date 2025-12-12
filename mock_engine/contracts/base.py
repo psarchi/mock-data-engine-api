@@ -7,7 +7,8 @@ AdaptFn = Callable[[str, Any], dict]
 
 class ContractModel(BaseModel):
     """Base for all contract specs with an overridable to_spec()."""
-    model_config = ConfigDict(extra='forbid')
+
+    model_config = ConfigDict(extra="forbid")
     type_token: ClassVar[str] = ""
     type_aliases: ClassVar[Set[str]] = set()
 

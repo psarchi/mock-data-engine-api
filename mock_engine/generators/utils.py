@@ -2,6 +2,7 @@
 
 This module intentionally keeps behavior minimal and side-effect free.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
     from mock_engine.types import JsonValue  # noqa: F401
 
 UTC = timezone.utc
+
 
 def get_init_fields(cls: Type[object]) -> list[str]:
     """Return constructor field names for a generator class.
@@ -50,7 +52,9 @@ def infer_epoch_divisor(value: float) -> float:
     return 1.0
 
 
-def parse_timestamp_to_microseconds(value: int | float | str | None, default_dt: datetime | None = None) -> int | None:
+def parse_timestamp_to_microseconds(
+    value: int | float | str | None, default_dt: datetime | None = None
+) -> int | None:
     """Parse a timestamp value into microseconds.
 
     Args:
@@ -84,9 +88,7 @@ def parse_timestamp_to_microseconds(value: int | float | str | None, default_dt:
         dt = parsed.astimezone(UTC)
         return int(round(dt.timestamp() * 1_000_000))
 
-    raise InvalidParameterError(
-        "timestamp value must be ISO8601 or numeric epoch"
-    )
+    raise InvalidParameterError("timestamp value must be ISO8601 or numeric epoch")
 
 
 def _pick_index(cls: object, rng: Random) -> int:

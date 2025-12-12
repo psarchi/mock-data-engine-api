@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import re
 from string import ascii_lowercase, ascii_uppercase, digits
-from collections.abc import Callable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Optional, Self
+from collections.abc import Callable, Mapping
+from typing import TYPE_CHECKING, Any, Optional
 
 try:
     import exrex  # type: ignore
@@ -20,6 +20,7 @@ from mock_engine.registry import Registry
 
 if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
+
 
 @Registry.register(BaseGenerator)
 class StringGenerator(BaseGenerator):
@@ -164,8 +165,10 @@ class StringGenerator(BaseGenerator):
         """
         if not isinstance(ctx, GenContext):
             raise ContextError("ctx must be an instance of GenContext")
-        if self.min_length is not None and self.max_length is not None and (
-            int(self.min_length) > int(self.max_length)
+        if (
+            self.min_length is not None
+            and self.max_length is not None
+            and (int(self.min_length) > int(self.max_length))
         ):
             raise OutOfBoundsError("min_length must be <= max_length")
         if self.string_type and (self.regex or self.template):

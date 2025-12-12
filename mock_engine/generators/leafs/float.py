@@ -13,6 +13,7 @@ from mock_engine.registry import Registry
 if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
 
+
 @Registry.register(BaseGenerator)
 class FloatGenerator(BaseGenerator):
     """Generate floating-point numbers within a configurable range.

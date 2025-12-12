@@ -16,6 +16,7 @@ from mock_engine.registry import Registry
 if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
 
+
 @Registry.register(BaseGenerator)
 class StatefulTimestampGenerator(BaseGenerator):
     """Generate incrementing Unix timestamps (microseconds).
@@ -77,9 +78,13 @@ class StatefulTimestampGenerator(BaseGenerator):
             InvalidParameterError: If start or increment is None.
         """
         if start is None:
-            raise InvalidParameterError("StatefulTimestampGenerator requires 'start' parameter")
+            raise InvalidParameterError(
+                "StatefulTimestampGenerator requires 'start' parameter"
+            )
         if increment is None:
-            raise InvalidParameterError("StatefulTimestampGenerator requires 'increment' parameter")
+            raise InvalidParameterError(
+                "StatefulTimestampGenerator requires 'increment' parameter"
+            )
         self.start = start
         self.end = end
         self.increment = increment
@@ -158,6 +163,7 @@ class StatefulTimestampGenerator(BaseGenerator):
             tracker = ctx.temporal_tracker
         else:
             from mock_engine.chaos import get_temporal_tracker
+
             tracker = get_temporal_tracker()
             ctx.temporal_tracker = tracker
 

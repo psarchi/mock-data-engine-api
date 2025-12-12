@@ -3,6 +3,7 @@
 Provides deterministic RNG, locale-bound Faker instance, and metadata
 construction for generated values.
 """
+
 from __future__ import annotations
 
 import base64
@@ -11,7 +12,7 @@ import pickle
 import random
 import time
 from random import Random
-from typing import Any, Mapping
+from typing import Any
 
 import faker
 
@@ -76,7 +77,12 @@ class GenContext:
         "_depends_on",
     )
 
-    def __init__(self, seed: int | None = None, rng: Random | None = None, locale: str | None = None) -> None:
+    def __init__(
+        self,
+        seed: int | None = None,
+        rng: Random | None = None,
+        locale: str | None = None,
+    ) -> None:
         """Initialize RNG, Faker locale, and basic metadata fields.
 
         Args:
@@ -138,9 +144,13 @@ class GenContext:
 
             # Derive a stable seed for Faker using either explicit seed or RNG fingerprint.
             if self.seed is not None:
-                fk_seed = _derive_seed64(self.seed, "faker", self.schema_name or "", "v1")
+                fk_seed = _derive_seed64(
+                    self.seed, "faker", self.schema_name or "", "v1"
+                )
             else:
-                fk_seed = _derive_seed64(self.rng_state_b64 or "", "faker", self.schema_name or "", "v1")
+                fk_seed = _derive_seed64(
+                    self.rng_state_b64 or "", "faker", self.schema_name or "", "v1"
+                )
             fk.seed_instance(fk_seed)
             self._faker = fk
         return self._faker
@@ -157,5 +167,5 @@ class GenContext:
             "schema": self.schema_name,
             "generated_at": _now_iso_utc_ms(),
             "count": None,
-            "chaos_applied": []
+            "chaos_applied": [],
         }

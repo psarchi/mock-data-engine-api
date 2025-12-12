@@ -3,10 +3,11 @@
 Normalizes loosely-typed input specs (strings/lists/mappings) into a canonical
 shape and builds generator instances via the registry.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from mock_engine.registry import Registry
 from mock_engine.generators.base import BaseGenerator
@@ -14,7 +15,6 @@ from mock_engine.errors import (
     MissingTypeError,
     UnknownTypeError,
     InvalidSpecStructureError,
-    NormalizationError,
 )
 
 if TYPE_CHECKING:  # import only for typing to avoid cycles
@@ -38,7 +38,11 @@ class SpecBuilder:
 
     # TODO(types): Make ``path`` consistently ``tuple[str, ...]``; callers pass mixed types today.
     # TODO(compat): Keep current string/list/dict normalization behavior until all callers migrate.
-    def _normalize(self, spec: Mapping[str, object] | list[object] | str | object, path: tuple[str, ...] | str | None = "root") -> object:
+    def _normalize(
+        self,
+        spec: Mapping[str, object] | list[object] | str | object,
+        path: tuple[str, ...] | str | None = "root",
+    ) -> object:
         """Normalize nested specs into a canonical mapping/list/atom form.
 
         Args:
@@ -70,7 +74,9 @@ class SpecBuilder:
         # Atom value (kept as-is)
         return spec
 
-    def build(self, spec: Mapping[str, object], path: tuple[str, ...] | str | None = "root") -> BaseGenerator:
+    def build(
+        self, spec: Mapping[str, object], path: tuple[str, ...] | str | None = "root"
+    ) -> BaseGenerator:
         """Build a generator instance from a (possibly loose) spec mapping.
 
         Args:
@@ -99,7 +105,7 @@ class SpecBuilder:
             available = list(Registry.get_all(BaseGenerator).keys())
             raise UnknownTypeError(
                 f"unknown generator '{type_name}'. available: {', '.join(sorted(available))}",
-                path=path
+                path=path,
             )
 
         return gen_cls.from_spec(self, normalized)

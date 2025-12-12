@@ -15,7 +15,7 @@ from mock_engine.generators.utils import parse_timestamp_to_microseconds
 from mock_engine.registry import Registry
 
 if TYPE_CHECKING:
-    from mock_engine.types import JsonValue
+    pass
 
 UTC = timezone.utc
 ISO_DEFAULT = "%Y-%m-%dT%H:%M:%S%z"
@@ -91,9 +91,13 @@ class StatefulDateTimeGenerator(BaseGenerator):
             InvalidParameterError: If start or increment is None.
         """
         if start is None:
-            raise InvalidParameterError("StatefulDateTimeGenerator requires 'start' parameter")
+            raise InvalidParameterError(
+                "StatefulDateTimeGenerator requires 'start' parameter"
+            )
         if increment is None:
-            raise InvalidParameterError("StatefulDateTimeGenerator requires 'increment' parameter")
+            raise InvalidParameterError(
+                "StatefulDateTimeGenerator requires 'increment' parameter"
+            )
         self.start = start
         self.end = end
         self.increment = increment
@@ -200,6 +204,7 @@ class StatefulDateTimeGenerator(BaseGenerator):
             tracker = ctx.temporal_tracker
         else:
             from mock_engine.chaos import get_temporal_tracker
+
             tracker = get_temporal_tracker()
             ctx.temporal_tracker = tracker
 

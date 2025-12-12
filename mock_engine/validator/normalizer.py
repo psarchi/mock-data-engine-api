@@ -4,6 +4,7 @@ Resolves the framework's builder and delegates to its internal ``_normalize``
 implementation. Behavior preserved; public API is intentionally not enforced
 here to avoid breaking callers.
 """
+
 from __future__ import annotations
 
 from typing import Any, Mapping
@@ -34,7 +35,9 @@ class SpecNormalizer:
         try:
             from mock_engine import api as _api
         except Exception as exc:  # noqa: BLE001 (preserve behavior)
-            raise RuntimeError("validator.normalizer: api module not available") from exc
+            raise RuntimeError(
+                "validator.normalizer: api module not available"
+            ) from exc
 
         builder = getattr(_api, "_builder", None)
         if not isinstance(builder, SpecBuilder):
@@ -60,5 +63,7 @@ class SpecNormalizer:
         """
         normalize_fn = getattr(self._builder, "_normalize", None)
         if not callable(normalize_fn):
-            raise RuntimeError("validator.normalizer: SpecBuilder._normalize is not callable")
+            raise RuntimeError(
+                "validator.normalizer: SpecBuilder._normalize is not callable"
+            )
         return normalize_fn(spec, path=path)  # type: ignore[misc]

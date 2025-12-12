@@ -6,6 +6,7 @@ from mock_engine.contracts.base import ContractModel
 
 class ArrayGeneratorSpec(ContractModel):
     """Array of a single child spec (with min/max cardinality)."""
+
     model_config = ConfigDict(extra="forbid")
     type_token: ClassVar[str] = "array"
     type_aliases: ClassVar[Set[str]] = {"list"}

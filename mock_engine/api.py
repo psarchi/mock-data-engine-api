@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from mock_engine.context import GenContext
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.spec_builder import SpecBuilder
-import mock_engine.generators
 
 if TYPE_CHECKING:  # import only for typing to avoid cycles
     from mock_engine.types import JsonValue  # noqa: F401
@@ -37,9 +36,9 @@ def build_generator(spec: Mapping[str, object]) -> BaseGenerator:
 
 
 def generate_one(
-        gen: BaseGenerator,
-        seed: int | None = None,
-        locale: str = "en_US",
+    gen: BaseGenerator,
+    seed: int | None = None,
+    locale: str = "en_US",
 ) -> "JsonValue":
     """Generate a single value from ``gen``.
 
@@ -57,10 +56,10 @@ def generate_one(
 
 
 def generate_many(
-        gen: BaseGenerator,
-        n: int = 10,
-        seed: int | None = None,
-        locale: str = "en_US",
+    gen: BaseGenerator,
+    n: int = 10,
+    seed: int | None = None,
+    locale: str = "en_US",
 ) -> list["JsonValue"]:
     """Generate ``n`` values from ``gen``.
 
@@ -123,8 +122,7 @@ class MockEngine:
         """
         return gen.generate(self.ctx)
 
-    def generate_many(self, gen: BaseGenerator, n: int = 10) -> list[
-        "JsonValue"]:
+    def generate_many(self, gen: BaseGenerator, n: int = 10) -> list["JsonValue"]:
         """Generate ``n`` values using the engine context.
 
         Args:
@@ -142,6 +140,7 @@ def _contract_to_spec(name: str, contract: object) -> dict:
     if callable(to_spec):
         return to_spec(name, _contract_to_spec)
     from mock_engine.schema.contract_registry import token_for_instance
+
     tok = token_for_instance(contract) or "string"
     try:
         d = contract.model_dump(exclude_none=True)

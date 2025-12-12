@@ -6,6 +6,7 @@ from mock_engine.contracts.base import ContractModel
 
 class ObjectOrNullGeneratorSpec(ContractModel):
     """Typed nullable shortcut for object."""
+
     model_config = ConfigDict(extra="forbid")
     type_token: ClassVar[str] = "object_or_null"
     type_aliases: ClassVar[Set[str]] = set()

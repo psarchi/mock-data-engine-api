@@ -8,8 +8,8 @@ class IntGeneratorSpec(BaseModel):
 
     # type aliasing
     type_token: ClassVar[str] = "int"
-    type_aliases: ClassVar[Set[str]] = ['integer']
-    model_config = ConfigDict(extra='forbid')
+    type_aliases: ClassVar[Set[str]] = ["integer"]
+    model_config = ConfigDict(extra="forbid")
 
     min: Optional[int] = None
     max: Optional[int] = None
