@@ -54,9 +54,7 @@ def parse_timestamp(val: Any) -> Tuple[datetime.datetime | None, str | None]:
         - None: Could not parse
     """
     try:
-        return datetime.datetime.fromisoformat(
-            str(val).replace("Z", "+00:00")
-        ), "iso"
+        return datetime.datetime.fromisoformat(str(val).replace("Z", "+00:00")), "iso"
     except Exception:
         pass
 

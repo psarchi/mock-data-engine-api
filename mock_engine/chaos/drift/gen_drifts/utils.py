@@ -35,8 +35,7 @@ def clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
 
-def adjust_binary_weights(weights: Sequence[float], delta: float) -> Sequence[
-    float]:
+def adjust_binary_weights(weights: Sequence[float], delta: float) -> Sequence[float]:
     """Adjust two-element weight vector by delta and renormalize."""
     if len(weights) != 2:
         return weights
@@ -50,13 +49,14 @@ def adjust_binary_weights(weights: Sequence[float], delta: float) -> Sequence[
 
 
 def ensure_nullable_wrapper(
-        spec: Any,
-        rng: Random,
-        nullable_cfg: Any,
+    spec: Any,
+    rng: Random,
+    nullable_cfg: Any,
 ) -> Tuple[Optional["MaybeGeneratorSpec"], Optional[str]]:
     """Return a Maybe wrapper + summary when nullable configuration is provided."""
-    from mock_engine.contracts.maybe import \
-        MaybeGeneratorSpec  # local import to avoid cycles
+    from mock_engine.contracts.maybe import (
+        MaybeGeneratorSpec,
+    )  # local import to avoid cycles
 
     if nullable_cfg is None or nullable_cfg is False:
         return None, None
@@ -69,8 +69,7 @@ def ensure_nullable_wrapper(
     range_cfg = None
 
     if isinstance(nullable_cfg, dict):
-        base = float(
-            nullable_cfg.get("p_null", nullable_cfg.get("base", base)))
+        base = float(nullable_cfg.get("p_null", nullable_cfg.get("base", base)))
         if "delta" in nullable_cfg:
             delta_span = float(nullable_cfg["delta"])
         if "range" in nullable_cfg:

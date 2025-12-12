@@ -28,13 +28,13 @@ class HttpMismatchOp(BaseChaosOp):
     _DEFAULT_CODES = (400, 401, 403, 409, 412, 422, 429, 500, 502, 503)
 
     def __init__(
-            self,
-            *,
-            enabled: bool,
-            p: float = 0.0,
-            weight: float = 1.0,
-            codes: Sequence[int] | None = None,
-            **kw,
+        self,
+        *,
+        enabled: bool,
+        p: float = 0.0,
+        weight: float = 1.0,
+        codes: Sequence[int] | None = None,
+        **kw,
     ) -> None:
         super().__init__(enabled=enabled, p=p, weight=weight, **kw)
         available = list(dict.fromkeys(codes or self._DEFAULT_CODES))
@@ -44,13 +44,17 @@ class HttpMismatchOp(BaseChaosOp):
         return (0, 1)
 
     def apply(
-            self,
-            *,
-            request,
-            response,
-            body: Any,
-            rng: random.Random,
+        self,
+        *,
+        request,
+        response,
+        body: Any,
+        rng: random.Random,
     ) -> ApplyResult:
         code = rng.choice(self.codes)
-        return ApplyResult(body=body, descriptions=[f"http_mismatch({code})"],
-                           faults_count=1, status=code)
+        return ApplyResult(
+            body=body,
+            descriptions=[f"http_mismatch({code})"],
+            faults_count=1,
+            status=code,
+        )

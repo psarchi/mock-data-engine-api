@@ -16,15 +16,21 @@ class _Registry:
         self._by_key: Dict[str, Type[BaseChaosOp]] = {}
 
     def register(self, cls: Type[BaseChaosOp]) -> None:
-        if not isinstance(cls, type) or not issubclass(cls,
-                                                       BaseChaosOp) or cls is BaseChaosOp:
+        if (
+            not isinstance(cls, type)
+            or not issubclass(cls, BaseChaosOp)
+            or cls is BaseChaosOp
+        ):
             return
-        key = getattr(cls, "key", None) or getattr(cls, "KEY",
-                                                   None) or getattr(cls,
-                                                                    "NAME",
-                                                                    None)
+        key = (
+            getattr(cls, "key", None)
+            or getattr(cls, "KEY", None)
+            or getattr(cls, "NAME", None)
+        )
         if not isinstance(key, str) or not key.strip() or key.strip().lower() == "base":
-            raise MissingChaosOpKeyError(f"Chaos op {cls.__name__} missing required 'key'.")
+            raise MissingChaosOpKeyError(
+                f"Chaos op {cls.__name__} missing required 'key'."
+            )
         key = key.strip()
         if key in self._by_key:
             raise DuplicateChaosOpKeyError(f"Duplicate chaos op key: {key}")
@@ -57,9 +63,13 @@ def _ensure_loaded() -> _Registry:
 
     reg = _Registry()
     from . import ops as ops_pkg  # noqa: F401
+
     for obj in vars(ops_pkg).values():
-        if isinstance(obj, type) and issubclass(obj,
-                                                BaseChaosOp) and obj is not BaseChaosOp:
+        if (
+            isinstance(obj, type)
+            and issubclass(obj, BaseChaosOp)
+            and obj is not BaseChaosOp
+        ):
             reg.register(obj)
     _registry_singleton = reg
     return reg

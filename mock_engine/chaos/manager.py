@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Tuple, Type
 
 from mock_engine.chaos.drift import get_drift_coordinator
 from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
@@ -253,4 +253,3 @@ class ChaosManager:
             "headers": dict(getattr(resp_obj, "headers", {}) or {}),
             "status": getattr(resp_obj, "status", 200),
         }
-    

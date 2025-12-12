@@ -34,12 +34,10 @@ class ListShuffleOp(BaseChaosOp):
             j = int(rng.random() * (i + 1))
             lst[i], lst[j] = lst[j], lst[i]
 
-    def apply(self, *, request, response, body: Any,
-              rng: random.Random) -> ApplyResult:
+    def apply(self, *, request, response, body: Any, rng: random.Random) -> ApplyResult:
         shuffled: List[str] = []
 
-        for path, lst, _, _ in iter_lists(body, include_root=True,
-                                          root_label="[root]"):
+        for path, lst, _, _ in iter_lists(body, include_root=True, root_label="[root]"):
             if isinstance(lst, list) and len(lst) > 1:
                 self._shuffle_in_place(lst, rng)
                 shuffled.append(f"list_shuffle({path})")

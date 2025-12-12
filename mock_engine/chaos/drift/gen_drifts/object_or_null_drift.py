@@ -14,8 +14,9 @@ class ObjectOrNullDataDrift(DriftSpec):
     handlers = {"data": "handle_data"}
 
     @staticmethod
-    def _adjust_weights(weights: list[float], rng: Random,
-                        cfg: Dict[str, Any]) -> Optional[str]:
+    def _adjust_weights(
+        weights: list[float], rng: Random, cfg: Dict[str, Any]
+    ) -> Optional[str]:
         if len(weights) != 2:
             return None
         delta_cfg = cfg.get("null_delta", 0.1)
@@ -31,11 +32,11 @@ class ObjectOrNullDataDrift(DriftSpec):
 
     @classmethod
     def handle_data(
-            cls,
-            spec: ObjectOrNullGeneratorSpec,
-            rng: Random,
-            budget: int,
-            config: Optional[Dict[str, Any]] = None,
+        cls,
+        spec: ObjectOrNullGeneratorSpec,
+        rng: Random,
+        budget: int,
+        config: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         tweaks: list[str] = []
         cfg = config or {}

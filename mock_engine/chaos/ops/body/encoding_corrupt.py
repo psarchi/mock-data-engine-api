@@ -8,8 +8,6 @@ from mock_engine.chaos.ops.utils import iter_leaf_refs, iter_dict_entries
 from mock_engine.registry import Registry
 
 
-
-
 def _json_headers() -> dict[str, str]:
     """Force JSON without charset for this op's responses."""
     return {"Content-Type": "application/json"}
@@ -17,9 +15,18 @@ def _json_headers() -> dict[str, str]:
 
 def _viz(s: str, limit: int = 30) -> str:
     mapping = {
-        "​": "<ZWSP>", "‍": "<ZWJ>", "‎": "<LRM>", "‏": "<RLM>",
-        "⁦": "<LRI>", "⁧": "<RLI>", "⁨": "<FSI>", "⁩": "<PDI>",
-        " ": "<NBSP>", " ": "<NNBSP>", " ": "<THIN>", " ": "<HAIR>",
+        "​": "<ZWSP>",
+        "‍": "<ZWJ>",
+        "‎": "<LRM>",
+        "‏": "<RLM>",
+        "⁦": "<LRI>",
+        "⁧": "<RLI>",
+        "⁨": "<FSI>",
+        "⁩": "<PDI>",
+        " ": "<NBSP>",
+        " ": "<NNBSP>",
+        " ": "<THIN>",
+        " ": "<HAIR>",
     }
     out = []
     for ch in s:
@@ -33,8 +40,8 @@ def _viz(s: str, limit: int = 30) -> str:
 def _corrupt_text(s: str, rng: random.Random) -> tuple[str, str]:
     """Return (corrupted_text, strategy_name) for *s* using a random strategy.
 
-Strategies include visible-but-valid Unicode and subtle confusables.
-"""
+    Strategies include visible-but-valid Unicode and subtle confusables.
+    """
     if not s:
         return s, "noop"
 
@@ -45,41 +52,52 @@ Strategies include visible-but-valid Unicode and subtle confusables.
     ZERO_WIDTHS = ["​", "‍", "‎", "‏"]  # ZWSP, ZWJ, LRM, RLM
     CONFUSABLES = [
         # quotes / dashes / punctuation
-        "‘", "’", "“", "”", "–", "—", "·", "・",
+        "‘",
+        "’",
+        "“",
+        "”",
+        "–",
+        "—",
+        "·",
+        "・",
         # spaces that look similar
         " ",  # NBSP
         " ",  # NARROW NO-BREAK SPACE
         " ",  # THIN SPACE
         " ",  # HAIR SPACE
         # bidi isolates (can confuse rendering but valid)
-        "⁦", "⁧", "⁨", "⁩",
+        "⁦",
+        "⁧",
+        "⁨",
+        "⁩",
     ]
-    FULLWIDTH_DIGITS = [chr(c) for c in
-                        range(0xFF10, 0xFF1A)]  # U+FF10..U+FF19
+    FULLWIDTH_DIGITS = [chr(c) for c in range(0xFF10, 0xFF1A)]  # U+FF10..U+FF19
 
-    strat = rng.choice([
-        "replacement",  # U+FFFD
-        "delete",  # drop one char
-        "swap",  # swap adjacent
-        "zero_width",  # inject zero-width or LRM/RLM
-        "homoglyph",  # similar-looking unicode
-        "fullwidth",  # ASCII -> fullwidth
-        "append_ff",  # append fullwidth digit
-        "insert_conf",  # insert confusable char (curly quotes, spaces, bidi)
-        "accent",  # add combining mark
-    ])
+    strat = rng.choice(
+        [
+            "replacement",  # U+FFFD
+            "delete",  # drop one char
+            "swap",  # swap adjacent
+            "zero_width",  # inject zero-width or LRM/RLM
+            "homoglyph",  # similar-looking unicode
+            "fullwidth",  # ASCII -> fullwidth
+            "append_ff",  # append fullwidth digit
+            "insert_conf",  # insert confusable char (curly quotes, spaces, bidi)
+            "accent",  # add combining mark
+        ]
+    )
 
     if strat == "replacement":
         i = pick(len(s))
-        return s[:i] + "�" + s[i + 1:], "replacement"
+        return s[:i] + "�" + s[i + 1 :], "replacement"
 
     if strat == "delete" and len(s) > 1:
         i = pick(len(s))
-        return s[:i] + s[i + 1:], "delete"
+        return s[:i] + s[i + 1 :], "delete"
 
     if strat == "swap" and len(s) > 1:
         i = pick(len(s) - 1)
-        return s[:i] + s[i + 1] + s[i] + s[i + 2:], "swap"
+        return s[:i] + s[i + 1] + s[i] + s[i + 2 :], "swap"
 
     if strat == "zero_width":
         zw = rng.choice(ZERO_WIDTHS)
@@ -88,23 +106,40 @@ Strategies include visible-but-valid Unicode and subtle confusables.
 
     if strat == "homoglyph":
         table = {
-            "a": "а", "e": "е", "o": "ο", "p": "р", "c": "с", "x": "х",
+            "a": "а",
+            "e": "е",
+            "o": "ο",
+            "p": "р",
+            "c": "с",
+            "x": "х",
             "y": "у",
-            "A": "Α", "B": "Β", "C": "С", "E": "Ε", "H": "Η", "I": "Ι",
+            "A": "Α",
+            "B": "Β",
+            "C": "С",
+            "E": "Ε",
+            "H": "Η",
+            "I": "Ι",
             "K": "Κ",
-            "M": "Μ", "N": "Ν", "O": "Ο", "P": "Ρ", "S": "Ѕ", "T": "Τ",
+            "M": "Μ",
+            "N": "Ν",
+            "O": "Ο",
+            "P": "Ρ",
+            "S": "Ѕ",
+            "T": "Τ",
             "X": "Χ",
-            "Y": "Υ", "Z": "Ζ",
+            "Y": "Υ",
+            "Z": "Ζ",
         }
         idxs = [i for i, ch in enumerate(s) if ch in table]
         if idxs:
             i = rng.choice(idxs)
-            return s[:i] + table[s[i]] + s[i + 1:], "homoglyph"
+            return s[:i] + table[s[i]] + s[i + 1 :], "homoglyph"
         # fallback to replacement
         i = pick(len(s))
-        return s[:i] + "�" + s[i + 1:], "replacement"
+        return s[:i] + "�" + s[i + 1 :], "replacement"
 
     if strat == "fullwidth":
+
         def to_fullwidth(ch: str) -> str:
             o = ord(ch)
             if "0" <= ch <= "9":
@@ -118,7 +153,7 @@ Strategies include visible-but-valid Unicode and subtle confusables.
         idxs = [i for i, ch in enumerate(s) if ch.isascii() and ch.isalnum()]
         if idxs:
             i = rng.choice(idxs)
-            return s[:i] + to_fullwidth(s[i]) + s[i + 1:], "fullwidth"
+            return s[:i] + to_fullwidth(s[i]) + s[i + 1 :], "fullwidth"
         # fallback to zero-width injection
         zw = rng.choice(ZERO_WIDTHS)
         i = pick(len(s) + 1)
@@ -135,6 +170,7 @@ Strategies include visible-but-valid Unicode and subtle confusables.
     i = pick(len(s))
     return s[:i] + rng.choice(["́", "̀", "̂", "̈"]) + s[i:], "accent"
 
+
 @Registry.register(BaseChaosOp)
 class EncodingCorruptOp(BaseChaosOp):
     """Corrupt up to N string fields using mixed strategies.
@@ -145,26 +181,23 @@ class EncodingCorruptOp(BaseChaosOp):
     key = "encoding_corrupt"
 
     def __init__(
-            self,
-            *,
-            enabled: bool,
-            p: float = 0.0,
-            weight: float = 1.0,
-            fields_to_corrupt: int = 1,
-            **kw,
+        self,
+        *,
+        enabled: bool,
+        p: float = 0.0,
+        weight: float = 1.0,
+        fields_to_corrupt: int = 1,
+        **kw,
     ) -> None:
         super().__init__(enabled=enabled, p=p, weight=weight, **kw)
         self.fields_to_corrupt = int(max(1, int(fields_to_corrupt or 1)))
 
-    def apply(self, *, request, response, body: Any,
-              rng: random.Random) -> ApplyResult:
+    def apply(self, *, request, response, body: Any, rng: random.Random) -> ApplyResult:
         if not isinstance(body, dict):
-            return ApplyResult(body=body, descriptions=[],
-                               headers=_json_headers())
+            return ApplyResult(body=body, descriptions=[], headers=_json_headers())
         items = body.get("items")
         if not isinstance(items, list) or not items:
-            return ApplyResult(body=body, descriptions=[],
-                               headers=_json_headers())
+            return ApplyResult(body=body, descriptions=[], headers=_json_headers())
 
         changed = 0
         desc: list[str] = []
@@ -180,13 +213,14 @@ class EncodingCorruptOp(BaseChaosOp):
                 continue
 
             value_refs = list(
-                iter_leaf_refs(rec, predicate=lambda v: isinstance(v, str)))
+                iter_leaf_refs(rec, predicate=lambda v: isinstance(v, str))
+            )
             key_refs = [
-                ref for ref in iter_dict_entries(rec)
-                if isinstance(ref.key, str)
+                ref for ref in iter_dict_entries(rec) if isinstance(ref.key, str)
             ]
-            cands = [("value", ref) for ref in value_refs] + [("key", ref) for
-                                                              ref in key_refs]
+            cands = [("value", ref) for ref in value_refs] + [
+                ("key", ref) for ref in key_refs
+            ]
             if not cands:
                 continue
 
@@ -208,11 +242,12 @@ class EncodingCorruptOp(BaseChaosOp):
                         continue
                     parent[key] = new_val
                     changed += 1
-                    dot = ('.' + path) if path else ''
+                    dot = ("." + path) if path else ""
                     prev_old = _viz(original)
                     prev_new = _viz(new_val)
                     desc.append(
-                        f"encoding_corrupt(items[{idx}]{dot} value:'{prev_old}'->'{prev_new}' strat={strat})")
+                        f"encoding_corrupt(items[{idx}]{dot} value:'{prev_old}'->'{prev_new}' strat={strat})"
+                    )
                 except Exception:
                     # skip on mutation error
                     pass
@@ -236,13 +271,14 @@ class EncodingCorruptOp(BaseChaosOp):
             try:
                 parent[new_k] = parent.pop(old_k)
                 changed += 1
-                dot_parent = ('.' + path.rsplit('.', 1)[
-                    0]) if '.' in path else ''
+                dot_parent = ("." + path.rsplit(".", 1)[0]) if "." in path else ""
                 desc.append(
-                    f"encoding_corrupt(items[{idx}]{dot_parent} key:'{old_k}'->'{new_k}' strat={kstrat})")
+                    f"encoding_corrupt(items[{idx}]{dot_parent} key:'{old_k}'->'{new_k}' strat={kstrat})"
+                )
             except Exception:
                 # if we fail to rename, skip
                 pass
 
-        return ApplyResult(body=body, descriptions=desc if changed else [],
-                           headers=_json_headers())
+        return ApplyResult(
+            body=body, descriptions=desc if changed else [], headers=_json_headers()
+        )

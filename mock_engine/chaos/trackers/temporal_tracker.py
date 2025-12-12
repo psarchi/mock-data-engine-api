@@ -96,9 +96,15 @@ class TemporalTracker:
                 state.current_timestamp = timestamp
 
             if state.first_timestamp and state.current_timestamp:
-                elapsed_seconds = (state.current_timestamp - state.first_timestamp) / 1_000_000
-                temporal_tracker_elapsed_seconds.labels(schema=schema_name).set(elapsed_seconds)
-                temporal_tracker_current_timestamp.labels(schema=schema_name).set(state.current_timestamp)
+                elapsed_seconds = (
+                    state.current_timestamp - state.first_timestamp
+                ) / 1_000_000
+                temporal_tracker_elapsed_seconds.labels(schema=schema_name).set(
+                    elapsed_seconds
+                )
+                temporal_tracker_current_timestamp.labels(schema=schema_name).set(
+                    state.current_timestamp
+                )
 
     def get_range(self, schema_name: str) -> Tuple[Optional[int], Optional[int]]:
         """Return (first_timestamp, current_timestamp) for schema.

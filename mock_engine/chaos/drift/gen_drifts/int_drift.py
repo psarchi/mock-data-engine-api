@@ -7,7 +7,10 @@ from mock_engine.chaos.drift.registry import DriftResult
 from mock_engine.contracts.int import IntGeneratorSpec
 from mock_engine.contracts.maybe import MaybeGeneratorSpec
 from mock_engine.chaos.drift.gen_drifts.base import DriftSpec
-from mock_engine.chaos.drift.gen_drifts.utils import clamp, ensure_nullable_wrapper, rng_choice
+from mock_engine.chaos.drift.gen_drifts.utils import (
+    ensure_nullable_wrapper,
+    rng_choice,
+)
 
 
 class IntDataDrift(DriftSpec):
@@ -56,9 +59,7 @@ class IntDataDrift(DriftSpec):
             original_step = int(spec.step)
             step_delta = int(cfg.get("step_delta", 1))
             if step_delta > 0:
-                step_change = rng_choice(
-                    rng, list(range(-step_delta, step_delta + 1))
-                )
+                step_change = rng_choice(rng, list(range(-step_delta, step_delta + 1)))
                 if step_change != 0:
                     new_step = max(1, original_step + step_change)
                     if new_step != original_step:

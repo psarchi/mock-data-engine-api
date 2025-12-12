@@ -33,22 +33,22 @@ class SchemaFieldNullingOp(BaseChaosOp):
     _MISSING = object()
 
     def __init__(
-            self,
-            *,
-            enabled: bool,
-            p: float = 0.0,
-            weight: float = 1.0,
-            fields: List[str] | None = None,
-            **kw: Any,
+        self,
+        *,
+        enabled: bool,
+        p: float = 0.0,
+        weight: float = 1.0,
+        fields: List[str] | None = None,
+        **kw: Any,
     ) -> None:
         super().__init__(enabled=enabled, p=p, weight=weight, **kw)
-        self.fields = [f.strip() for f in (fields or []) if
-                       isinstance(f, str) and f.strip()]
+        self.fields = [
+            f.strip() for f in (fields or []) if isinstance(f, str) and f.strip()
+        ]
 
     # -------------------- helpers -------------------- #
 
-    def _iter_configured_targets(self, record: Any) -> Iterable[
-        Tuple[Any, Any, str]]:
+    def _iter_configured_targets(self, record: Any) -> Iterable[Tuple[Any, Any, str]]:
         for expr in self.fields:
             tokens = [tok for tok in expr.split(".") if tok]
             if not tokens:
@@ -56,13 +56,13 @@ class SchemaFieldNullingOp(BaseChaosOp):
             yield from self._walk_tokens(record, tokens, path="")
 
     def _walk_tokens(
-            self,
-            node: Any,
-            tokens: Sequence[str],
-            *,
-            parent: Any = None,
-            key: Any = None,
-            path: str,
+        self,
+        node: Any,
+        tokens: Sequence[str],
+        *,
+        parent: Any = None,
+        key: Any = None,
+        path: str,
     ) -> Iterable[Tuple[Any, Any, str]]:
         if not tokens:
             if parent is not None:
@@ -88,27 +88,29 @@ class SchemaFieldNullingOp(BaseChaosOp):
                 else:
                     for idx, elem in enumerate(child):
                         sub_path = f"{next_path}[{idx}]"
-                        yield from self._walk_tokens(elem, rest, parent=child,
-                                                     key=idx, path=sub_path)
+                        yield from self._walk_tokens(
+                            elem, rest, parent=child, key=idx, path=sub_path
+                        )
             else:
                 if not rest:
                     yield node, name, next_path
                 else:
-                    yield from self._walk_tokens(child, rest, parent=node,
-                                                 key=name, path=next_path)
+                    yield from self._walk_tokens(
+                        child, rest, parent=node, key=name, path=next_path
+                    )
         elif isinstance(node, list) and is_list and name.isdigit():
             idx = int(name)
             if 0 <= idx < len(node):
                 elem = node[idx]
                 next_path = f"{path}[{idx}]" if path else f"[{idx}]"
                 if rest:
-                    yield from self._walk_tokens(elem, rest, parent=node,
-                                                 key=idx, path=next_path)
+                    yield from self._walk_tokens(
+                        elem, rest, parent=node, key=idx, path=next_path
+                    )
                 else:
                     yield node, idx, next_path
 
-    def _iter_leaf_targets(self, record: Any) -> Iterable[
-        Tuple[Any, Any, str]]:
+    def _iter_leaf_targets(self, record: Any) -> Iterable[Tuple[Any, Any, str]]:
         stack: List[Tuple[Any, str]] = [(record, "")]
         while stack:
             node, path = stack.pop()
@@ -143,18 +145,18 @@ class SchemaFieldNullingOp(BaseChaosOp):
     def _set_value(self, parent: Any, key: Any, value: Any) -> None:
         if isinstance(parent, dict):
             parent[key] = value
-        elif isinstance(parent, list) and isinstance(key,
-                                                     int) and 0 <= key < len(
-                parent):
+        elif (
+            isinstance(parent, list) and isinstance(key, int) and 0 <= key < len(parent)
+        ):
             parent[key] = value
 
     def apply(
-            self,
-            *,
-            request,
-            response,
-            body: Any,
-            rng: random.Random,
+        self,
+        *,
+        request,
+        response,
+        body: Any,
+        rng: random.Random,
     ) -> ApplyResult:
         if not isinstance(body, dict):
             return ApplyResult(body=body, descriptions=[])

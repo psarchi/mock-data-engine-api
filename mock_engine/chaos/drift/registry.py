@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from random import Random
-from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, Optional, Type, Union
 
 from mock_engine.chaos.drift.errors import InvalidDriftResultError
 
@@ -44,7 +44,9 @@ class DriftRegistry:
     def __init__(self) -> None:
         self._handlers: Dict[_RegistryKey, DriftHandler] = {}
 
-    def register(self, kind: str, spec_cls: Type[object], handler: DriftHandler) -> None:
+    def register(
+        self, kind: str, spec_cls: Type[object], handler: DriftHandler
+    ) -> None:
         key = _RegistryKey(kind=kind, spec_cls=spec_cls)
         self._handlers[key] = handler
 

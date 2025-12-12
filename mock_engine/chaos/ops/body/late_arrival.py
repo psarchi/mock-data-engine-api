@@ -80,8 +80,13 @@ class LateArrivalOp(BaseChaosOp):
             return ApplyResult(body=body, descriptions=[])
 
         from mock_engine.chaos import get_temporal_tracker
+
         tracker = get_temporal_tracker()
-        schema_name = self.schema_name or body.get("schema_name") or getattr(response, "schema_name", None)
+        schema_name = (
+            self.schema_name
+            or body.get("schema_name")
+            or getattr(response, "schema_name", None)
+        )
         if not schema_name:
             return ApplyResult(body=body, descriptions=[])
 
@@ -124,13 +129,14 @@ class LateArrivalOp(BaseChaosOp):
                     elif kind == "epoch":
                         rec[field] = int(late_ts / 1_000_000)
                     else:
-                        rec[field] = late_dt.isoformat().replace("+00:00", "Z") if isinstance(val, str) and "Z" in val else late_dt.strftime("%Y-%m-%d %H:%M:%S")
+                        rec[field] = (
+                            late_dt.isoformat().replace("+00:00", "Z")
+                            if isinstance(val, str) and "Z" in val
+                            else late_dt.strftime("%Y-%m-%d %H:%M:%S")
+                        )
                     applied = True
 
-        return ApplyResult(
-            body=body,
-            descriptions=["late_arrival"] if applied else []
-        )
+        return ApplyResult(body=body, descriptions=["late_arrival"] if applied else [])
 
     def _discover_stateful_fields(self, items: list) -> list[str]:
         """Auto-discover fields that contain timestamp-like values.

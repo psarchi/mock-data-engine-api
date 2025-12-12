@@ -1,6 +1,6 @@
 from __future__ import annotations
 import random
-from typing import Any, List, Dict
+from typing import Any
 from copy import deepcopy
 from mock_engine.chaos.ops.base import BaseChaosOp, ApplyResult
 from mock_engine.chaos.ops.utils import iter_lists
@@ -40,15 +40,15 @@ class DuplicateItemsOp(BaseChaosOp):
     key = "duplicate_items"
 
     def __init__(
-            self,
-            *,
-            enabled: bool,
-            p: float = 0.0,
-            weight: float = 1.0,
-            max_dups: int = 1,
-            strategy: str = "adjacent",
-            include_root: bool = False,
-            **kw,
+        self,
+        *,
+        enabled: bool,
+        p: float = 0.0,
+        weight: float = 1.0,
+        max_dups: int = 1,
+        strategy: str = "adjacent",
+        include_root: bool = False,
+        **kw,
     ) -> None:
         super().__init__(enabled=enabled, p=p, weight=weight, **kw)
         self.max_dups = int(max(1, int(max_dups or 1)))
@@ -56,20 +56,19 @@ class DuplicateItemsOp(BaseChaosOp):
         self.strategy = s if s in {"adjacent", "random"} else "adjacent"
         self.include_root = bool(include_root)
 
-    def apply(self, *, request, response, body: Any,
-              rng: random.Random) -> ApplyResult:
+    def apply(self, *, request, response, body: Any, rng: random.Random) -> ApplyResult:
         if not isinstance(body, dict):
             return ApplyResult(body=body, descriptions=[])
 
         descriptions: list[str] = []
-        for path, items, owner, _ in iter_lists(body,
-                                                include_root=self.include_root,
-                                                root_label="<root>"):
+        for path, items, owner, _ in iter_lists(
+            body, include_root=self.include_root, root_label="<root>"
+        ):
             # root
             if not self.include_root:
                 if path == "<root>":
                     continue
-                if path and ('.' not in path and '[' not in path):
+                if path and ("." not in path and "[" not in path):
                     continue
             if not items:
                 continue

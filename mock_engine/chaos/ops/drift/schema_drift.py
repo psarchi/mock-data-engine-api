@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from mock_engine.chaos.drift import get_drift_coordinator
 from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
 from mock_engine.context import GenContext
-from mock_engine.contracts.maybe import MaybeGeneratorSpec
 from mock_engine.contracts.object import ObjectGeneratorSpec
+
 # GeneratorRegistry no longer needed - using unified Registry
 from mock_engine.schema.builder import _flatten
 from mock_engine.schema.registry import SchemaRegistry
@@ -22,6 +22,7 @@ class SchemaDriftOp(BaseChaosOp):
 
     key = "schema_drift"
     layer_kind = "schema_drift"
+    phase = "pre"
 
     def __init__(
         self,
@@ -148,7 +149,11 @@ class SchemaDriftOp(BaseChaosOp):
             spec["string_type"] = "word"
 
         if rng.random() < self.maybe_probability:
-            spec = {"type": "maybe", "p_null": round(rng.uniform(0.1, 0.5), 2), "child": spec}
+            spec = {
+                "type": "maybe",
+                "p_null": round(rng.uniform(0.1, 0.5), 2),
+                "child": spec,
+            }
         return spec
 
     def _add_field(self, obj_spec: ObjectGeneratorSpec, rng: Any) -> Optional[str]:
@@ -258,6 +263,7 @@ class SchemaDriftOp(BaseChaosOp):
             rng.shuffle(candidates)
         else:
             import random
+
             random.shuffle(candidates)
 
         modifications: List[str] = []

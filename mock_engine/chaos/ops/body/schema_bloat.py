@@ -33,14 +33,14 @@ class SchemaBloatOp(BaseChaosOp):
     key = "schema_bloat"
 
     def __init__(
-            self,
-            *,
-            enabled: bool,
-            p: float = 0.0,
-            weight: float = 1.0,
-            extra_kb: int = 32,
-            strategy: str = "insert",
-            **kw,
+        self,
+        *,
+        enabled: bool,
+        p: float = 0.0,
+        weight: float = 1.0,
+        extra_kb: int = 32,
+        strategy: str = "insert",
+        **kw,
     ) -> None:
         super().__init__(enabled=enabled, p=p, weight=weight, **kw)
         self.extra_kb = max(0, int(extra_kb or 0))
@@ -53,8 +53,7 @@ class SchemaBloatOp(BaseChaosOp):
         L = len(pool)
         return "".join(pool[int(rng.random() * L)] for _ in range(n))
 
-    def _inflate_insert(self, s: str, need: int, rng: random.Random) -> tuple[
-        str, int]:
+    def _inflate_insert(self, s: str, need: int, rng: random.Random) -> tuple[str, int]:
         if need <= 0:
             return s, 0
         chunk = min(max(8, need // 4), need)
@@ -63,8 +62,7 @@ class SchemaBloatOp(BaseChaosOp):
         out = s[:pos] + ins + s[pos:]
         return out, len(ins)
 
-    def _inflate_repeat(self, s: str, need: int, rng: random.Random) -> tuple[
-        str, int]:
+    def _inflate_repeat(self, s: str, need: int, rng: random.Random) -> tuple[str, int]:
         if not s:
             return self._inflate_insert(s, need, rng)
         token = s
@@ -75,8 +73,9 @@ class SchemaBloatOp(BaseChaosOp):
         if not token:
             token = s
         max_chunk = max(8, need)
-        reps = max(1, min(need // max(1, len(token)),
-                          64))  # cap reps to avoid huge loops
+        reps = max(
+            1, min(need // max(1, len(token)), 64)
+        )  # cap reps to avoid huge loops
         addition = (token + " ") * reps
         out = s + addition
         added = len(addition)
@@ -85,13 +84,11 @@ class SchemaBloatOp(BaseChaosOp):
             added = need
         return out, added
 
-    def apply(self, *, request, response, body: Any,
-              rng: random.Random) -> ApplyResult:
+    def apply(self, *, request, response, body: Any, rng: random.Random) -> ApplyResult:
         if not isinstance(body, (dict, list)):
             return ApplyResult(body=body, descriptions=[])
 
-        slots = list(
-            iter_leaf_refs(body, predicate=lambda v: isinstance(v, str)))
+        slots = list(iter_leaf_refs(body, predicate=lambda v: isinstance(v, str)))
         if not slots:
             return ApplyResult(body=body, descriptions=[])
 
@@ -130,5 +127,6 @@ class SchemaBloatOp(BaseChaosOp):
         return ApplyResult(
             body=body,
             descriptions=[
-                f"schema_bloat(path={path},+{bytes_added} bytes,strat={strat})"],
+                f"schema_bloat(path={path},+{bytes_added} bytes,strat={strat})"
+            ],
         )

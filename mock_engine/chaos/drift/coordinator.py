@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 
 @dataclass
@@ -67,7 +67,7 @@ class DriftCoordinator:
         self._schemas: Dict[str, _SchemaDriftState] = {}
 
     def _ensure_state(
-            self, schema_name: str, *, layering_enabled: Optional[bool] = None
+        self, schema_name: str, *, layering_enabled: Optional[bool] = None
     ) -> _SchemaDriftState:
         state = self._schemas.get(schema_name)
         if state is None:
@@ -82,15 +82,15 @@ class DriftCoordinator:
             self._schemas.pop(state.schema_name, None)
 
     def create_and_register_layer(
-            self,
-            *,
-            schema_name: str,
-            strategy: str,
-            mutation_fn: Callable[[str], Tuple[str, List[str]]],
-            layering_enabled: bool = True,
-            max_hits: Optional[int] = None,
-            request_quota: Optional[int] = None,
-            metadata: Optional[Dict[str, object]] = None,
+        self,
+        *,
+        schema_name: str,
+        strategy: str,
+        mutation_fn: Callable[[str], Tuple[str, List[str]]],
+        layering_enabled: bool = True,
+        max_hits: Optional[int] = None,
+        request_quota: Optional[int] = None,
+        metadata: Optional[Dict[str, object]] = None,
     ) -> DriftLayer:
         """Create and register a new drift layer with auto-generated revision name.
 
@@ -109,8 +109,7 @@ class DriftCoordinator:
         import time
 
         with self._lock:
-            state = self._ensure_state(schema_name,
-                                       layering_enabled=layering_enabled)
+            state = self._ensure_state(schema_name, layering_enabled=layering_enabled)
             next_index = sum(1 for _ in state.iter_strategy_layers(strategy)) + 1
             timestamp = int(time.time() * 1000)
             revision_name = f"{schema_name}_{strategy}_{next_index}_{timestamp}"
@@ -132,21 +131,20 @@ class DriftCoordinator:
             return layer
 
     def register_layer(
-            self,
-            *,
-            schema_name: str,
-            strategy: str,
-            revision: str,
-            modifications: Optional[List[str]] = None,
-            layering_enabled: bool = True,
-            max_hits: Optional[int] = None,
-            request_quota: Optional[int] = None,
-            metadata: Optional[Dict[str, object]] = None,
+        self,
+        *,
+        schema_name: str,
+        strategy: str,
+        revision: str,
+        modifications: Optional[List[str]] = None,
+        layering_enabled: bool = True,
+        max_hits: Optional[int] = None,
+        request_quota: Optional[int] = None,
+        metadata: Optional[Dict[str, object]] = None,
     ) -> DriftLayer:
         """Register a new drift layer and return its descriptor."""
         with self._lock:
-            state = self._ensure_state(schema_name,
-                                       layering_enabled=layering_enabled)
+            state = self._ensure_state(schema_name, layering_enabled=layering_enabled)
             index = sum(1 for _ in state.iter_strategy_layers(strategy)) + 1
             layer = DriftLayer(
                 schema_name=schema_name,
@@ -162,8 +160,7 @@ class DriftCoordinator:
             state.current_revision = revision
             return layer
 
-    def remove_layer(self, schema_name: str, strategy: str,
-                     index: int) -> None:
+    def remove_layer(self, schema_name: str, strategy: str, index: int) -> None:
         """Remove a specific layer by strategy + index."""
         with self._lock:
             state = self._schemas.get(schema_name)
@@ -192,13 +189,13 @@ class DriftCoordinator:
             return state.active_layers() if state else ()
 
     def allow_activation(
-            self,
-            schema_name: str,
-            strategy: str,
-            *,
-            layering_enabled: bool = True,
-            max_layers_total: Optional[int] = None,
-            max_layers_per_strategy: Optional[int] = None,
+        self,
+        schema_name: str,
+        strategy: str,
+        *,
+        layering_enabled: bool = True,
+        max_layers_total: Optional[int] = None,
+        max_layers_per_strategy: Optional[int] = None,
     ) -> bool:
         """Check whether a new layer may be activated."""
         with self._lock:
@@ -207,17 +204,15 @@ class DriftCoordinator:
                 return True
 
             if not layering_enabled and any(
-                    layer.strategy == strategy for layer in state.layers
+                layer.strategy == strategy for layer in state.layers
             ):
                 return False
 
-            if max_layers_total is not None and len(
-                    state.layers) >= max_layers_total:
+            if max_layers_total is not None and len(state.layers) >= max_layers_total:
                 return False
 
             if max_layers_per_strategy is not None:
-                current = sum(
-                    1 for layer in state.layers if layer.strategy == strategy)
+                current = sum(1 for layer in state.layers if layer.strategy == strategy)
                 if current >= max_layers_per_strategy:
                     return False
 
@@ -232,26 +227,22 @@ class DriftCoordinator:
             state = self._schemas.get(schema_name)
             if state is None:
                 return 0
-            return sum(
-                1 for layer in state.layers if layer.strategy == strategy)
+            return sum(1 for layer in state.layers if layer.strategy == strategy)
 
-    def record_approval(self, schema_name: str, strategy: str) -> Optional[
-        DriftLayer]:
+    def record_approval(self, schema_name: str, strategy: str) -> Optional[DriftLayer]:
         """Increment approval counter prior to actual hit (for backoff gates)."""
         with self._lock:
             state = self._schemas.get(schema_name)
             if state is None:
                 return None
-            matching = [layer for layer in state.layers if
-                        layer.strategy == strategy]
+            matching = [layer for layer in state.layers if layer.strategy == strategy]
             if not matching:
                 return None
             layer = matching[-1]
             layer.approvals += 1
             return layer
 
-    def record_hit(self, schema_name: str, strategy: str) -> Optional[
-        DriftLayer]:
+    def record_hit(self, schema_name: str, strategy: str) -> Optional[DriftLayer]:
         """Increment hit counters for the newest matching layer.
 
         Returns the layer if it remains active, or ``None`` if it should expire.
@@ -260,8 +251,7 @@ class DriftCoordinator:
             state = self._schemas.get(schema_name)
             if state is None:
                 return None
-            matching = [layer for layer in state.layers if
-                        layer.strategy == strategy]
+            matching = [layer for layer in state.layers if layer.strategy == strategy]
             if not matching:
                 return None
 

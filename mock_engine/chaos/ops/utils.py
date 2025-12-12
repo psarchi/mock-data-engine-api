@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, Iterator, NamedTuple, Sequence
+from typing import Any, Callable, Iterable, Iterator, NamedTuple
 
 
 class NodeRef(NamedTuple):
@@ -14,8 +14,7 @@ class NodeRef(NamedTuple):
 
 def iter_nodes(root: Any) -> Iterator[NodeRef]:
     """Depth-first traversal yielding NodeRef for every node."""
-    stack: list[NodeRef] = [
-        NodeRef(parent=None, key=None, path="", value=root)]
+    stack: list[NodeRef] = [NodeRef(parent=None, key=None, path="", value=root)]
     while stack:
         ref = stack.pop()
         yield ref
@@ -23,20 +22,20 @@ def iter_nodes(root: Any) -> Iterator[NodeRef]:
         if isinstance(value, dict):
             for k, v in value.items():
                 child_path = f"{ref.path}.{k}" if ref.path else str(k)
-                stack.append(
-                    NodeRef(parent=value, key=k, path=child_path, value=v))
+                stack.append(NodeRef(parent=value, key=k, path=child_path, value=v))
         elif isinstance(value, list):
             for idx, item in enumerate(value):
                 child_path = f"{ref.path}[{idx}]" if ref.path else f"[{idx}]"
-                stack.append(NodeRef(parent=value, key=idx, path=child_path,
-                                     value=item))
+                stack.append(
+                    NodeRef(parent=value, key=idx, path=child_path, value=item)
+                )
 
 
 def iter_lists(
-        root: Any,
-        *,
-        include_root: bool = True,
-        root_label: str = "[root]",
+    root: Any,
+    *,
+    include_root: bool = True,
+    root_label: str = "[root]",
 ) -> Iterator[tuple[str, list[Any], Any, Any]]:
     """Yield (path, list_obj, parent, key) for every list in *root*."""
     for ref in iter_nodes(root):
@@ -47,9 +46,9 @@ def iter_lists(
 
 
 def iter_leaf_refs(
-        root: Any,
-        *,
-        predicate: Callable[[Any], bool] | None = None,
+    root: Any,
+    *,
+    predicate: Callable[[Any], bool] | None = None,
 ) -> Iterator[NodeRef]:
     """Yield NodeRef instances for scalar (non-dict/list) values."""
     for ref in iter_nodes(root):
@@ -61,9 +60,9 @@ def iter_leaf_refs(
 
 
 def iter_dict_entries(
-        root: Any,
-        *,
-        skip_keys: Iterable[str] | None = None,
+    root: Any,
+    *,
+    skip_keys: Iterable[str] | None = None,
 ) -> Iterator[NodeRef]:
     """Yield NodeRef for values whose parent is a dict (optionally skipping keys)."""
     skip: set[str] = set(skip_keys or ())

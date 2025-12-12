@@ -26,16 +26,23 @@ Notes:
   - This op corrupts content; it does not drop items.
 """
 
-    def __init__(self, *, enabled: bool, p: float = 0.0, weight: float = 1.0,
-                 min_items: int = 1, max_items: int = 3, **kw) -> None:
+    def __init__(
+        self,
+        *,
+        enabled: bool,
+        p: float = 0.0,
+        weight: float = 1.0,
+        min_items: int = 1,
+        max_items: int = 3,
+        **kw,
+    ) -> None:
         super().__init__(enabled=enabled, p=p, weight=weight, **kw)
         # kept for cfg compatibility, but unused in string-truncate mode
         self.min_items = int(min_items or 1)
         # cap the number of corrupted nodes per apply()
         self.max_items = max(1, int(max_items or 1))
 
-    def apply(self, *, request, response, body: Any,
-              rng: random.Random) -> ApplyResult:
+    def apply(self, *, request, response, body: Any, rng: random.Random) -> ApplyResult:
         """Corrupt JSON as text.
 
         - If top-level body['items'] exists and is a list: choose K indices
@@ -65,7 +72,8 @@ Notes:
                 for idx, obj in enumerate(items):
                     for ref in iter_nodes(obj):
                         candidates.append(
-                            (idx, ref.parent, ref.key, ref.path, ref.value))
+                            (idx, ref.parent, ref.key, ref.path, ref.value)
+                        )
 
                 m = len(candidates)
                 if m > 0:
@@ -79,8 +87,7 @@ Notes:
                             item_idx, parent, key, path, node = candidates[j]
                             frag, cut, total = _trunc_text(_to_bytes(node))
                             items[item_idx] = frag
-                            desc.append(
-                                f"truncate(items[{item_idx}]:{cut}/{total})")
+                            desc.append(f"truncate(items[{item_idx}]:{cut}/{total})")
                         return ApplyResult(body=body, descriptions=desc)
 
                     desc: list[str] = []
@@ -93,8 +100,7 @@ Notes:
                                 path = ""
                             elif isinstance(parent, dict):
                                 parent[key] = frag
-                            elif isinstance(parent, list) and isinstance(key,
-                                                                         int):
+                            elif isinstance(parent, list) and isinstance(key, int):
                                 parent[key] = frag
                             else:
                                 # unexpected shape -> replace whole item
@@ -104,13 +110,13 @@ Notes:
                             items[item_idx] = frag
                             path = ""
 
-                        dot = ('.' + path) if path else ''
-                        desc.append(
-                            f"truncate(items[{item_idx}]{dot}:{cut}/{total})")
+                        dot = ("." + path) if path else ""
+                        desc.append(f"truncate(items[{item_idx}]{dot}:{cut}/{total})")
 
                     return ApplyResult(body=body, descriptions=desc)
 
         b = _to_bytes(body)
         frag, cut, total = _trunc_text(b)
-        return ApplyResult(body=frag,
-                           descriptions=[f"truncate(body_text:{cut}/{total})"])
+        return ApplyResult(
+            body=frag, descriptions=[f"truncate(body_text:{cut}/{total})"]
+        )

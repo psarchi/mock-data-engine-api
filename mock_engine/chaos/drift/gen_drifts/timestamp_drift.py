@@ -43,10 +43,10 @@ class TimestampDataDrift(DriftSpec):
 
     @staticmethod
     def handle_data(
-            spec: TimestampGeneratorSpec,
-            rng: Random,
-            budget: int,
-            config: Optional[Dict[str, Any]] = None,
+        spec: TimestampGeneratorSpec,
+        rng: Random,
+        budget: int,
+        config: Optional[Dict[str, Any]] = None,
     ) -> Optional[DriftResult | str]:
         start_val, start_kind = _normalize(spec.start)
         end_val, end_kind = _normalize(spec.end)

@@ -8,15 +8,10 @@ from mock_engine.chaos.drift import get_drift_coordinator
 from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
 from mock_engine.chaos.drift.errors import DriftMutationError
 from mock_engine.contracts.array import ArrayGeneratorSpec
-from mock_engine.contracts.enum import EnumGeneratorSpec
-from mock_engine.contracts.float import FloatGeneratorSpec
-from mock_engine.contracts.int import IntGeneratorSpec
 from mock_engine.contracts.maybe import MaybeGeneratorSpec
 from mock_engine.contracts.object import ObjectGeneratorSpec
 from mock_engine.contracts.one_of import OneOfGeneratorSpec
 from mock_engine.contracts.select import SelectGeneratorSpec
-from mock_engine.contracts.string import StringGeneratorSpec
-from mock_engine.contracts.timestamp import TimestampGeneratorSpec
 from mock_engine.schema.builder import _flatten
 from mock_engine.schema.registry import SchemaRegistry
 from mock_engine.registry import Registry
@@ -28,6 +23,7 @@ class DataDriftOp(BaseChaosOp):
 
     key = "data_drift"
     layer_kind = "data_drift"
+    phase = "pre"
 
     def __init__(
         self,
@@ -58,7 +54,10 @@ class DataDriftOp(BaseChaosOp):
             self.spec_config = self.spec_config["value"]
 
         self.default_spec_config: Dict[str, Any] = raw_config.get("default", {})
-        if isinstance(self.default_spec_config, dict) and "value" in self.default_spec_config:
+        if (
+            isinstance(self.default_spec_config, dict)
+            and "value" in self.default_spec_config
+        ):
             self.default_spec_config = self.default_spec_config["value"] or {}
 
         cfg_max = raw_config.get("max_mutations")
@@ -102,7 +101,7 @@ class DataDriftOp(BaseChaosOp):
                 j = i + 1
                 while j < len(path) and path[j].isdigit():
                     j += 1
-                segments.append(f"|{path[i+1:j]}")
+                segments.append(f"|{path[i + 1 : j]}")
                 i = j
                 continue
             buffer += ch
@@ -203,8 +202,8 @@ class DataDriftOp(BaseChaosOp):
         """Recursively unwrap 'value' wrappers from config dict."""
         if not isinstance(cfg, dict):
             return cfg
-        if 'value' in cfg and len(cfg) == 1:
-            return DataDriftOp._unwrap_config(cfg['value'])
+        if "value" in cfg and len(cfg) == 1:
+            return DataDriftOp._unwrap_config(cfg["value"])
         return {k: DataDriftOp._unwrap_config(v) for k, v in cfg.items()}
 
     def _spec_config_for(self, spec_obj: Any) -> Dict[str, Any]:
@@ -225,9 +224,10 @@ class DataDriftOp(BaseChaosOp):
             specific = self._unwrap_config(specific)
             cfg.update(specific)
 
-        if isinstance(spec_obj, MaybeGeneratorSpec) and getattr(
-            spec_obj, "child", None
-        ) is not None:
+        if (
+            isinstance(spec_obj, MaybeGeneratorSpec)
+            and getattr(spec_obj, "child", None) is not None
+        ):
             child_cfg = self._spec_config_for(spec_obj.child)
             if child_cfg:
                 cfg = dict(cfg)

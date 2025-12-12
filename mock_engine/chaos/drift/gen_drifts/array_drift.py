@@ -14,10 +14,10 @@ class ArrayDataDrift(DriftSpec):
 
     @staticmethod
     def handle_data(
-            spec: ArrayGeneratorSpec,
-            rng: Random,
-            budget: int,
-            config: Optional[Dict[str, Any]] = None,
+        spec: ArrayGeneratorSpec,
+        rng: Random,
+        budget: int,
+        config: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         tweaks: list[str] = []
         cfg = config or {}

@@ -15,10 +15,10 @@ class MaybeDataDrift(DriftSpec):
 
     @staticmethod
     def handle_data(
-            spec: MaybeGeneratorSpec,
-            rng: Random,
-            budget: int,
-            config: Optional[Dict[str, Any]] = None,
+        spec: MaybeGeneratorSpec,
+        rng: Random,
+        budget: int,
+        config: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         tweaks: list[str] = []
         cfg = config or {}

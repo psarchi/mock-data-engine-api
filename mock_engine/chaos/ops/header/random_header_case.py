@@ -4,7 +4,6 @@ import random
 from typing import Any, Iterable, Sequence
 
 from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
-from mock_engine.registry import Registry
 
 
 def _randcase(s: str, rng: random.Random) -> str:
@@ -17,7 +16,7 @@ def _randcase(s: str, rng: random.Random) -> str:
             out.append(ch.lower())
     return "".join(out)
 
-@Registry.register(BaseChaosOp)
+
 class RandomHeaderCaseOp(BaseChaosOp):
     """Mutate header *values* by changing their casing.
 
@@ -28,20 +27,19 @@ class RandomHeaderCaseOp(BaseChaosOp):
     key = "random_header_case"
 
     def __init__(
-            self,
-            *,
-            enabled: bool,
-            p: float = 0.0,
-            weight: float = 1.0,
-            headers: Sequence[str] | None = None,
-            mode: str = "random",
-            **kw: Any,
+        self,
+        *,
+        enabled: bool,
+        p: float = 0.0,
+        weight: float = 1.0,
+        headers: Sequence[str] | None = None,
+        mode: str = "random",
+        **kw: Any,
     ) -> None:
         super().__init__(enabled=enabled, p=p, weight=weight, **kw)
         self.headers = tuple(h.lower() for h in (headers or ("content-type",)))
         mode_norm = (mode or "random").strip().lower()
-        self.mode = mode_norm if mode_norm in {"random", "upper",
-                                               "lower"} else "random"
+        self.mode = mode_norm if mode_norm in {"random", "upper", "lower"} else "random"
 
     @staticmethod
     def _targets(names: Iterable[str]) -> set[str]:
@@ -55,12 +53,12 @@ class RandomHeaderCaseOp(BaseChaosOp):
         return _randcase(value, rng)
 
     def apply(
-            self,
-            *,
-            request,
-            response,
-            body: Any,
-            rng: random.Random,
+        self,
+        *,
+        request,
+        response,
+        body: Any,
+        rng: random.Random,
     ) -> ApplyResult:
         mutated: list[str] = []
         try:
@@ -76,6 +74,5 @@ class RandomHeaderCaseOp(BaseChaosOp):
         except Exception:
             mutated.clear()
 
-        descriptions = [
-            f"random_header_case({','.join(mutated)})"] if mutated else []
+        descriptions = [f"random_header_case({','.join(mutated)})"] if mutated else []
         return ApplyResult(body=body, descriptions=descriptions)

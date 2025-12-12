@@ -15,10 +15,10 @@ class SelectDataDrift(DriftSpec):
 
     @staticmethod
     def handle_data(
-            spec: SelectGeneratorSpec,
-            rng: Random,
-            budget: int,
-            config: Optional[Dict[str, Any]] = None,
+        spec: SelectGeneratorSpec,
+        rng: Random,
+        budget: int,
+        config: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         options = spec.options or {}
         if not options:
@@ -47,9 +47,7 @@ class SelectDataDrift(DriftSpec):
         if budget > 1:
             child_cfg = cfg.get("child")
             key, value = rng_choice(rng, items)
-            result = run_drift(
-                "data", value, rng, max(1, budget - 1), config=child_cfg
-            )
+            result = run_drift("data", value, rng, max(1, budget - 1), config=child_cfg)
             if result:
                 if result.summary:
                     tweaks.append(f"{key}[{result.summary}]")

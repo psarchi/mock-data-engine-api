@@ -14,8 +14,9 @@ class OneOfDataDrift(DriftSpec):
     handlers = {"data": "handle_data"}
 
     @staticmethod
-    def _adjust_weights(weights: list[float], rng: Random,
-                        cfg: Dict[str, Any]) -> Optional[str]:
+    def _adjust_weights(
+        weights: list[float], rng: Random, cfg: Dict[str, Any]
+    ) -> Optional[str]:
         if len(weights) < 2:
             return None
 
@@ -46,11 +47,11 @@ class OneOfDataDrift(DriftSpec):
 
     @classmethod
     def handle_data(
-            cls,
-            spec: OneOfGeneratorSpec,
-            rng: Random,
-            budget: int,
-            config: Optional[Dict[str, Any]] = None,
+        cls,
+        spec: OneOfGeneratorSpec,
+        rng: Random,
+        budget: int,
+        config: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
         tweaks: list[str] = []
         cfg = config or {}
