@@ -1,12 +1,17 @@
 fastapi
 pydantic
 uvicorn
+websockets
 pyyaml
 faker
 exrex
 pytest
+pytest-asyncio
 structlog
 prometheus-client
 redis>=5.0.0
 asyncpg>=0.29.0
 nanoid>=2.0.0
+uvloop>=0.22.1
+orjson>=3.10.0
+ruff

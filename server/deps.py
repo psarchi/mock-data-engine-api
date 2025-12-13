@@ -1,5 +1,5 @@
-
 """Dependency providers for FastAPI routes (new schema pipeline)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -76,9 +76,11 @@ def warmup_all(limit: int | None = None) -> int:
             continue
     return count
 
+
 def get_settings():
     from mock_engine.config import get_config_manager
     from mock_engine.config.access import ensure_config_fresh
+
     cm = get_config_manager()
     ensure_config_fresh()
     return cm

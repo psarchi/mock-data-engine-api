@@ -4,7 +4,6 @@ import asyncio
 import json
 import os
 import sys
-from typing import Any
 
 from mock_engine.persistence.client import RedisClient, PostgresClient
 from mock_engine.observability import (
@@ -34,7 +33,10 @@ class MetricsCollector:
         await self.redis.connect()
         await self.postgres.connect()
 
-        print(f"Metrics collector started (interval: {self.interval_seconds}s)", file=sys.stderr)
+        print(
+            f"Metrics collector started (interval: {self.interval_seconds}s)",
+            file=sys.stderr,
+        )
 
         try:
             while self._running:
@@ -112,7 +114,9 @@ class MetricsCollector:
                     schema_name = row["schema_name"]
                     size_bytes = row["size_bytes"] or 0
                     size_mb = size_bytes / (1024 * 1024)
-                    persistence_postgres_cache_size_mb.labels(schema=schema_name).set(size_mb)
+                    persistence_postgres_cache_size_mb.labels(schema=schema_name).set(
+                        size_mb
+                    )
 
         except Exception as e:
             print(f"Error collecting PostgreSQL sizes: {e}", file=sys.stderr)
@@ -128,15 +132,21 @@ async def main():
         cm = get_config_manager()
         cfg = cm.get_root("server").persistence.metrics_collector  # type: ignore
 
-        metrics_port = int(os.getenv("METRICS_PORT", getattr(cfg, "metrics_port", 8003)))
-        interval = int(os.getenv("METRICS_INTERVAL", getattr(cfg, "interval_seconds", 30)))
+        metrics_port = int(
+            os.getenv("METRICS_PORT", getattr(cfg, "metrics_port", 8003))
+        )
+        interval = int(
+            os.getenv("METRICS_INTERVAL", getattr(cfg, "interval_seconds", 30))
+        )
 
     except (AttributeError, TypeError, Exception):
         metrics_port = int(os.getenv("METRICS_PORT", "8003"))
         interval = int(os.getenv("METRICS_INTERVAL", "30"))
 
     start_http_server(metrics_port, registry=registry)
-    print(f"Metrics collector HTTP server started on port {metrics_port}", file=sys.stderr)
+    print(
+        f"Metrics collector HTTP server started on port {metrics_port}", file=sys.stderr
+    )
 
     collector = MetricsCollector(interval_seconds=interval)
 

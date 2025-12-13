@@ -1,4 +1,3 @@
-"""Generate unique dataset IDs."""
 from __future__ import annotations
 
 from nanoid import generate

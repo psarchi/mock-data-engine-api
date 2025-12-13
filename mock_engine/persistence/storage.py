@@ -1,4 +1,5 @@
 """Unified storage interface for persistence operations."""
+
 from __future__ import annotations
 
 import hashlib
@@ -11,12 +12,6 @@ from typing import Any
 from mock_engine.persistence.client import RedisClient, PostgresClient
 from mock_engine.persistence.id_generator import generate_id
 from mock_engine.persistence.models import StoredDataset, DatasetMetadata
-from mock_engine.persistence.errors import (
-    StorageError,
-    RedisError,
-    PostgresError,
-    DataSerializationError,
-)
 from mock_engine.observability import (
     persistence_writes_total,
     persistence_reads_total,
@@ -92,14 +87,24 @@ class StorageManager:
         """
         dataset_id = generate_id()
 
-        ttl_hours = self.config.get("persistence", {}).get("redis", {}).get("ttl_hours", 24)
-        retention_days = self.config.get("persistence", {}).get("postgres", {}).get("retention_days", 30)
+        ttl_hours = (
+            self.config.get("persistence", {}).get("redis", {}).get("ttl_hours", 24)
+        )
+        retention_days = (
+            self.config.get("persistence", {})
+            .get("postgres", {})
+            .get("retention_days", 30)
+        )
 
         created_at = datetime.utcnow()
         expires_at = created_at + timedelta(days=retention_days)
 
         schema_hash = None
-        if self.config.get("persistence", {}).get("schema_tracking", {}).get("enabled", True):
+        if (
+            self.config.get("persistence", {})
+            .get("schema_tracking", {})
+            .get("enabled", True)
+        ):
             schema_hash = self._compute_schema_hash(schema_name)
 
         stored_data = {
@@ -117,16 +122,24 @@ class StorageManager:
         try:
             await self.redis.set(dataset_id, stored_data, ttl_hours=ttl_hours)
 
-            dataset_size = len(json.dumps(stored_data).encode('utf-8'))
-            persistence_dataset_size_bytes.labels(schema=schema_name).observe(dataset_size)
+            dataset_size = len(json.dumps(stored_data).encode("utf-8"))
+            persistence_dataset_size_bytes.labels(schema=schema_name).observe(
+                dataset_size
+            )
 
-            persistence_writes_total.labels(schema=schema_name, status='success').inc()
-            persistence_redis_writes_total.labels(schema=schema_name, status='success').inc()
+            persistence_writes_total.labels(schema=schema_name, status="success").inc()
+            persistence_redis_writes_total.labels(
+                schema=schema_name, status="success"
+            ).inc()
 
         except Exception as e:
-            persistence_writes_total.labels(schema=schema_name, status='error').inc()
-            persistence_redis_writes_total.labels(schema=schema_name, status='error').inc()
-            persistence_errors_total.labels(operation='save', error_type=type(e).__name__).inc()
+            persistence_writes_total.labels(schema=schema_name, status="error").inc()
+            persistence_redis_writes_total.labels(
+                schema=schema_name, status="error"
+            ).inc()
+            persistence_errors_total.labels(
+                operation="save", error_type=type(e).__name__
+            ).inc()
             raise
 
         return dataset_id
@@ -144,7 +157,7 @@ class StorageManager:
 
         if data:
             schema_name = data.get("schema_name", "unknown")
-            persistence_reads_total.labels(schema=schema_name, source='redis').inc()
+            persistence_reads_total.labels(schema=schema_name, source="redis").inc()
             persistence_cache_hits_total.labels(schema=schema_name).inc()
             return StoredDataset(**data)
 
@@ -152,7 +165,7 @@ class StorageManager:
 
         if pg_data:
             schema_name = pg_data.get("schema_name", "unknown")
-            persistence_reads_total.labels(schema=schema_name, source='postgres').inc()
+            persistence_reads_total.labels(schema=schema_name, source="postgres").inc()
             persistence_cache_misses_total.labels(schema=schema_name).inc()
 
             # Serialize datetime objects before caching to Redis
@@ -165,7 +178,9 @@ class StorageManager:
             await self.redis.set(
                 dataset_id,
                 cache_data,
-                ttl_hours=self.config.get("persistence", {}).get("redis", {}).get("ttl_hours", 24),
+                ttl_hours=self.config.get("persistence", {})
+                .get("redis", {})
+                .get("ttl_hours", 24),
             )
             return StoredDataset(**pg_data)
 

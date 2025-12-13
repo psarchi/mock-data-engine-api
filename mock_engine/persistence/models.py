@@ -1,4 +1,5 @@
 """Data models for persistence layer."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -19,9 +20,7 @@ class StoredDataset(BaseModel):
     expires_at: datetime
 
     class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 class DatasetMetadata(BaseModel):
@@ -36,6 +35,4 @@ class DatasetMetadata(BaseModel):
     expires_at: datetime
 
     class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+        json_encoders = {datetime: lambda v: v.isoformat()}

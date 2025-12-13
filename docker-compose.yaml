@@ -20,9 +20,44 @@ services:
       uvicorn server.app:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WORKERS:-8}"
     environment:
       - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
       - PROMETHEUS_MULTIPROC_DIR=/tmp/prom-mp
       - REDIS_URL=${PERSISTENCE_REDIS_URL:-redis://redis:6379}
       - DATABASE_URL=${PERSISTENCE_POSTGRES_URL:-postgresql://mock_user:mock_pass@postgres:5432/mock_engine}
+    tmpfs:
+      - /tmp/prom-mp
+    networks:
+      - mock-engine
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  generation-worker:
+    build:
+      context: .
+      dockerfile: containers/api/Dockerfile
+    container_name: mock-engine-generation-worker
+    env_file:
+      - .env
+    ports:
+      - "8004:8004"
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: >
+      sh -c "mkdir -p /tmp/prom-mp &&
+      rm -rf /tmp/prom-mp/* &&
+      python -m mock_engine.pregeneration.worker"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prom-mp
+      - DISABLE_GENERATOR_METRICS=1
+      - REDIS_URL=${PERSISTENCE_REDIS_URL:-redis://redis:6379}
+      - PREGEN_SCHEMAS=${PREGENERATION_SCHEMAS:-ga4}
+      - PREGEN_MAX_ITEMS=${PREGEN_MAX_ITEMS:-}
+      - WORKERS=${GEN_WORKERS:-4}
+      - METRICS_PORT=8004
     tmpfs:
       - /tmp/prom-mp
     networks:
@@ -48,6 +83,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "${OBSERVABILITY_GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - ./containers/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - mock-engine
     depends_on:
@@ -59,15 +96,15 @@ services:
 
   redis:
     build:
-      context: .
-      dockerfile: containers/redis/Dockerfile
+      context: containers/redis
+      dockerfile: Dockerfile
     container_name: mock-engine-redis
     env_file:
       - .env
     ports:
       - "${PERSISTENCE_REDIS_PORT:-6379}:6379"
     volumes:
-      - ./redis-data:/data
+      - redisdata:/data
     environment:
       - REDIS_MAXMEMORY=${PERSISTENCE_REDIS_MAXMEMORY:-10gb}
       - REDIS_MAXMEMORY_POLICY=${PERSISTENCE_REDIS_MAXMEMORY_POLICY:-allkeys-lru}
@@ -83,7 +120,7 @@ services:
     ports:
       - "${PERSISTENCE_POSTGRES_PORT:-5432}:5432"
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     environment:
       POSTGRES_DB: ${PERSISTENCE_POSTGRES_DB:-mock_engine}
       POSTGRES_USER: ${PERSISTENCE_POSTGRES_USER:-mock_user}
@@ -137,6 +174,7 @@ services:
       - DATABASE_URL=${PERSISTENCE_POSTGRES_URL:-postgresql://mock_user:mock_pass@postgres:5432/mock_engine}
       - SYNC_INTERVAL=${PERSISTENCE_BATCH_SYNC_INTERVAL_SECONDS:-3}
       - METRICS_PORT=${PERSISTENCE_BATCH_SYNC_METRICS_PORT:-8001}
+      - PYTHONDONTWRITEBYTECODE=1
 
   metrics_collector:
     build:
@@ -161,7 +199,12 @@ services:
       - DATABASE_URL=${PERSISTENCE_POSTGRES_URL:-postgresql://mock_user:mock_pass@postgres:5432/mock_engine}
       - METRICS_PORT=${PERSISTENCE_METRICS_COLLECTOR_METRICS_PORT:-8003}
       - INTERVAL_SECONDS=${PERSISTENCE_METRICS_COLLECTOR_INTERVAL_SECONDS:-30}
+      - PYTHONDONTWRITEBYTECODE=1
 
 networks:
   mock-engine:
     driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:

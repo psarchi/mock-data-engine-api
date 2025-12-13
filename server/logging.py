@@ -53,7 +53,7 @@ def setup_logging() -> None:
             structlog.processors.add_log_level,
             structlog.processors.StackInfoRenderer(),
             structlog.dev.set_exc_info,
-            renderer
+            renderer,
         ],
         wrapper_class=structlog.make_filtering_bound_logger(log_level),
         context_class=dict,

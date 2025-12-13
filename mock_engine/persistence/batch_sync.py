@@ -10,7 +10,6 @@ from prometheus_client import start_http_server
 
 from mock_engine.persistence.client import RedisClient, PostgresClient
 from mock_engine.persistence.errors import (
-    BatchSyncError,
     RedisError,
     PostgresError,
     DataSerializationError,
@@ -47,7 +46,10 @@ class BatchSync:
         await self.redis.connect()
         await self.postgres.connect()
 
-        print(f"Batch sync started (interval: {self.interval_seconds}s, batch_limit: {self.batch_limit})", file=sys.stderr)
+        print(
+            f"Batch sync started (interval: {self.interval_seconds}s, batch_limit: {self.batch_limit})",
+            file=sys.stderr,
+        )
 
         try:
             while self._running:
@@ -63,9 +65,15 @@ class BatchSync:
                         break
 
                 if batch_count > 1:
-                    print(f"Drain complete: {total_synced} datasets synced across {batch_count} batches", file=sys.stderr)
+                    print(
+                        f"Drain complete: {total_synced} datasets synced across {batch_count} batches",
+                        file=sys.stderr,
+                    )
                 elif total_synced > 0:
-                    print(f"Batch sync complete: {total_synced} datasets synced", file=sys.stderr)
+                    print(
+                        f"Batch sync complete: {total_synced} datasets synced",
+                        file=sys.stderr,
+                    )
 
                 await asyncio.sleep(self.interval_seconds)
 
@@ -93,16 +101,22 @@ class BatchSync:
                 persistence_batch_sync_last_run_timestamp.set(time.time())
                 return 0
 
-            redis_keys = redis_keys[:self.batch_limit]
+            redis_keys = redis_keys[: self.batch_limit]
 
             redis_ids = redis_keys
             print(f"Found {len(redis_ids)} Redis keys to check", file=sys.stderr)
 
             missing_ids = await self.postgres.find_missing_ids(redis_ids)
-            print(f"Found {len(missing_ids)} missing datasets in PostgreSQL", file=sys.stderr)
+            print(
+                f"Found {len(missing_ids)} missing datasets in PostgreSQL",
+                file=sys.stderr,
+            )
 
             existing_ids = [id for id in redis_ids if id not in missing_ids]
-            print(f"Found {len(existing_ids)} datasets already in PostgreSQL (will delete from Redis)", file=sys.stderr)
+            print(
+                f"Found {len(existing_ids)} datasets already in PostgreSQL (will delete from Redis)",
+                file=sys.stderr,
+            )
 
             cleanup_count = 0
             for dataset_id in existing_ids:
@@ -137,18 +151,33 @@ class BatchSync:
                     data_bytes = len(json.dumps(data).encode("utf-8"))
                     total_bytes += data_bytes
 
-                    persistence_postgres_writes_total.labels(schema=schema_name, status='success').inc()
+                    persistence_postgres_writes_total.labels(
+                        schema=schema_name, status="success"
+                    ).inc()
                     synced_count += 1
 
                     await self.redis.delete(dataset_id)
-                    print(f"Synced and deleted dataset {dataset_id} from Redis", file=sys.stderr)
+                    print(
+                        f"Synced and deleted dataset {dataset_id} from Redis",
+                        file=sys.stderr,
+                    )
 
                 except (RedisError, PostgresError, DataSerializationError) as e:
-                    persistence_postgres_writes_total.labels(schema=schema_name, status='error').inc()
-                    print(f"Persistence error syncing dataset {dataset_id}: {e}", file=sys.stderr)
+                    persistence_postgres_writes_total.labels(
+                        schema=schema_name, status="error"
+                    ).inc()
+                    print(
+                        f"Persistence error syncing dataset {dataset_id}: {e}",
+                        file=sys.stderr,
+                    )
                 except Exception as e:
-                    persistence_postgres_writes_total.labels(schema=schema_name, status='error').inc()
-                    print(f"Unexpected error syncing dataset {dataset_id}: {e}", file=sys.stderr)
+                    persistence_postgres_writes_total.labels(
+                        schema=schema_name, status="error"
+                    ).inc()
+                    print(
+                        f"Unexpected error syncing dataset {dataset_id}: {e}",
+                        file=sys.stderr,
+                    )
 
             persistence_batch_sync_datasets_synced.inc(synced_count)
             persistence_batch_sync_bytes_synced.inc(total_bytes)
@@ -174,13 +203,19 @@ async def main():
         cm = get_config_manager()
         cfg = cm.get_root("server").persistence.batch_sync  # type: ignore
 
-        metrics_port = int(os.getenv("METRICS_PORT", getattr(cfg, "metrics_port", 8001)))
-        interval = int(os.getenv("SYNC_INTERVAL", getattr(cfg, "interval_seconds", 300)))
+        metrics_port = int(
+            os.getenv("METRICS_PORT", getattr(cfg, "metrics_port", 8001))
+        )
+        interval = int(
+            os.getenv("SYNC_INTERVAL", getattr(cfg, "interval_seconds", 300))
+        )
         batch_limit = int(os.getenv("BATCH_LIMIT", getattr(cfg, "batch_limit", 1000)))
 
         persistence_cfg = cm.get_root("server").persistence  # type: ignore
         redis_url = os.getenv("REDIS_URL", getattr(persistence_cfg.redis, "url", None))
-        postgres_url = os.getenv("DATABASE_URL", getattr(persistence_cfg.postgres, "url", None))
+        postgres_url = os.getenv(
+            "DATABASE_URL", getattr(persistence_cfg.postgres, "url", None)
+        )
 
     except (AttributeError, TypeError, Exception):
         metrics_port = int(os.getenv("METRICS_PORT", "8001"))
@@ -196,7 +231,7 @@ async def main():
         redis_url=redis_url,
         postgres_url=postgres_url,
         interval_seconds=interval,
-        batch_limit=batch_limit
+        batch_limit=batch_limit,
     )
 
     try:

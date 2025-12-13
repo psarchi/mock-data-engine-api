@@ -14,10 +14,14 @@ def main():
     if command == "batch_sync":
         from mock_engine.persistence.batch_sync import main as batch_sync_main
         import asyncio
+
         asyncio.run(batch_sync_main())
     elif command == "metrics_collector":
-        from mock_engine.persistence.metrics_collector import main as metrics_collector_main
+        from mock_engine.persistence.metrics_collector import (
+            main as metrics_collector_main,
+        )
         import asyncio
+
         asyncio.run(metrics_collector_main())
     else:
         print(f"Unknown command: {command}")

@@ -1,4 +1,3 @@
-"""Redis and PostgreSQL clients for persistence."""
 from __future__ import annotations
 
 import json
@@ -15,7 +14,6 @@ from mock_engine.persistence.errors import (
     RedisReadError,
     PostgresConnectionError,
     PostgresWriteError,
-    PostgresReadError,
     DataSerializationError,
 )
 
@@ -34,7 +32,9 @@ class RedisClient:
             try:
                 self._client = await redis.from_url(self.url, decode_responses=True)
             except Exception as e:
-                raise RedisConnectionError(f"Failed to connect to Redis at {self.url}: {e}") from e
+                raise RedisConnectionError(
+                    f"Failed to connect to Redis at {self.url}: {e}"
+                ) from e
 
     async def close(self) -> None:
         """Close Redis connection."""
@@ -45,12 +45,7 @@ class RedisClient:
         """Create prefixed key."""
         return f"{self.key_prefix}{id}"
 
-    async def set(
-        self,
-        id: str,
-        data: dict[str, Any],
-        ttl_hours: int = 24
-    ) -> bool:
+    async def set(self, id: str, data: dict[str, Any], ttl_hours: int = 24) -> bool:
         """Store dataset in Redis with TTL.
 
         Args:
@@ -74,7 +69,9 @@ class RedisClient:
             await self._client.set(key, value, ex=ttl_seconds)
             return True
         except (TypeError, ValueError) as e:
-            raise DataSerializationError(f"Failed to serialize data for {id}: {e}") from e
+            raise DataSerializationError(
+                f"Failed to serialize data for {id}: {e}"
+            ) from e
         except Exception as e:
             raise RedisWriteError(f"Failed to write to Redis key {id}: {e}") from e
 
@@ -101,7 +98,9 @@ class RedisClient:
                 return json.loads(value)
             return None
         except (TypeError, ValueError, json.JSONDecodeError) as e:
-            raise DataSerializationError(f"Failed to deserialize data for {id}: {e}") from e
+            raise DataSerializationError(
+                f"Failed to deserialize data for {id}: {e}"
+            ) from e
         except Exception as e:
             raise RedisReadError(f"Failed to read from Redis key {id}: {e}") from e
 
@@ -137,6 +136,141 @@ class RedisClient:
         keys = await self._client.keys(full_pattern)
         return [k.replace(self.key_prefix, "") for k in keys]
 
+    async def rpop(self, key: str) -> bytes | None:
+        """Remove and return the last element from a list.
+
+        Args:
+            key: List key (without prefix)
+
+        Returns:
+            The popped element or None if list is empty
+        """
+        if not self._client:
+            await self.connect()
+
+        if not self._client:
+            raise RedisConnectionError("Redis client not initialized")
+
+        try:
+            # Don't use key prefix for queue keys
+            return await self._client.rpop(key)
+        except Exception as e:
+            raise RedisReadError(f"Failed to rpop from Redis key {key}: {e}") from e
+
+    async def lpop(self, key: str, count: int | None = None):
+        """Pop one or more items from the head of a list without key prefix."""
+        if not self._client:
+            await self.connect()
+
+        if not self._client:
+            raise RedisConnectionError("Redis client not initialized")
+
+        try:
+            if count is None:
+                return await self._client.lpop(key)
+            return await self._client.lpop(key, count)
+        except Exception as e:
+            raise RedisReadError(f"Failed to lpop from Redis key {key}: {e}") from e
+
+    async def lpush(self, key: str, *values: bytes) -> int:
+        """Push one or more values to the head of a list.
+
+        Args:
+            key: List key (without prefix)
+            values: Values to push
+
+        Returns:
+            The length of the list after push
+        """
+        if not self._client:
+            await self.connect()
+
+        if not self._client:
+            raise RedisConnectionError("Redis client not initialized")
+
+        try:
+            # Don't use key prefix for queue keys
+            return await self._client.lpush(key, *values)
+        except Exception as e:
+            raise RedisWriteError(f"Failed to lpush to Redis key {key}: {e}") from e
+
+    async def llen(self, key: str) -> int:
+        """Get the length of a list.
+
+        Args:
+            key: List key (without prefix)
+
+        Returns:
+            The length of the list
+        """
+        if not self._client:
+            await self.connect()
+
+        if not self._client:
+            raise RedisConnectionError("Redis client not initialized")
+
+        try:
+            # Don't use key prefix for queue keys
+            return await self._client.llen(key)
+        except Exception as e:
+            raise RedisReadError(f"Failed to get length of Redis key {key}: {e}") from e
+
+    async def ltrim(self, key: str, start: int, stop: int) -> bool:
+        """Trim a list to the specified range.
+
+        Args:
+            key: List key (without prefix)
+            start: Start index
+            stop: Stop index
+
+        Returns:
+            True if successful
+        """
+        if not self._client:
+            await self.connect()
+
+        if not self._client:
+            raise RedisConnectionError("Redis client not initialized")
+
+        try:
+            # Don't use key prefix for queue keys
+            await self._client.ltrim(key, start, stop)
+            return True
+        except Exception as e:
+            raise RedisWriteError(f"Failed to ltrim Redis key {key}: {e}") from e
+
+    async def hgetall(self, key: str) -> dict[Any, Any]:
+        """Fetch all hash fields without key prefix."""
+        if not self._client:
+            await self.connect()
+
+        if not self._client:
+            raise RedisConnectionError("Redis client not initialized")
+
+        try:
+            return await self._client.hgetall(key)
+        except Exception as e:
+            raise RedisReadError(f"Failed to hgetall Redis key {key}: {e}") from e
+
+    async def hset(self, key: str, mapping: dict[str, Any]) -> bool:
+        """Set multiple hash fields without key prefix."""
+        if not self._client:
+            await self.connect()
+
+        if not self._client:
+            raise RedisConnectionError("Redis client not initialized")
+
+        try:
+            await self._client.hset(key, mapping=mapping)
+            return True
+        except Exception as e:
+            raise RedisWriteError(f"Failed to hset Redis key {key}: {e}") from e
+
+    @property
+    def client(self):
+        """Expose underlying Redis client for advanced operations."""
+        return self._client
+
 
 class PostgresClient:
     """Async PostgreSQL client for long-term storage."""
@@ -144,7 +278,7 @@ class PostgresClient:
     def __init__(self, url: str | None = None):
         self.url = url or os.getenv(
             "DATABASE_URL",
-            "postgresql://mock_user:mock_pass@localhost:5432/mock_engine"
+            "postgresql://mock_user:mock_pass@localhost:5432/mock_engine",
         )
         self._pool: asyncpg.Pool | None = None
 
@@ -152,9 +286,13 @@ class PostgresClient:
         """Establish PostgreSQL connection pool."""
         if self._pool is None:
             try:
-                self._pool = await asyncpg.create_pool(self.url, min_size=5, max_size=10)
+                self._pool = await asyncpg.create_pool(
+                    self.url, min_size=5, max_size=10
+                )
             except Exception as e:
-                raise PostgresConnectionError(f"Failed to connect to PostgreSQL at {self.url}: {e}") from e
+                raise PostgresConnectionError(
+                    f"Failed to connect to PostgreSQL at {self.url}: {e}"
+                ) from e
 
     async def close(self) -> None:
         """Close PostgreSQL connection pool."""
@@ -215,9 +353,13 @@ class PostgresClient:
 
             return True
         except (TypeError, ValueError) as e:
-            raise DataSerializationError(f"Failed to serialize data for {id}: {e}") from e
+            raise DataSerializationError(
+                f"Failed to serialize data for {id}: {e}"
+            ) from e
         except Exception as e:
-            raise PostgresWriteError(f"Failed to insert dataset {id} into PostgreSQL: {e}") from e
+            raise PostgresWriteError(
+                f"Failed to insert dataset {id} into PostgreSQL: {e}"
+            ) from e
 
     async def get(self, id: str) -> dict[str, Any] | None:
         """Retrieve dataset from PostgreSQL.
