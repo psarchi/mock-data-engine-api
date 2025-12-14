@@ -1,0 +1,222 @@
+import json
+import sys
+import types
+
+import pytest
+
+try:
+    import orjson
+except ImportError:
+    fake = types.SimpleNamespace(
+        dumps=lambda obj: json.dumps(obj).encode("utf-8"),
+        loads=lambda b: json.loads(
+            b.decode("utf-8") if isinstance(b, (bytes, bytearray)) else b
+        ),
+    )
+    sys.modules["orjson"] = fake
+    import orjson
+
+try:
+    import redis.asyncio
+except ImportError:
+    redis_mod = types.ModuleType("redis")
+    redis_asyncio = types.ModuleType("redis.asyncio")
+
+    async def _from_url(*args, **kwargs):
+        raise RuntimeError("redis async stub in tests")
+
+    class _Redis: ...
+
+    redis_asyncio.Redis = _Redis
+    redis_asyncio.from_url = _from_url
+    sys.modules["redis"] = redis_mod
+    sys.modules["redis.asyncio"] = redis_asyncio
+
+from mock_engine.contracts.stateful_timestamp import StatefulTimestampGeneratorSpec
+from mock_engine.schema.registry import SchemaRegistry
+from mock_engine.pregeneration.worker import _discover_stateful_fields
+from server.routers import streaming
+
+
+class FakeRedis:
+    """Minimal async Redis stub for tests."""
+
+    def __init__(self, data: dict[str, bytes] | None = None) -> None:
+        self.store: dict[str, bytes] = data or {}
+        self.hashes: dict[str, dict[str, int]] = {}
+
+    async def get(self, key: str):
+        return self.store.get(key)
+
+    async def set(self, key: str, value):
+        self.store[key] = value
+        return True
+
+    async def hgetall(self, key: str):
+        return {k: v for k, v in self.hashes.get(key, {}).items()}
+
+    async def hset(self, key: str, mapping: dict[str, int]):
+        existing = self.hashes.get(key, {})
+        existing.update(mapping)
+        self.hashes[key] = existing
+        return True
+
+
+@pytest.fixture(autouse=True)
+def clear_stateful_caches():
+    streaming._STATEFUL_META.clear()
+    try:
+        from mock_engine.chaos import get_temporal_tracker
+
+        get_temporal_tracker().clear_all()
+    except Exception:
+        pass
+    yield
+    streaming._STATEFUL_META.clear()
+    try:
+        from mock_engine.chaos import get_temporal_tracker
+
+        get_temporal_tracker().clear_all()
+    except Exception:
+        pass
+
+
+def test_discover_stateful_fields_uses_contract_token():
+    doc = type(
+        "Doc",
+        (),
+        {
+            "contracts_by_path": {
+                "event_timestamp": StatefulTimestampGeneratorSpec(
+                    start=100, increment=5
+                ),
+                "user_id": "ignored",
+            }
+        },
+    )
+    SchemaRegistry.register("test_stateful_schema", doc)
+
+    fields = _discover_stateful_fields("test_stateful_schema")
+
+    assert fields == [
+        {
+            "field": "event_timestamp",
+            "gen": "stateful_timestamp",
+            "params": {"start": 100, "increment": 5},
+        }
+    ]
+
+
+def test_streaming_applies_stateful_generators():
+    meta_key = streaming.META_KEY_TEMPLATE.format(schema="stream_events")
+    payload = {
+        "schema": "stream_events",
+        "stateful": [
+            {
+                "field": "event_timestamp",
+                "gen": "stateful_timestamp",
+                "params": {"start": 1_000_000, "increment": 10},
+            }
+        ],
+        "worker_start_time_seconds": 0,
+    }
+    fake_redis = FakeRedis({meta_key: orjson.dumps(payload)})
+
+    async def _run():
+        meta = await streaming._ensure_stateful_meta(fake_redis, "stream_events")
+        items = [{"event_timestamp": 0} for _ in range(3)]
+        batch_items, state = await streaming._apply_stateful_user_batch(
+            items, {}, meta, increment_mode="sequential"
+        )
+        return [item["event_timestamp"] for item in batch_items], state[
+            "event_timestamp"
+        ]
+
+    import asyncio
+
+    values, last_state = asyncio.run(_run())
+
+    assert len(values) == 3
+    assert values[1] - values[0] == 10
+    assert values[2] - values[1] == 10
+    assert last_state == values[-1]
+
+
+@pytest.mark.skip(
+    reason="TODO: Implement wallclock mode test - requires running API/WebSocket server"
+)
+def test_wallclock_increment_mode():
+    """Test wallclock mode where all users see same time-based progression.
+
+    TODO: Test should verify:
+    1. Wallclock mode uses worker_start_time_seconds from metadata
+    2. All users receive same timestamp values based on elapsed wall time
+    3. User state is NOT saved in wallclock mode (user_id for tracking only)
+    4. Formula: new_value = start + (elapsed_time * increment_rate)
+    5. Multiple concurrent users see consistent timestamps
+    """
+    pass
+
+
+@pytest.mark.skip(
+    reason="TODO: Implement batch retention test - requires WebSocket disconnect simulation"
+)
+def test_batch_retention_on_disconnect():
+    """Test that unsent items are pushed back to queue on disconnect.
+
+    TODO: Test should verify:
+    1. batch_retention config enables/disables push-back behavior
+    2. When enabled and disconnect occurs during send, unsent items pushed back
+    3. RAW items (not statefully-transformed) are pushed back to queue
+    4. LPUSH used to push items back to front of queue
+    5. Queue state is correct after disconnect and reconnect
+    6. Batch retention does NOT apply if disconnect during LPOP (acceptable edge case)
+    """
+    pass
+
+
+@pytest.mark.skip(
+    reason="TODO: Implement chaos per-item test - requires running API/WebSocket server"
+)
+def test_chaos_applies_per_item_not_per_batch():
+    """Test that chaos operations apply independently to each item.
+
+    TODO: Test should verify:
+    1. Non-forced chaos: Each item gets independent chaos probability rolls
+    2. Some items in batch may have chaos, others may not (randomness)
+    3. Forced chaos: All items in batch get same chaos ops (consistency)
+    4. chaos_applied descriptions collected across all items in batch
+    5. Per-item application provides better randomness distribution
+    """
+    pass
+
+
+@pytest.mark.skip(
+    reason="TODO: Implement user state TTL test - requires Redis with time manipulation"
+)
+def test_user_state_ttl_expiration():
+    """Test that user state keys expire after configured TTL.
+
+    TODO: Test should verify:
+    1. User state keys created with default 24-hour TTL
+    2. TTL configurable via server.streaming.user_state_ttl_seconds
+    3. TTL refreshed on each state save (EXPIRE called)
+    4. TTL refreshed when loading existing state
+    5. Expired state keys are automatically removed by Redis
+    """
+    pass
+
+
+@pytest.mark.skip(reason="TODO: Implement metadata cache TTL test")
+def test_metadata_cache_ttl_expiration():
+    """Test that in-memory metadata cache expires after configured TTL.
+
+    TODO: Test should verify:
+    1. Metadata cached with default 5-minute TTL
+    2. TTL configurable via server.streaming.metadata_cache_ttl_seconds
+    3. Cache hit returns cached data without Redis query
+    4. Cache miss after expiration triggers Redis reload
+    5. cached_at timestamp updated on reload
+    6. Cache expiration logged for debugging
+    """
+    pass
