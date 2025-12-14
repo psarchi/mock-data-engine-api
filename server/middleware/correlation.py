@@ -24,9 +24,7 @@ class CorrelationMiddleware(BaseHTTPMiddleware):
     or will be auto-generated if not present.
     """
 
-    async def dispatch(
-        self, request: Request, call_next: Callable
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process request with correlation ID tracking.
 
         Args:

@@ -27,12 +27,11 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         endpoint = request.url.path
         schema = self._extract_schema(endpoint)
 
-        content_length = request.headers.get('content-length')
+        content_length = request.headers.get("content-length")
         if content_length:
             try:
                 http_request_size_bytes.labels(
-                    method=method,
-                    endpoint=endpoint
+                    method=method, endpoint=endpoint
                 ).observe(int(content_length))
             except (ValueError, TypeError):
                 pass
@@ -44,22 +43,19 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         http_requests_total.labels(
             method=method,
             endpoint=endpoint,
-            schema=schema or 'unknown',
-            status_code=response.status_code
+            schema=schema or "unknown",
+            status_code=response.status_code,
         ).inc()
 
         http_request_duration_seconds.labels(
-            method=method,
-            endpoint=endpoint,
-            schema=schema or 'unknown'
+            method=method, endpoint=endpoint, schema=schema or "unknown"
         ).observe(duration)
 
-        response_length = response.headers.get('content-length')
+        response_length = response.headers.get("content-length")
         if response_length:
             try:
                 http_response_size_bytes.labels(
-                    endpoint=endpoint,
-                    schema=schema or 'unknown'
+                    endpoint=endpoint, schema=schema or "unknown"
                 ).observe(int(response_length))
             except (ValueError, TypeError):
                 pass
@@ -80,7 +76,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         Returns:
             Schema name or None if not found
         """
-        parts = endpoint.strip('/').split('/')
-        if len(parts) >= 3 and parts[0] == 'v1' and parts[1] == 'schemas':
+        parts = endpoint.strip("/").split("/")
+        if len(parts) >= 3 and parts[0] == "v1" and parts[1] == "schemas":
             return parts[2]
         return None

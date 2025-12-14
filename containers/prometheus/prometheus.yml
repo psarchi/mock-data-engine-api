@@ -28,3 +28,9 @@ scrape_configs:
       - targets: ['metrics_collector:8003']
     metrics_path: '/metrics'
     scrape_interval: 5s
+
+  - job_name: 'mock-engine-generation-worker'
+    static_configs:
+      - targets: ['generation-worker:8004']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
