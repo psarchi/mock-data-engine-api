@@ -1,8 +1,4 @@
-"""Meta/health API routes.
 
-Exposes ``GET /v1/health`` for a basic liveness check. Behavior preserved; only
-style/typing/docs are updated to match the golden file.
-"""
 from __future__ import annotations
 
 from datetime import UTC, datetime

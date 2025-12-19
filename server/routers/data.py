@@ -1,4 +1,3 @@
-"""Data retrieval endpoints for persisted datasets."""
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
@@ -36,7 +35,7 @@ async def retrieve_dataset_metadata(id: str) -> JSONResponse:
         if not metadata:
             raise HTTPException(
                 status_code=404,
-                detail=f"Dataset '{id}' not found or expired (30-day retention)"
+                detail=f"Dataset '{id}' not found or expired (30-day retention)",
             )
 
         response = {
@@ -79,7 +78,7 @@ async def retrieve_dataset_items(id: str) -> JSONResponse:
         if not dataset:
             raise HTTPException(
                 status_code=404,
-                detail=f"Dataset '{id}' not found or expired (30-day retention)"
+                detail=f"Dataset '{id}' not found or expired (30-day retention)",
             )
 
         response = {
@@ -91,13 +90,18 @@ async def retrieve_dataset_items(id: str) -> JSONResponse:
                 "chaos_applied": dataset.chaos_applied or [],
                 "created_at": dataset.created_at.isoformat(),
                 "expires_at": dataset.expires_at.isoformat(),
-            }
+            },
         }
 
         if dataset.metadata:
             response["metadata"].update(dataset.metadata)
 
-        logger.info("dataset_items_retrieved", id=id, schema=dataset.schema_name, count=len(response["items"]))
+        logger.info(
+            "dataset_items_retrieved",
+            id=id,
+            schema=dataset.schema_name,
+            count=len(response["items"]),
+        )
 
         return JSONResponse(response)
 
@@ -124,10 +128,7 @@ async def delete_dataset(id: str) -> JSONResponse:
         deleted = await storage.delete(id)
 
         if not deleted:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Dataset '{id}' not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Dataset '{id}' not found")
 
         logger.info("dataset_deleted", id=id)
 

@@ -2,6 +2,7 @@
 
 Defines input and output schemas used by the public API routes.
 """
+
 from __future__ import annotations
 
 from typing import Any

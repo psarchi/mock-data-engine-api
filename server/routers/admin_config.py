@@ -1,133 +1,210 @@
-"""Admin configuration API routes.
+"""Admin configuration endpoints - rebuilt for current ConfigManager API."""
 
-Exposes endpoints under ``/v1/admin`` to inspect and modify the running
-configuration. Behavior preserved; only docs/typing/names were cleaned to
-match the golden style.
-"""
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any
 
-from fastapi import APIRouter, Body, Header
+from fastapi import APIRouter, Body, HTTPException
 
 from mock_engine.config import get_config_manager
-# TODO(refractor): full refractor of admin endpoints I don't like how it is organized
-router = APIRouter(prefix="/v1/admin", tags=["admin"])
+from mock_engine.config.access import reload_config
+from server.auth import RequireAuth
+
+router = APIRouter(prefix="/v1/admin/config", tags=["admin-config"])
 
 
-def _assert_admin_enabled() -> None:
-    """Ensure administrative endpoints are permitted.
-
-    Raises:
-        HTTPException: When admin access is disabled. (Not enforced yet.)
-    """
-    # TODO(auth): Enforce an "admin_enabled"/auth check once config policy is finalized.
-    _manager = get_config_manager()
-    _ = _manager.effective()  # Touch to ensure config loads; keep behavior unchanged.
-
-
-@router.get("/config")
-def get_config() -> object:
-    """Return the current effective configuration and overrides.
+@router.get("/debug")
+def get_config_debug(_token: RequireAuth = None) -> dict[str, Any]:
+    """Get full config tree for debugging.
 
     Returns:
-        object: A mapping with revision, effective model (``model_dump()``),
-            overrides, and source flags.
+        dict with server and generation config sections
     """
-    _assert_admin_enabled()
-    manager = get_config_manager()
-    effective = manager.effective()
-    return {
-        "revision": manager.revision(),
-        "effective": effective.model_dump(),
-        "overrides": manager.overrides(),
-        "source": {"default.yaml": True, "overrides.yaml": True},
-    }
+    cm = get_config_manager()
+
+    result = {}
+
+    try:
+        server_cfg = cm.get_root("server")
+        result["server"] = dict(server_cfg) if server_cfg else {}
+    except Exception as e:
+        result["server"] = {"error": str(e)}
+
+    try:
+        gen_cfg = cm.get_root("generation")
+        result["generation"] = dict(gen_cfg) if gen_cfg else {}
+    except Exception as e:
+        result["generation"] = {"error": str(e)}
+
+    return result
 
 
-@router.get("/config/diff")
-def get_config_diff() -> object:
-    """Return a diff-style view (overrides + effective model dump).
+@router.get("/server")
+def get_server_config(_token: RequireAuth = None) -> dict[str, Any]:
+    """Get server configuration section.
 
     Returns:
-        object: ``{"overrides": ..., "effective": ...}``.
+        Server config as dict
     """
-    _assert_admin_enabled()
-    manager = get_config_manager()
-    return {"overrides": manager.overrides(), "effective": manager.effective().model_dump()}
+    cm = get_config_manager()
+    server_cfg = cm.get_root("server")
+    if not server_cfg:
+        raise HTTPException(status_code=404, detail="Server config not found")
+    return dict(server_cfg)
 
 
-@router.put("/config")
-def replace_config(
-    payload: Mapping[str, object] = Body(...),
-    x_actor: str | None = Header(None),
-) -> object:
-    """Replace the full configuration with ``payload``.
+@router.get("/generation")
+def get_generation_config(_token: RequireAuth = None) -> dict[str, Any]:
+    """Get generation configuration section.
+
+    Returns:
+        Generation config as dict
+    """
+    cm = get_config_manager()
+    gen_cfg = cm.get_root("generation")
+    if not gen_cfg:
+        raise HTTPException(status_code=404, detail="Generation config not found")
+    return dict(gen_cfg)
+
+
+@router.post("/server/update")
+def update_server_config(
+    updates: dict[str, Any] = Body(...),
+    _token: RequireAuth = None,
+) -> dict[str, Any]:
+    """Update server configuration in-memory (non-persistent).
 
     Args:
-        payload (Mapping[str, object]): Incoming configuration payload.
-        x_actor (str | None): Optional actor identifier from the ``X-Actor`` header.
+        updates: Dictionary of config paths and values to update
+                 Example: {"pregeneration.fallback_to_live": false}
 
     Returns:
-        object: Result of applying the replacement.
+        Result of update operation
     """
-    _assert_admin_enabled()
-    return get_config_manager().apply_replace(dict(payload), actor=x_actor or "api")
+    try:
+        cm = get_config_manager()
+        server_cfg = cm.get_root("server")
+
+        if not server_cfg:
+            raise HTTPException(status_code=404, detail="Server config not found")
+
+        for path, new_value in updates.items():
+            parts = path.split(".")
+            current = server_cfg
+
+            for part in parts[:-1]:
+                if not hasattr(current, part):
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Config path '{path}' not found (missing '{part}')",
+                    )
+                current = getattr(current, part)
+
+            field_name = parts[-1]
+            if not hasattr(current, field_name):
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Config path '{path}' not found (field '{field_name}' not found)",
+                )
+
+            setattr(current, field_name, new_value)
+
+        return {
+            "success": True,
+            "message": f"Updated {len(updates)} config value(s) in-memory (non-persistent)",
+            "updates": updates,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Config update failed: {str(e)}")
 
 
-@router.patch("/config")
-def patch_config(
-    payload: Mapping[str, object] = Body(...),
-    x_actor: str | None = Header(None),
-) -> object:
-    """Apply a partial configuration ``payload``.
+@router.post("/generation/update")
+def update_generation_config(
+    updates: dict[str, Any] = Body(...),
+    _token: RequireAuth = None,
+) -> dict[str, Any]:
+    """Update generation configuration in-memory (non-persistent).
 
     Args:
-        payload (Mapping[str, object]): Patch document to merge into config.
-        x_actor (str | None): Optional actor identifier from the ``X-Actor`` header.
+        updates: Dictionary of config paths and values to update
 
     Returns:
-        object: Result of applying the patch.
+        Result of update operation
     """
-    _assert_admin_enabled()
-    return get_config_manager().apply_patch(dict(payload), actor=x_actor or "api")
+    try:
+        cm = get_config_manager()
+        gen_cfg = cm.get_root("generation")
+
+        if not gen_cfg:
+            raise HTTPException(status_code=404, detail="Generation config not found")
+
+        for path, new_value in updates.items():
+            parts = path.split(".")
+            current = gen_cfg
+
+            for part in parts[:-1]:
+                if not hasattr(current, part):
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Config path '{path}' not found (missing '{part}')",
+                    )
+                current = getattr(current, part)
+
+            field_name = parts[-1]
+            if not hasattr(current, field_name):
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Config path '{path}' not found (field '{field_name}' not found)",
+                )
+
+            setattr(current, field_name, new_value)
+
+        return {
+            "success": True,
+            "message": f"Updated {len(updates)} config value(s) in-memory (non-persistent)",
+            "updates": updates,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Config update failed: {str(e)}")
 
 
-@router.post("/config/dry-run")
-def dry_run_config(payload: Mapping[str, object] = Body(...)) -> object:
-    """Validate a configuration ``payload`` without persisting changes.
-
-    Args:
-        payload (Mapping[str, object]): Candidate configuration to validate.
+@router.post("/reload")
+def reload_all_config(_token: RequireAuth = None) -> dict[str, Any]:
+    """Reload all configuration from disk.
 
     Returns:
-        object: Validation result/report.
+        Reload result
     """
-    _assert_admin_enabled()
-    return get_config_manager().dry_run(dict(payload))
+    try:
+        reload_config()
+        return {
+            "success": True,
+            "message": "Configuration reloaded from disk",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Config reload failed: {str(e)}")
 
 
-@router.post("/config/reset")
-def reset_config(x_actor: str | None = Header(None)) -> object:
-    """Reset all overrides to defaults.
-
-    Args:
-        x_actor (str | None): Optional actor identifier from the ``X-Actor`` header.
+@router.get("/files")
+def list_config_files(_token: RequireAuth = None) -> dict[str, Any]:
+    """List available configuration files.
 
     Returns:
-        object: Result of resetting overrides.
+        List of config files and their status
     """
-    _assert_admin_enabled()
-    return get_config_manager().reset_overrides(actor=x_actor or "api")
+    files = {}
 
+    for yaml_file in CONFIG_DIR.glob("*.yaml"):
+        files[yaml_file.name] = {
+            "path": str(yaml_file),
+            "exists": yaml_file.exists(),
+            "size_bytes": yaml_file.stat().st_size if yaml_file.exists() else 0,
+        }
 
-@router.get("/config/schema")
-def get_config_schema() -> object:
-    """Return the config schema metadata and JSON Schema.
-
-    Returns:
-        object: ``{"meta": ..., "json_schema": ...}``.
-    """
-    _assert_admin_enabled()
-    manager = get_config_manager()
-    return {"meta": manager.meta(), "json_schema": manager.json_schema()}
+    return {"config_dir": str(CONFIG_DIR), "files": files}
