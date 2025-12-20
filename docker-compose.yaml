@@ -13,6 +13,7 @@ services:
     volumes:
       - .:/app
       - ./log:/app/log
+      - ./data/profile:/app/data/profile
     working_dir: /app
     command: >
       sh -c "mkdir -p /tmp/prom-mp &&
@@ -22,6 +23,7 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - PROMETHEUS_MULTIPROC_DIR=/tmp/prom-mp
+      - PROFILE_OUTPUT_DIR=/app/data/profile
       - REDIS_URL=${PERSISTENCE_REDIS_URL:-redis://redis:6379}
       - DATABASE_URL=${PERSISTENCE_POSTGRES_URL:-postgresql://mock_user:mock_pass@postgres:5432/mock_engine}
     tmpfs:
@@ -43,6 +45,7 @@ services:
       - "8004:8004"
     volumes:
       - .:/app
+      - ./data/profile:/app/data/profile
     working_dir: /app
     command: >
       sh -c "mkdir -p /tmp/prom-mp &&
@@ -54,7 +57,6 @@ services:
       - PROMETHEUS_MULTIPROC_DIR=/tmp/prom-mp
       - DISABLE_GENERATOR_METRICS=1
       - REDIS_URL=${PERSISTENCE_REDIS_URL:-redis://redis:6379}
-      - PREGEN_SCHEMAS=${PREGENERATION_SCHEMAS:-ga4}
       - PREGEN_MAX_ITEMS=${PREGEN_MAX_ITEMS:-}
       - WORKERS=${GEN_WORKERS:-4}
       - METRICS_PORT=8004

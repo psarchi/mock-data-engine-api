@@ -25,29 +25,60 @@ generation_meta:
         description: "include end-to-end handler time (e2e_ms)"
 
 pregeneration:
-  enabled: true
+  type: group
+  enabled:
+    type: bool
+    value: true
+    description: "Enable consuming pre-generated items from Redis."
+
+  fallback_to_live:
+    type: bool
+    value: true
+    description: "If cache is empty, generate items on-the-fly."
+
+  require_cache:
+    type: bool
+    value: false
+    description: "If true and cache is empty, error/stop instead of falling back."
+
   schemas:
-    - ga4
-    - smoke
+    type: list
+    value: [ga4, smoke]
+    description: "Schemas to pre-generate (used by pregeneration worker)."
+    items:
+      type: string
 
-  queue_size: 100000
-  batch_size: 100
+  queue_size:
+    type: int
+    value: 100000
+    description: "Target queue size per schema (worker may trim to this)."
 
-  key_prefix: "pregen"  # Results in pregen:{schema}:queue and pregen:{schema}:meta
+  batch_size:
+    type: int
+    value: 100
+    description: "Worker push batch size per schema."
+
+  key_prefix:
+    type: str
+    value: "pregen"
+    description: "Redis key prefix for pregeneration queues/meta."
+
+  global_max_items:
+    type: int
+    value: null
+    description: "Global maximum items across all schemas (null = unlimited)."
 
 temporal:
+  type: group
+  # Modes:
   # - actual_time_based: Adjust timestamps based on real elapsed time
   # - per_generation: Increment by fixed step per item
-  default_mode: "actual_time_based"
+  default_mode:
+    type: str
+    value: "actual_time_based"
+    description: "Temporal mode: actual_time_based or per_generation."
 
-  # Time multiplier for actual_time_based mode
-  # 1.0 = real-time, 2.0 = 2x speed, 0.5 = half speed
-  time_multiplier: 1.0
-
-  schema_overrides:
-    ga4:
-      mode: "actual_time_based"
-      time_multiplier: 1.0
-
-    stream_events:
-      mode: "per_generation"
+  time_multiplier:
+    type: float
+    value: 1.0
+    description: "Speed multiplier for actual_time_based (1.0 = real-time)."

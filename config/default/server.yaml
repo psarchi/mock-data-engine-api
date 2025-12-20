@@ -1,9 +1,19 @@
 server:
   type: group
   debug:
-    description: enable FastAPI debug mode
-    type: bool
-    value: false
+    type: group
+    enabled:
+      description: enable FastAPI debug mode
+      type: bool
+      value: false
+    profiler_enabled:
+      description: allow request profiling (query param profile=true)
+      type: bool
+      value: true
+    profiler_output_dir:
+      description: directory for profile output files
+      type: str
+      value: ./data/profile
   port:
     description: HTTP server port
     type: int
@@ -12,6 +22,58 @@ server:
     description: Uvicorn worker count
     type: int
     value: 8
+  streaming:
+    type: group
+    batch_pop_size:
+      description: number of items to pop from Redis queue per WebSocket iteration
+      type: int
+      value: 5000
+    batch_retention:
+      description: push unsent items back to queue on disconnect
+      type: bool
+      value: false
+    increment_mode:
+      description: stateful field increment mode (sequential or wallclock)
+      type: enum
+      choices:
+      - sequential,wallclock
+      value: sequential
+    apply_chaos_in_consumer:
+      description: apply chaos operations in streaming consumer
+      type: bool
+      value: true
+    allow_forced_chaos:
+      description: allow clients to force specific chaos ops via query param
+      type: bool
+      value: true
+    user_state_ttl_seconds:
+      description: TTL for user state keys in Redis (seconds)
+      type: int
+      value: 86400
+    user_state_key_prefix:
+      description: Redis key prefix for user state
+      type: str
+      value: "user_state"
+    metadata_cache_ttl_seconds:
+      description: in-memory cache TTL for stateful metadata (seconds)
+      type: int
+      value: 300
+    rate_limit_enabled:
+      description: enable rate limiting for WebSocket streaming
+      type: bool
+      value: false
+    base_rate:
+      description: base rate limit (items/second)
+      type: int
+      value: 1000
+    auto_detect_rate:
+      description: auto-detect rate from worker generation rate
+      type: bool
+      value: false
+    auto_detect_sample_size:
+      description: sample size for rate auto-detection
+      type: int
+      value: 1000
   observability:
     type: group
     logging:
@@ -19,7 +81,7 @@ server:
       enabled:
         description: enable structured logging
         type: bool
-        value: true
+        value: false
       level:
         description: log level (DEBUG, INFO, WARNING, ERROR)
         type: enum
@@ -35,7 +97,7 @@ server:
     metrics_enabled:
       description: expose Prometheus metrics endpoint
       type: bool
-      value: true
+      value: false
     prometheus_path:
       description: metrics endpoint path
       type: str

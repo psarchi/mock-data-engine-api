@@ -52,18 +52,18 @@ chaos:
       type: group
       enabled:
         type: bool
-        value: true
+        value: false
         description: Toggle latency injection.
       p:
         type: float
-        value: 0.0
+        value: 0
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 2.0
+        value: 5.2631578947368425
         description: Relative selection weight; higher increases sampling likelihood.
         constraints:
           gt: 0.0
@@ -86,14 +86,14 @@ chaos:
         description: Toggle late arrival chaos operation.
       p:
         type: float
-        value: 0.8
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 1.0
+        value: 5.2631578947368425
         description: Relative selection weight; higher increases sampling likelihood.
         constraints:
           gt: 0.0
@@ -118,14 +118,14 @@ chaos:
         description: Toggle HTTP error short-circuit.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 5.0
+        value: 5.2631578947368425
         description: Relative selection weight; heavier since it's a severe fault.
         constraints:
           gt: 0.0
@@ -147,14 +147,14 @@ chaos:
         description: Toggle HTTP status/body mismatch faults.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 3.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -184,14 +184,14 @@ chaos:
         description: Toggle post-generation item order randomization.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 1.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -204,14 +204,14 @@ chaos:
         description: Toggle payload truncation/corruption.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 2.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -236,14 +236,14 @@ chaos:
         description: Toggle schema bloat string inflation.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 1.5
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -266,14 +266,14 @@ chaos:
         description: Toggle schema field nulling.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 1.5
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -292,14 +292,14 @@ chaos:
         description: Toggle timestamp skew mutations.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 1.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -328,14 +328,14 @@ chaos:
         description: Toggle duplication of list items throughout the body.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 1.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -363,14 +363,14 @@ chaos:
         description: Toggle auth failures or anomalies.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 4.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -400,14 +400,14 @@ chaos:
         description: Toggle anomalous headers on the request.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 2.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -420,14 +420,14 @@ chaos:
         description: Toggle random header casing mutations.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 1.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -470,14 +470,14 @@ chaos:
         description: Toggle cutting the list mid-way to simulate partial responses.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 2.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -491,14 +491,14 @@ chaos:
         description: Toggle light string corruption within items (replacement char).
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 3.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -517,14 +517,14 @@ chaos:
         description: Toggle shifting numeric time fields by +/- seconds.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 2.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -556,14 +556,14 @@ chaos:
           drift.
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 3.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -607,14 +607,14 @@ chaos:
           bias/jitter).
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 3.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
@@ -935,6 +935,42 @@ chaos:
             jitter: 1.5
             q: 0.15
         description: Map individual fields to drift specs (categorical or numeric).
+    burst:
+      description: Network-phase; signals rate limiter to temporarily increase throughput simulating traffic bursts.
+      type: group
+      enabled:
+        type: bool
+        value: false
+        description: Toggle burst traffic simulation.
+      p:
+        type: float
+        value: 0.01
+        description: Independent activation probability for burst initiation.
+        constraints:
+          ge: 0.0
+          le: 1.0
+      weight:
+        type: float
+        value: 5.2631578947368425
+        description: Relative selection weight for the stochastic composer.
+        constraints:
+          gt: 0.0
+      burst_rate:
+        type: int
+        value: 10000
+        description: Target events per second during burst.
+        constraints:
+          ge: 1000
+      burst_duration:
+        type: int
+        value: 10
+        description: Burst duration in seconds.
+        constraints:
+          ge: 1
+      require_cache_items:
+        type: int
+        value: null
+        description: Minimum items in cache to allow burst (null = auto-calculate from rate * duration).
     schema_drift:
       description: Response-phase; applies add/drop/rename transforms to item dicts.
       type: group
@@ -945,14 +981,14 @@ chaos:
           items.'
       p:
         type: float
-        value: 0.0
+        value: 0.01
         description: Independent activation probability for this op.
         constraints:
           ge: 0.0
           le: 1.0
       weight:
         type: float
-        value: 4.0
+        value: 5.2631578947368425
         description: Relative selection weight for the stochastic composer.
         constraints:
           gt: 0.0
