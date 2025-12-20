@@ -108,7 +108,11 @@ class AdaptiveRateLimiter:
             self._adjust_rate()
 
     def _adjust_rate(self):
-        """Adjust rate based on actual throughput."""
+        """Adjust rate based on actual throughput.
+
+        Uses 90% of observed throughput for safety margin.
+        Burst mode can override this for chaos scenarios.
+        """
         if len(self.samples) < 2:
             return
 
@@ -118,7 +122,8 @@ class AdaptiveRateLimiter:
 
         if elapsed > 0:
             actual_throughput = self.total_events / elapsed
-            new_rate = int(actual_throughput * 1.1)
+            # Use 90% of actual throughput for safety margin
+            new_rate = int(actual_throughput * 0.9)
 
             if abs(new_rate - self.current_rate) > (self.current_rate * 0.2):
                 old_rate = self.current_rate

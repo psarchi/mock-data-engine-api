@@ -16,13 +16,29 @@ from mock_engine.observability import (
     get_count_bucket,
 )
 from server.auth import RequireAuth
-from server.deps import get_generator, get_redis
+from server.deps import get_generator, get_redis, _SCHEMAS_DIR
 from server.logging import get_logger
 from server.metadata import build_response_with_metadata
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["schemas"])
+
+
+@router.get("/schemas")
+async def list_schemas() -> JSONResponse:
+    """List all available schemas.
+
+    Returns:
+        JSONResponse: List of schema names and count.
+    """
+    schema_files = sorted(_SCHEMAS_DIR.glob("*.yaml")) + sorted(_SCHEMAS_DIR.glob("*.yml"))
+    schema_names = sorted(set(f.stem for f in schema_files))
+
+    return JSONResponse({
+        "schemas": schema_names,
+        "count": len(schema_names)
+    })
 
 
 @router.get("/schemas/{name}/generate")
@@ -58,9 +74,9 @@ async def generate_schema(
 
     try:
         cm = get_config_manager()
-        pregen_enabled = cm.get_value("server.pregeneration.enabled", True)
-        fallback_to_live = cm.get_value("server.pregeneration.fallback_to_live", True)
-        require_cache = cm.get_value("server.pregeneration.require_cache", False)
+        pregen_enabled = cm.get_value("pregeneration.enabled", True)
+        fallback_to_live = cm.get_value("pregeneration.fallback_to_live", True)
+        require_cache = cm.get_value("pregeneration.require_cache", False)
     except Exception:
         pregen_enabled = True
         fallback_to_live = True

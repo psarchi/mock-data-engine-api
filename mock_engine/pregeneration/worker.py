@@ -18,13 +18,6 @@ from mock_engine.chaos.access import get_chaos_manager
 from server.deps import get_generator
 
 logger = structlog.get_logger(__name__)
-# Fallbacks
-QUEUE_SIZE = 1000000
-BATCH_SIZE = 1000
-MAX_ITEMS = None
-
-GLOBAL_CACHE_COUNT_KEY = "pregen:global:count"
-GLOBAL_CACHE_SCHEMA_COUNT_KEY = "pregen:{schema}:count"
 
 
 def _discover_stateful_fields(schema_name: str) -> list[dict[str, Any]]:
@@ -83,80 +76,62 @@ def _discover_stateful_fields(schema_name: str) -> list[dict[str, Any]]:
     return fields
 
 
-def _load_pregen_config() -> tuple[int, int, int | None, int | None, bool]:
-    """Load pregeneration settings and metrics flag from server config."""
-    queue_size = QUEUE_SIZE
-    batch_size = BATCH_SIZE
-    max_items: int | None = MAX_ITEMS
-    global_max_items: int | None = None
-    record_metrics = True
+def _load_pregen_config() -> tuple[int, int, int | None, int | None, bool, str]:
+    """Load pregeneration settings from config (fail hard if missing)."""
+    from mock_engine.config import get_config_manager
 
-    try:
-        from mock_engine.config import get_config_manager
+    cm = get_config_manager()
 
-        cfg = get_config_manager().get_root("server")
-        pregen_cfg = getattr(cfg, "pregeneration", None)  # type: ignore[attr-defined]
-        if pregen_cfg:
-            queue_size = int(getattr(pregen_cfg, "queue_size", queue_size))
-            batch_size = int(getattr(pregen_cfg, "batch_size", batch_size))
-            cfg_max = getattr(pregen_cfg, "max_items", None)
-            max_items = int(cfg_max) if cfg_max is not None else None
-            cfg_global_max = getattr(pregen_cfg, "global_max_items", None)
-            global_max_items = (
-                int(cfg_global_max) if cfg_global_max is not None else None
-            )
+    queue_size = cm.get_value("pregeneration.queue_size")
+    batch_size = cm.get_value("pregeneration.batch_size")
+    max_items = cm.get_value("pregeneration.max_items")
+    global_max_items = cm.get_value("pregeneration.global_max_items")
+    key_prefix = cm.get_value("pregeneration.key_prefix")
 
-        observability_cfg = getattr(cfg, "observability", None)  # type: ignore[attr-defined]
-        if not observability_cfg or not bool(
-            getattr(observability_cfg, "enabled", True)
-        ):
-            record_metrics = False
-    except Exception:
-        pass
+    record_metrics = cm.get_value("server.observability.metrics_enabled", True)
 
-    return queue_size, batch_size, max_items, global_max_items, record_metrics
+    return queue_size, batch_size, max_items, global_max_items, record_metrics, key_prefix
 
 
 def _load_runtime_settings() -> tuple[list[str], str, int, int]:
-    """Load schemas, redis URL, worker count, and metrics port from config/env."""
-    schemas: list[str] = ["ga4"]
+    """Load schemas from config strictly; allow env overrides for deployment settings."""
+    from mock_engine.config import get_config_manager
+
+    cm = get_config_manager()
+
+    schemas: list[str] = []
+    pregen_cfg = cm.get_root("pregeneration")
+    if pregen_cfg:
+        raw_schemas = getattr(pregen_cfg, "schemas", None)
+        if isinstance(raw_schemas, str):
+            schemas = [s.strip() for s in raw_schemas.split(",") if s.strip()]
+        elif isinstance(raw_schemas, (list, tuple)):
+            schemas = [str(s).strip() for s in raw_schemas if str(s).strip()]
+
+    if not schemas:
+        schemas = ["smoke"]
+        logger.warning("schemas_not_in_config_using_default", default=schemas)
+
     redis_url = "redis://localhost:6379"
     workers = 1
     metrics_port = 8004
 
-    try:
-        from mock_engine.config import get_config_manager
+    if pregen_cfg:
+        workers_cfg = getattr(pregen_cfg, "workers", None)
+        if workers_cfg is not None:
+            workers = int(workers_cfg)
+        metrics_cfg = getattr(pregen_cfg, "metrics_port", None)
+        if metrics_cfg is not None:
+            metrics_port = int(metrics_cfg)
 
-        cm = get_config_manager()
-
-        pregen_cfg = cm.get_root("pregeneration")
-        if pregen_cfg:
-            raw_schemas = getattr(pregen_cfg, "schemas", None)
-            if isinstance(raw_schemas, str):
-                schemas = [s.strip() for s in raw_schemas.split(",") if s.strip()]
-            elif isinstance(raw_schemas, (list, tuple)):
-                schemas = [str(s).strip() for s in raw_schemas if str(s).strip()]
-            workers_cfg = getattr(pregen_cfg, "workers", None)
-            if workers_cfg is not None:
-                workers = int(workers_cfg)
-            metrics_cfg = getattr(pregen_cfg, "metrics_port", None)
-            if metrics_cfg is not None:
-                metrics_port = int(metrics_cfg)
-
-        server_cfg = cm.get_root("server")
-        persistence_cfg = (
-            getattr(server_cfg, "persistence", None) if server_cfg else None
-        )  # type: ignore[attr-defined]
-        if persistence_cfg:
-            redis_cfg = getattr(persistence_cfg, "redis", None)
-            if redis_cfg:
-                redis_url = getattr(redis_cfg, "url", redis_url)
-    except Exception:
-        pass
-
-    schemas_env = os.getenv("PREGEN_SCHEMAS") or os.getenv("PREGENERATION_SCHEMAS")
-    if schemas_env:
-        schemas = [s.strip() for s in schemas_env.split(",") if s.strip()]
+    server_cfg = cm.get_root("server")
+    persistence_cfg = (
+        getattr(server_cfg, "persistence", None) if server_cfg else None
+    )  # type: ignore[attr-defined]
+    if persistence_cfg:
+        redis_cfg = getattr(persistence_cfg, "redis", None)
+        if redis_cfg:
+            redis_url = getattr(redis_cfg, "url", redis_url)
 
     redis_env = os.getenv("REDIS_URL")
     if redis_env:
@@ -189,6 +164,7 @@ async def generate_and_push(
     max_items: int | None,
     global_max_items: int | None,
     record_metrics: bool,
+    key_prefix: str,
 ):
     """
     Continuously generate items and push to Redis queue.
@@ -202,8 +178,9 @@ async def generate_and_push(
         max_items: Per-schema maximum items (optional)
         global_max_items: Global maximum items across all schemas (optional)
         record_metrics: Whether to record Prometheus metrics
+        key_prefix: Redis key prefix (from config)
     """
-    queue_key = f"pregen:{schema_name}:queue"
+    queue_key = f"{key_prefix}:{schema_name}:queue"
     rng = random.Random()
     ctx = GenContext(rng=rng, locale="en_US")
     ctx.schema_name = schema_name
@@ -215,7 +192,9 @@ async def generate_and_push(
 
     rate_tracking_start = time.time()
     rate_tracking_count = 0
-    meta_key = f"pregen:{schema_name}:meta"
+    meta_key = f"{key_prefix}:{schema_name}:meta"
+    global_count_key = f"{key_prefix}:global:count"
+    schema_count_key = f"{key_prefix}:{schema_name}:count"
 
     logger.info(
         "pregen_worker_started",
@@ -242,7 +221,7 @@ async def generate_and_push(
 
                 if global_max_items is not None:
                     try:
-                        global_count_raw = await redis.get(GLOBAL_CACHE_COUNT_KEY)
+                        global_count_raw = await redis.get(global_count_key)
                         global_count = int(global_count_raw) if global_count_raw else 0
                         if global_count >= global_max_items:
                             logger.debug(
@@ -276,10 +255,7 @@ async def generate_and_push(
                 if global_max_items is not None:
                     try:
                         async with redis.pipeline() as pipe:
-                            pipe.incrby(GLOBAL_CACHE_COUNT_KEY, len(batch))
-                            schema_count_key = GLOBAL_CACHE_SCHEMA_COUNT_KEY.format(
-                                schema=schema_name
-                            )
+                            pipe.incrby(global_count_key, len(batch))
                             pipe.incrby(schema_count_key, len(batch))
                             pipe.lpush(queue_key, *batch)
                             pipe.ltrim(queue_key, 0, queue_size - 1)
@@ -383,7 +359,7 @@ async def run_worker_for_schemas(
     """
     logger.info("pregen_worker_starting", schemas=schema_names)
 
-    queue_size, batch_size, max_items, global_max_items, record_metrics = (
+    queue_size, batch_size, max_items, global_max_items, record_metrics, key_prefix = (
         _load_pregen_config()
     )
 
@@ -400,7 +376,7 @@ async def run_worker_for_schemas(
 
             stateful_meta = _discover_stateful_fields(schema_name)
             if stateful_meta:
-                meta_key = f"pregen:{schema_name}:meta"
+                meta_key = f"{key_prefix}:{schema_name}:meta"
                 worker_start_time_us = time.time_ns() // 1000
                 meta_payload = {
                     "schema": schema_name,
@@ -420,6 +396,7 @@ async def run_worker_for_schemas(
                     max_items=max_items,
                     global_max_items=global_max_items,
                     record_metrics=record_metrics,
+                    key_prefix=key_prefix,
                 )
             )
             tasks.append(task)

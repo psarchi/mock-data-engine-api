@@ -21,6 +21,7 @@ from server.routers import (
     data,
     streaming,
     publish,
+    users,
 )
 from server.errors import build_error_response, build_unhandled_response
 from server.logging import setup_logging
@@ -45,6 +46,12 @@ async def lifespan(app: FastAPI):
     warmup_all()
     cm = get_settings()
 
+    try:
+        server_cfg = cm.get_root("server")  # type: ignore
+        metrics_enabled = bool(server_cfg.observability.metrics_enabled)  # type: ignore
+    except (AttributeError, TypeError):
+        metrics_enabled = False
+
     # Read persistence config
     try:
         persistence_cfg = cm.get_root("server").persistence  # type: ignore
@@ -59,27 +66,31 @@ async def lifespan(app: FastAPI):
     # Initialize shared Redis client (API only writes to Redis)
     from mock_engine.persistence import RedisClient
 
-    redis = RedisClient(redis_url)
+    # Use bytes responses for streaming/pregen queue hot path (avoids per-item UTF-8 decode in redis-py).
+    redis = RedisClient(redis_url, decode_responses=False)
     await redis.connect()
     app.state.redis = redis
 
-    # Start metrics collector in background
-    metrics_collector = MetricsCollector(interval_seconds=metrics_interval)
-    collector_task = asyncio.create_task(metrics_collector.start())
+    metrics_collector = None
+    collector_task = None
+    if metrics_enabled:
+        metrics_collector = MetricsCollector(interval_seconds=metrics_interval)
+        collector_task = asyncio.create_task(metrics_collector.start())
 
-    # Start config exporter in background
     from server.config_exporter import config_exporter_loop
 
     config_task = asyncio.create_task(config_exporter_loop())
 
     yield
 
-    # Stop background tasks on shutdown
-    await metrics_collector.stop()
-    collector_task.cancel()
+    if metrics_collector is not None:
+        await metrics_collector.stop()
+    if collector_task is not None:
+        collector_task.cancel()
     config_task.cancel()
     try:
-        await collector_task
+        if collector_task is not None:
+            await collector_task
     except asyncio.CancelledError:
         pass
     try:
@@ -87,12 +98,10 @@ async def lifespan(app: FastAPI):
     except asyncio.CancelledError:
         pass
 
-    # Cleanup publishers
     from server.routers.publish import shutdown_publishers
 
     await shutdown_publishers()
 
-    # Close Redis connection
     await redis.close()
 
 
@@ -136,6 +145,7 @@ def create_app() -> FastAPI:
     app.include_router(data.router)
     app.include_router(streaming.router)
     app.include_router(publish.router)
+    app.include_router(users.router)
 
     if metrics_enabled:
         app.mount(metrics_path, get_metrics_app())

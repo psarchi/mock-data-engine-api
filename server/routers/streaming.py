@@ -20,28 +20,19 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["streaming"])
 
-QUEUE_KEY_TEMPLATE = "pregen:{schema}:queue"
-BATCH_POP_SIZE = 5000
-META_KEY_TEMPLATE = "pregen:{schema}:meta"
-USER_STATE_KEY_TEMPLATE = "user_state:{user_id}:{schema}"
-GLOBAL_CACHE_COUNT_KEY = "pregen:global:count"  # Global counter across all schemas
-GLOBAL_CACHE_SCHEMA_COUNT_KEY = (
-    "pregen:{schema}:count"  # Per-schema counter for global tracking
-)
-
 _STATEFUL_META: dict[str, dict[str, Any]] = {}
-METADATA_CACHE_TTL_SECONDS = 300  # Default: 5 minutes
 
 
 async def _ensure_stateful_meta(
-    redis, schema: str, cache_ttl_seconds: int = METADATA_CACHE_TTL_SECONDS
+    redis, schema: str, meta_key_template: str, cache_ttl_seconds: int
 ) -> dict[str, Any]:
     """Load and parse stateful field metadata from Redis with TTL-based caching.
 
     Args:
         redis: Redis client
         schema: Schema name
-        cache_ttl_seconds: TTL for in-memory cache (default: 5 minutes)
+        meta_key_template: Template for meta key (e.g., "pregen:{schema}:meta")
+        cache_ttl_seconds: TTL for in-memory cache
 
     Returns metadata including:
     - fields: List of stateful field configs
@@ -56,7 +47,7 @@ async def _ensure_stateful_meta(
             logger.debug("metadata_cache_expired", schema=schema, cached_at=cached_at)
             del _STATEFUL_META[schema]
 
-    meta_key = META_KEY_TEMPLATE.format(schema=schema)
+    meta_key = meta_key_template.format(schema=schema)
     raw = await redis.get(meta_key)
     if not raw:
         empty_meta = {"fields": [], "worker_start_time_seconds": None}
@@ -115,7 +106,12 @@ async def _ensure_stateful_meta(
 
 
 async def _get_or_create_user_state(
-    redis, schema: str, user_id: str, meta: dict[str, Any], ttl_seconds: int = 86400
+    redis,
+    schema: str,
+    user_id: str,
+    meta: dict[str, Any],
+    user_state_key_template: str,
+    ttl_seconds: int,
 ) -> dict[str, int]:
     """Get or create user state with TTL to prevent accumulation.
 
@@ -124,12 +120,13 @@ async def _get_or_create_user_state(
         schema: Schema name
         user_id: User ID for state tracking
         meta: Stateful field metadata
-        ttl_seconds: Time-to-live for user state keys (default: 24 hours)
+        user_state_key_template: Template for user state key
+        ttl_seconds: Time-to-live for user state keys
 
     Returns:
         User state dict mapping field names to last generated values
     """
-    state_key = USER_STATE_KEY_TEMPLATE.format(user_id=user_id, schema=schema)
+    state_key = user_state_key_template.format(user_id=user_id, schema=schema)
     existing_state = await redis.hgetall(state_key)
 
     if existing_state:
@@ -235,7 +232,7 @@ async def _apply_chaos_to_batch(
     items: list[dict[str, Any]],
     schema: str,
     forced_chaos: list[str] | None = None,
-) -> tuple[list[dict[str, Any]], list[str], dict[str, Any]]:
+) -> tuple[list[dict[str, Any] | str], list[str], dict[str, Any]]:
     """Apply chaos operations to items individually for better randomness.
 
     Args:
@@ -244,7 +241,8 @@ async def _apply_chaos_to_batch(
         forced_chaos: Optional list of chaos ops to force apply
 
     Returns:
-        Tuple of (items with chaos applied, chaos descriptions, chaos metadata)
+        Tuple of (items with chaos applied - may be dicts or corrupted strings,
+                  chaos descriptions, chaos metadata)
     """
     from mock_engine.context import GenContext
     from mock_engine.chaos.access import get_chaos_manager
@@ -262,7 +260,15 @@ async def _apply_chaos_to_batch(
         result, resp_meta = mgr.apply(
             body=temp_payload, schema_name=schema, forced_activation=forced_chaos
         )
-        body_items = getattr(result, "body", {}).get("items", items)
+        result_body = getattr(result, "body", {})
+
+        if isinstance(result_body, str):
+            body_items = [result_body]
+        elif isinstance(result_body, dict):
+            body_items = result_body.get("items", items)
+        else:
+            body_items = items
+
         descriptions = getattr(result, "descriptions", []) or []
         return body_items, descriptions, resp_meta or {}
     else:
@@ -272,11 +278,17 @@ async def _apply_chaos_to_batch(
                 body=temp_payload, schema_name=schema, forced_activation=None
             )
 
-            body_items = getattr(result, "body", {}).get("items", [item])
+            result_body = getattr(result, "body", {})
+
+            if isinstance(result_body, str):
+                out_items.append(result_body)
+            elif isinstance(result_body, dict):
+                body_items = result_body.get("items", [item])
+                out_items.append(body_items[0] if body_items else item)
+            else:
+                out_items.append(item)
+
             descriptions = getattr(result, "descriptions", []) or []
-
-            out_items.append(body_items[0] if body_items else item)
-
             all_descriptions.update(descriptions)
 
             if resp_meta:
@@ -286,7 +298,12 @@ async def _apply_chaos_to_batch(
 
 
 async def _save_user_state(
-    redis, schema: str, user_id: str, state: dict[str, int], ttl_seconds: int = 86400
+    redis,
+    schema: str,
+    user_id: str,
+    state: dict[str, int],
+    user_state_key_template: str,
+    ttl_seconds: int,
 ):
     """Save user state with TTL to prevent accumulation.
 
@@ -295,11 +312,12 @@ async def _save_user_state(
         schema: Schema name
         user_id: User ID
         state: State dict to save
-        ttl_seconds: Time-to-live for user state keys (default: 24 hours)
+        user_state_key_template: Template for user state key
+        ttl_seconds: Time-to-live for user state keys
     """
     if not state:
         return
-    state_key = USER_STATE_KEY_TEMPLATE.format(user_id=user_id, schema=schema)
+    state_key = user_state_key_template.format(user_id=user_id, schema=schema)
     await redis.hset(state_key, mapping=state)
     await redis.expire(state_key, ttl_seconds)
 
@@ -332,22 +350,26 @@ def _generate_live_batch(schema: str, count: int) -> list[dict[str, Any]]:
         return []
 
 
-async def _update_global_cache_count(redis, schema: str, delta: int):
+async def _update_global_cache_count(
+    redis, schema: str, delta: int, global_count_key: str, schema_count_key_template: str
+):
     """Update global cache counter when items are consumed or added.
 
     Args:
         redis: Redis client
         schema: Schema name
         delta: Change in count (negative for consumption, positive for addition)
+        global_count_key: Redis key for global count
+        schema_count_key_template: Template for per-schema count key
     """
     try:
-        await redis.incrby(GLOBAL_CACHE_COUNT_KEY, delta)
+        await redis.client.incrby(global_count_key, delta)
 
-        schema_count_key = GLOBAL_CACHE_SCHEMA_COUNT_KEY.format(schema=schema)
-        new_count = await redis.incrby(schema_count_key, delta)
+        schema_count_key = schema_count_key_template.format(schema=schema)
+        new_count = await redis.client.incrby(schema_count_key, delta)
 
         if new_count < 0:
-            await redis.set(schema_count_key, 0)
+            await redis.client.set(schema_count_key, 0)
             logger.warning("schema_count_negative_reset", schema=schema, was=new_count)
     except Exception as e:
         logger.warning(
@@ -359,80 +381,92 @@ async def _update_global_cache_count(redis, schema: str, delta: int):
 async def stream_schema(
     websocket: WebSocket,
     schema: str,
+    count: int | None = None,
     duration: int | None = None,
     max_events: int | None = None,
     user_id: str | None = None,
     forced_chaos: str | None = None,
+    profile: bool = False,
 ):
     """WebSocket streaming endpoint for pre-generated data.
 
     Args:
         schema: Schema name to stream
+        count: Number of items to pop from queue per iteration (optional, uses config default if not provided)
         duration: Maximum stream duration in seconds
         max_events: Maximum number of events to send
         user_id: Optional user ID for stateful continuation. If not provided, generates random ID.
                  If provided and exists, continues from saved state (only works with sequential mode).
         forced_chaos: Optional comma-separated list of chaos ops to force for this stream.
+        profile: Enable server-side profiling (requires server.debug.profiler_enabled=true)
     """
     await websocket.accept()
 
     websocket_active_connections.labels(schema=schema).inc()
 
-    try:
-        cm = get_config_manager()
-        batch_retention = cm.get_value("server.streaming.batch_retention")
-        increment_mode = cm.get_value("server.streaming.increment_mode", "sequential")
-        apply_chaos = cm.get_value("server.streaming.apply_chaos_in_consumer", True)
-        allow_forced_chaos = cm.get_value("server.streaming.allow_forced_chaos", True)
-        user_state_ttl = cm.get_value("server.streaming.user_state_ttl_seconds", 86400)
-        metadata_cache_ttl = cm.get_value(
-            "server.streaming.metadata_cache_ttl_seconds", 300
-        )
+    cm = get_config_manager()
 
-        rate_limit_enabled = cm.get_value("server.streaming.rate_limit_enabled", False)
-        base_rate = cm.get_value("server.streaming.base_rate", 1000)
-        auto_detect_rate = cm.get_value("server.streaming.auto_detect_rate", False)
-        auto_detect_sample_size = cm.get_value(
-            "server.streaming.auto_detect_sample_size", 1000
-        )
+    profiler_enabled = cm.get_value("server.debug.profiler_enabled")
+    profiler_output_dir = cm.get_value("server.debug.profiler_output_dir")
 
-        pregen_enabled = cm.get_value("server.pregeneration.enabled", True)
-        fallback_to_live = cm.get_value("server.pregeneration.fallback_to_live", True)
-        require_cache = cm.get_value("server.pregeneration.require_cache", False)
-        global_max_items = cm.get_value("server.pregeneration.global_max_items", None)
-    except Exception:
-        batch_retention = False
-        increment_mode = "sequential"
-        apply_chaos = True
-        allow_forced_chaos = True
-        user_state_ttl = 86400
-        metadata_cache_ttl = 300
-        rate_limit_enabled = False
-        base_rate = 1000
-        auto_detect_rate = False
-        auto_detect_sample_size = 1000
-        pregen_enabled = True
-        fallback_to_live = True
-        require_cache = False
-        global_max_items = None
+    batch_pop_size = cm.get_value("server.streaming.batch_pop_size")
+    batch_retention = cm.get_value("server.streaming.batch_retention")
+    increment_mode = cm.get_value("server.streaming.increment_mode")
+    apply_chaos = cm.get_value("server.streaming.apply_chaos_in_consumer")
+    allow_forced_chaos = cm.get_value("server.streaming.allow_forced_chaos")
+    user_state_ttl = cm.get_value("server.streaming.user_state_ttl_seconds")
+    user_state_key_prefix = cm.get_value("server.streaming.user_state_key_prefix")
+    metadata_cache_ttl = cm.get_value("server.streaming.metadata_cache_ttl_seconds")
+
+    rate_limit_enabled = cm.get_value("server.streaming.rate_limit_enabled")
+    base_rate = cm.get_value("server.streaming.base_rate")
+    auto_detect_rate = cm.get_value("server.streaming.auto_detect_rate")
+    auto_detect_sample_size = cm.get_value("server.streaming.auto_detect_sample_size")
+
+    pregen_enabled = cm.get_value("pregeneration.enabled")
+    fallback_to_live = cm.get_value("pregeneration.fallback_to_live")
+    require_cache = cm.get_value("pregeneration.require_cache")
+    global_max_items = cm.get_value("pregeneration.global_max_items")
+    pregen_key_prefix = cm.get_value("pregeneration.key_prefix")
+
+    queue_key_template = f"{pregen_key_prefix}:{{schema}}:queue"
+    meta_key_template = f"{pregen_key_prefix}:{{schema}}:meta"
+    user_state_key_template = f"{user_state_key_prefix}:{{user_id}}:{{schema}}"
+    global_count_key = f"{pregen_key_prefix}:global:count"
+    schema_count_key_template = f"{pregen_key_prefix}:{{schema}}:count"
+
+    effective_batch_size = count if count is not None else batch_pop_size
+
+    profiler = None
+    if profile:
+        if not profiler_enabled:
+            logger.warning("profiling_requested_but_disabled_by_config", schema=schema)
+        else:
+            import cProfile
+            profiler = cProfile.Profile()
+            profiler.enable()
+            logger.info("profiling_enabled", schema=schema, user_id=user_id or "auto")
 
     redis = websocket.app.state.redis
-    queue_key = QUEUE_KEY_TEMPLATE.format(schema=schema)
+    queue_key = queue_key_template.format(schema=schema)
     stateful_meta = await _ensure_stateful_meta(
-        redis, schema, cache_ttl_seconds=metadata_cache_ttl
+        redis, schema, meta_key_template, metadata_cache_ttl
     )
 
-    if not user_id:
-        user_id = uuid.uuid4().hex
-        logger.info(
-            "assigned_random_user_id",
-            user_id=user_id,
-            schema=schema,
-            increment_mode=increment_mode,
-        )
-    else:
-        if increment_mode == "sequential":
-            state_key = USER_STATE_KEY_TEMPLATE.format(user_id=user_id, schema=schema)
+    has_stateful_fields = bool(stateful_meta.get("fields"))
+    needs_user_state = has_stateful_fields and increment_mode == "sequential"
+
+    if needs_user_state:
+        if not user_id:
+            user_id = uuid.uuid4().hex
+            logger.info(
+                "assigned_random_user_id",
+                user_id=user_id,
+                schema=schema,
+                increment_mode=increment_mode,
+            )
+        else:
+            state_key = user_state_key_template.format(user_id=user_id, schema=schema)
             existing_state = await redis.hgetall(state_key)
             if existing_state:
                 logger.info(
@@ -448,17 +482,27 @@ async def stream_schema(
                     schema=schema,
                     increment_mode=increment_mode,
                 )
-        else:
-            logger.info(
-                "user_id_provided_but_wallclock_mode",
-                user_id=user_id,
-                schema=schema,
-                increment_mode=increment_mode,
-            )
+    else:
+        if user_id:
+            if not has_stateful_fields:
+                logger.info(
+                    "user_id_ignored_no_stateful_fields",
+                    user_id=user_id,
+                    schema=schema,
+                    reason="schema_has_no_stateful_fields",
+                )
+            elif increment_mode != "sequential":
+                logger.info(
+                    "user_id_ignored_wallclock_mode",
+                    user_id=user_id,
+                    schema=schema,
+                    increment_mode=increment_mode,
+                )
+        user_id = None
 
-    if increment_mode == "sequential":
+    if needs_user_state and user_id:
         user_state = await _get_or_create_user_state(
-            redis, schema, user_id, stateful_meta, ttl_seconds=user_state_ttl
+            redis, schema, user_id, stateful_meta, user_state_key_template, user_state_ttl
         )
     else:
         user_state = {}
@@ -475,11 +519,12 @@ async def stream_schema(
         if auto_detect_rate:
             worker_rate = stateful_meta.get("actual_generation_rate")
             if worker_rate and worker_rate > 0:
-                effective_rate = worker_rate
+                effective_rate = int(worker_rate * 0.9)
                 logger.info(
                     "using_worker_generation_rate",
                     schema=schema,
                     worker_rate=worker_rate,
+                    effective_rate=effective_rate,
                     base_rate=base_rate,
                 )
 
@@ -499,17 +544,28 @@ async def stream_schema(
     if pregen_enabled and fallback_to_live:
         stream_mode = "pregen_with_fallback"
 
-    await websocket.send_json(
-        {
-            "type": "start",
-            "schema": schema,
-            "user_id": user_id,
-            "mode": stream_mode,
-            "increment_mode": increment_mode,
-            "forced_chaos": forced_chaos_list,
-            "rate_limit_enabled": rate_limit_enabled,
-            "rate_limit_base": base_rate if rate_limit_enabled else None,
-        }
+    logger.info(
+        "stream_starting",
+        schema=schema,
+        user_id=user_id,
+        pregen_enabled=pregen_enabled,
+        fallback_to_live=fallback_to_live,
+        mode=stream_mode,
+    )
+
+    await websocket.send_text(
+        orjson.dumps(
+            {
+                "type": "start",
+                "schema": schema,
+                "user_id": user_id,
+                "mode": stream_mode,
+                "increment_mode": increment_mode,
+                "forced_chaos": forced_chaos_list,
+                "rate_limit_enabled": rate_limit_enabled,
+                "rate_limit_base": base_rate if rate_limit_enabled else None,
+            }
+        ).decode("utf-8")
     )
 
     seq = 0
@@ -526,7 +582,7 @@ async def stream_schema(
             remaining = max_events - seq if max_events is not None else None
             if remaining is not None and remaining <= 0:
                 break
-            pop_size = min(BATCH_POP_SIZE, remaining) if remaining else BATCH_POP_SIZE
+            pop_size = min(effective_batch_size, remaining) if remaining else effective_batch_size
 
             if rate_limiter and not await rate_limiter.consume(pop_size):
                 await asyncio.sleep(0.001)
@@ -536,28 +592,37 @@ async def stream_schema(
             used_live_generation = False
 
             if pregen_enabled:
-                batch_bytes = await redis.lpop(queue_key, pop_size)
-                if batch_bytes:
-                    raw_items = [orjson.loads(b) for b in batch_bytes]
-                    if global_max_items is not None:
-                        await _update_global_cache_count(redis, schema, -len(raw_items))
-                elif fallback_to_live:
-                    logger.info(
-                        "cache_empty_fallback_to_live", schema=schema, pop_size=pop_size
-                    )
-                    raw_items = _generate_live_batch(schema, pop_size)
-                    used_live_generation = True
-                elif require_cache:
-                    error_msg = {
-                        "type": "error",
-                        "error": "CacheRequired",
-                        "message": "Pre-generation cache is empty",
-                    }
-                    await websocket.send_json(error_msg)
-                    break
-                else:
-                    await asyncio.sleep(0.01)
-                    continue
+                try:
+                    batch_bytes = await redis.lpop(queue_key, pop_size)
+                    if batch_bytes:
+                        raw_items = [orjson.loads(b) for b in batch_bytes]
+                        if global_max_items is not None:
+                            await _update_global_cache_count(
+                                redis, schema, -len(raw_items), global_count_key, schema_count_key_template
+                            )
+                    else:
+                        logger.warning("pregen_queue_empty", schema=schema, queue_key=queue_key, pop_size=pop_size)
+                except Exception as e:
+                    logger.error("pregen_lpop_failed", schema=schema, queue_key=queue_key, error=str(e))
+
+                if not raw_items:
+                    if require_cache:
+                        error_msg = {
+                            "type": "error",
+                            "error": "CacheRequired",
+                            "message": "Pre-generation cache is empty",
+                        }
+                        await websocket.send_text(
+                            orjson.dumps(error_msg).decode("utf-8")
+                        )
+                        break
+                    elif fallback_to_live:
+                        logger.info("cache_empty_fallback_to_live", schema=schema, pop_size=pop_size)
+                        raw_items = _generate_live_batch(schema, pop_size)
+                        used_live_generation = True
+                    else:
+                        await asyncio.sleep(0.01)
+                        continue
             else:
                 raw_items = _generate_live_batch(schema, pop_size)
                 used_live_generation = True
@@ -638,7 +703,7 @@ async def stream_schema(
                         msg["chaos_applied"] = chaos_descriptions
                     if chaos_meta:
                         msg["chaos_meta"] = chaos_meta
-                    await websocket.send_json(msg)
+                    await websocket.send_text(orjson.dumps(msg).decode("utf-8"))
                     seq += 1
                     sent_in_batch += 1
             except WebSocketDisconnect:
@@ -654,9 +719,9 @@ async def stream_schema(
                         )
                 raise
 
-            if increment_mode == "sequential":
+            if increment_mode == "sequential" and user_id:
                 await _save_user_state(
-                    redis, schema, user_id, user_state, ttl_seconds=user_state_ttl
+                    redis, schema, user_id, user_state, user_state_key_template, user_state_ttl
                 )
 
     except WebSocketDisconnect:
@@ -667,13 +732,65 @@ async def stream_schema(
         )
         error_msg = {"type": "error", "error": type(e).__name__, "message": str(e)}
         with contextlib.suppress(Exception):
-            await websocket.send_json(error_msg)
+            await websocket.send_text(orjson.dumps(error_msg).decode("utf-8"))
     finally:
         websocket_active_connections.labels(schema=schema).dec()
 
-        if increment_mode == "sequential":
+        if increment_mode == "sequential" and user_id:
             await _save_user_state(
-                redis, schema, user_id, user_state, ttl_seconds=user_state_ttl
+                redis, schema, user_id, user_state, user_state_key_template, user_state_ttl
             )
+
+        if profiler:
+            import pstats
+            from io import StringIO
+            import os
+
+            profiler.disable()
+
+            os.makedirs(profiler_output_dir, exist_ok=True)
+
+            timestamp = int(time.time())
+
+            profile_file = f"{profiler_output_dir}/stream_{schema}_{timestamp}.prof"
+            profiler.dump_stats(profile_file)
+
+            report_file = f"{profiler_output_dir}/stream_{schema}_{timestamp}.txt"
+            with open(report_file, 'w') as f:
+                f.write(f"WebSocket Stream Profile - {schema}\n")
+                f.write(f"Timestamp: {timestamp}\n")
+                f.write(f"User ID: {user_id}\n")
+                f.write(f"Items sent: {seq}\n")
+                f.write("=" * 80 + "\n\n")
+
+                f.write("CUMULATIVE TIME (including subcalls)\n")
+                f.write("=" * 80 + "\n")
+                s = StringIO()
+                stats = pstats.Stats(profiler, stream=s)
+                stats.strip_dirs()
+                stats.sort_stats('cumulative')
+                stats.print_stats(50)
+                f.write(s.getvalue())
+
+                f.write("\n\n")
+                f.write("TIME (excluding subcalls)\n")
+                f.write("=" * 80 + "\n")
+                s = StringIO()
+                stats = pstats.Stats(profiler, stream=s)
+                stats.strip_dirs()
+                stats.sort_stats('time')
+                stats.print_stats(50)
+                f.write(s.getvalue())
+
+            logger.info(
+                "profile_saved",
+                schema=schema,
+                timestamp=timestamp,
+                user_id=user_id,
+                items_sent=seq,
+                profile_file=profile_file,
+                report_file=report_file,
+            )
+
         with contextlib.suppress(Exception):
             await websocket.close()
