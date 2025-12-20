@@ -8,7 +8,8 @@ PY ?= python
 PROJECT_NAME ?= $(if $(COMPOSE_PROJECT_NAME),$(COMPOSE_PROJECT_NAME),$(notdir $(CURDIR)))
 NETWORK ?= $(PROJECT_NAME)_mock-engine
 SERVICES ?=
-EXTRA_GOALS := $(filter-out logs fmt lint lint-fix,$(MAKECMDGOALS))
+WITHOUT_ENV ?= false
+EXTRA_GOALS := $(filter-out logs fmt lint lint-fix restart,$(MAKECMDGOALS))
 
 ifeq ($(strip $(EXTRA_GOALS)),)
 EXTRA_GOALS :=
@@ -19,26 +20,32 @@ $(EXTRA_GOALS):
 endif
 
 help:
-	@echo "make env                - generate .env from $(CONFIG)"
-	@echo "make up [SERVICES=...]  - start services (default all) detached"
-	@echo "make down               - stop all services"
-	@echo "make restart [SERVICES] - restart selected/all services"
-	@echo "make logs [SERVICES]    - follow logs"
-	@echo "make ps                 - list containers"
-	@echo "make shell [SERVICE=api]- shell into a service"
-	@echo "make test [ARGS=...]    - run pytest in api container"
-	@echo "make fmt | lint         - ruff format/check in api container"
-	@echo "make clean              - down + prune orphans/network"
-	@echo "make clean-data         - clean + drop pg/redis volumes"
-	@echo "make clean-all          - clean-data + docker system prune"
-	@echo "make health             - curl basic health checks"
-	@echo "make full-reset         - clean -> env -> build -> up (no volume drop)"
+	@echo "make env                      - generate .env from $(CONFIG)"
+	@echo "make up [SERVICES=...]        - start services (auto-generates .env)"
+	@echo "make up WITHOUT_ENV=true      - start services (use existing .env)"
+	@echo "make down                     - stop all services"
+	@echo "make restart [SERVICE]        - restart service (e.g., make restart api)"
+	@echo "make logs [SERVICES]          - follow logs"
+	@echo "make ps                       - list containers"
+	@echo "make shell [SERVICE=api]      - shell into a service"
+	@echo "make test [ARGS=...]          - run pytest in api container"
+	@echo "make fmt | lint               - ruff format/check in api container"
+	@echo "make clean                    - down + prune orphans/network"
+	@echo "make clean-data               - clean + drop pg/redis volumes"
+	@echo "make clean-all                - clean-data + docker system prune"
+	@echo "make health                   - curl basic health checks"
+	@echo "make full-reset               - clean -> env -> build -> up (no volume drop)"
 
 env:
 	@$(PY) $(ENV_SCRIPT) --config $(CONFIG) --output $(ENV_FILE)
 
+ifeq ($(WITHOUT_ENV),true)
+up:
+	$(COMPOSE) $(SERVICES) up -d
+else
 up: env
 	$(COMPOSE) $(SERVICES) up -d
+endif
 
 build:
 	$(COMPOSE) $(SERVICES) build
@@ -50,7 +57,7 @@ logs:
 	$(COMPOSE) logs -f $(if $(SERVICES),$(SERVICES),$(EXTRA_GOALS))
 
 restart:
-	$(COMPOSE) restart $(SERVICES)
+	$(COMPOSE) restart $(if $(SERVICES),$(SERVICES),$(EXTRA_GOALS))
 
 ps:
 	$(COMPOSE) ps
