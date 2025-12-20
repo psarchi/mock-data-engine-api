@@ -1,5 +1,9 @@
 # Mock Data Engine API
 
+[![CI](https://github.com/psarchi/mock-data-engine-api/actions/workflows/ci.yml/badge.svg)](https://github.com/psarchi/mock-data-engine-api/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+
 FastAPI service for generating realistic mock data via declarative YAML schemas. Define data contracts in YAML, generate deterministic or randomized datasets with built-in chaos injection for testing data pipelines, ETL processes, and streaming systems. Includes dual-layer persistence (Redis/PostgreSQL), real-time streaming, and comprehensive observability.
 
 ## Status
@@ -10,9 +14,12 @@ FastAPI service for generating realistic mock data via declarative YAML schemas.
 
 ```bash
 # Clone and start services
-git clone <repo-url>
+git clone https://github.com/psarchi/mock-data-engine-api.git
 cd mock-data-engine-api
-make up
+make up  # Auto-generates .env from config/*.yaml files
+
+# OR if you have your own .env file:
+# make up WITHOUT_ENV=true
 
 # Verify health
 curl http://localhost:8000/v1/health
@@ -101,7 +108,7 @@ curl http://localhost:8000/v1/schemas
 ### Stream Data
 
 ```
-ws://localhost:8000/v1/stream/{schema_name}
+ws://localhost:8000/v1/schemas/{schema}/stream
 ```
 
 Real-time streaming endpoint. Send JSON params `{"count": 100, "rate": 10}` to control volume and delivery rate (items/sec). Supports chaos injection and deterministic seeding via params.
@@ -149,7 +156,7 @@ chaos:
       p: 0.03
 ```
 
-**Operations:** latency, http_error, http_mismatch, truncate, schema_field_nulling, schema_bloat, duplicate_items, list_shuffle, late_arrival, time_skew, encoding_corrupt, data_drift, schema_drift
+**Operations:** latency, http_error, http_mismatch, truncate, schema_field_nulling, schema_bloat, duplicate_items, list_shuffle, late_arrival, time_skew, encoding_corrupt, data_drift, schema_drift, burst, partial_load, schema_time_skew, auth_fault, header_anomaly, random_header_case
 
 </details>
 
@@ -162,7 +169,7 @@ import websockets
 import json
 
 async def stream():
-    uri = "ws://localhost:8000/v1/stream/user"
+    uri = "ws://localhost:8000/v1/schemas/user/stream"
     async with websockets.connect(uri) as ws:
         params = {"count": 100, "rate": 10}  # 10 items/sec
         await ws.send(json.dumps(params))
@@ -194,15 +201,16 @@ curl "http://localhost:8000/v1/schemas/user/generate?persist=false"
 <details>
 <summary><b>Pre-Generation</b></summary>
 
-Background workers pre-generate data for high-throughput:
+Background workers pre-generate data for high-throughput scenarios. Configure in `config/default/generation.yaml`:
 
-```bash
-# Start worker
-python -m mock_engine.pregeneration.worker --schema user --target-count 10000
-
-# Consume pre-generated data
-curl http://localhost:8000/v1/schemas/user/generate?count=100
+```yaml
+pregeneration:
+  schemas: [ga4, smoke]  # Schemas to pre-generate
+  workers: 4             # Parallel workers
+  target_count: 10000    # Items per schema
 ```
+
+Worker starts automatically with `make up`. Streaming endpoints automatically consume pre-generated data when available, achieving 20k+ items/sec.
 
 </details>
 
@@ -219,11 +227,30 @@ curl http://localhost:8000/v1/schemas/user/generate?count=100
 
 Configuration files in `config/default/*.yaml`:
 
-- `server.yaml` - API server, persistence, observability
-- `generation.yaml` - Generator defaults, RNG, temporal modes
+- `server.yaml` - API server, persistence, observability, profiler
+- `generation.yaml` - Generator defaults, RNG, temporal modes, pre-generation
 - `chaos.yaml` - Chaos operations and budgets
 
 Override defaults by creating `config/*.yaml` files (gitignored).
+
+## Tools
+
+### JSON to YAML Schema Converter
+
+Bootstrap schemas from JSON examples:
+
+```bash
+# Single object
+curl https://api.example.com/user | python tools/json_to_schema.py > schemas/user.yaml
+
+# Array of samples (infer ranges)
+python tools/json_to_schema.py examples.json --infer-arrays --sample-size 100
+
+# From file
+python tools/json_to_schema.py example.json -o schemas/user.yaml
+```
+
+The tool automatically detects types (int, float, bool, string patterns), email/URL formats, and merges multiple samples to infer realistic min/max ranges. See [tools/README.md](tools/README.md) for details.
 
 ## Repository Layout
 
@@ -233,12 +260,14 @@ mock-data-engine-api/
 │   ├── generators/       # Data generators
 │   ├── chaos/           # Chaos operations
 │   ├── persistence/     # Redis/PostgreSQL clients
+│   ├── pregeneration/   # Background workers
 │   └── schema/          # Schema builder and validation
 ├── server/              # FastAPI application
 │   └── routers/         # API endpoints
 ├── schemas/             # YAML data contracts
 ├── config/              # Configuration files
 │   └── default/         # Default configs
+├── tools/               # Developer tools (json_to_schema)
 ├── containers/          # Docker service configs
 ├── tests/               # Test suites
 └── docker-compose.yaml  # Full stack deployment
@@ -250,4 +279,3 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 All generated data is entirely synthetic and intended for development and testing purposes only.  
 The software is provided "as is", without warranty of any kind. Users are responsible for compliance with applicable laws and regulations.
-
