@@ -12,9 +12,12 @@ dist/
 .eggs/
 .pytest_cache/
 .coverage
+coverage.xml
+htmlcov/
 .mypy_cache/
 .dmypy.json
 .pyre/
+.ruff_cache/
 
 # IDE
 .idea/
@@ -33,3 +36,7 @@ config/audit.log
 # Persistence data
 redis-data/
 postgres-data/
+
+# Local profiling output
+profiles/
+data/profile/
