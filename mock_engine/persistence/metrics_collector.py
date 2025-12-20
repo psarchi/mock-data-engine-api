@@ -130,6 +130,14 @@ async def main():
 
     try:
         cm = get_config_manager()
+        server_cfg = cm.get_root("server")  # type: ignore
+        metrics_enabled = bool(server_cfg.observability.metrics_enabled)  # type: ignore
+        if not metrics_enabled:
+            print(
+                "Metrics disabled via server.observability.metrics_enabled; exiting",
+                file=sys.stderr,
+            )
+            return
         cfg = cm.get_root("server").persistence.metrics_collector  # type: ignore
 
         metrics_port = int(

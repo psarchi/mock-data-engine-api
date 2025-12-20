@@ -21,16 +21,29 @@ from mock_engine.persistence.errors import (
 class RedisClient:
     """Async Redis client for caching."""
 
-    def __init__(self, url: str | None = None, key_prefix: str = "data:"):
+    def __init__(
+        self,
+        url: str | None = None,
+        key_prefix: str = "data:",
+        *,
+        decode_responses: bool = True,
+        encoding: str = "utf-8",
+    ):
         self.url = url or os.getenv("REDIS_URL", "redis://localhost:6379")
         self.key_prefix = key_prefix
+        self.decode_responses = decode_responses
+        self.encoding = encoding
         self._client: redis.Redis | None = None
 
     async def connect(self) -> None:
         """Establish Redis connection."""
         if self._client is None:
             try:
-                self._client = await redis.from_url(self.url, decode_responses=True)
+                self._client = await redis.from_url(
+                    self.url,
+                    decode_responses=self.decode_responses,
+                    encoding=self.encoding,
+                )
             except Exception as e:
                 raise RedisConnectionError(
                     f"Failed to connect to Redis at {self.url}: {e}"
@@ -134,7 +147,21 @@ class RedisClient:
 
         full_pattern = f"{self.key_prefix}{pattern}"
         keys = await self._client.keys(full_pattern)
-        return [k.replace(self.key_prefix, "") for k in keys]
+
+        out: list[str] = []
+        for key in keys:
+            if isinstance(key, bytes):
+                key_str = key.decode(self.encoding, errors="replace")
+            else:
+                key_str = str(key)
+
+            if key_str.startswith(self.key_prefix):
+                key_str = key_str[len(self.key_prefix) :]
+            else:
+                key_str = key_str.replace(self.key_prefix, "", 1)
+            out.append(key_str)
+
+        return out
 
     async def rpop(self, key: str) -> bytes | None:
         """Remove and return the last element from a list.
@@ -454,3 +481,49 @@ class PostgresClient:
 
         existing_ids = {row["id"] for row in rows}
         return [id for id in redis_ids if id not in existing_ids]
+
+    async def list_datasets(
+        self, offset: int = 0, limit: int = 50
+    ) -> tuple[list[dict[str, Any]], int]:
+        """List datasets with pagination.
+
+        Args:
+            offset: Number of records to skip
+            limit: Number of records to return
+
+        Returns:
+            Tuple of (list of dataset metadata dicts, total count)
+        """
+        if not self._pool:
+            await self.connect()
+
+        count_query = "SELECT COUNT(*) FROM datasets WHERE expires_at > NOW()"
+        async with self._pool.acquire() as conn:
+            total = await conn.fetchval(count_query)
+
+        query = """
+            SELECT id, schema_name, seed, chaos_applied, created_at, expires_at,
+                   jsonb_array_length(data->'items') as count
+            FROM datasets
+            WHERE expires_at > NOW()
+            ORDER BY created_at DESC
+            LIMIT $1 OFFSET $2
+        """
+
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(query, limit, offset)
+
+        datasets = [
+            {
+                "id": row["id"],
+                "schema_name": row["schema_name"],
+                "seed": row["seed"],
+                "count": row["count"] or 0,
+                "chaos_applied": row["chaos_applied"] or [],
+                "created_at": row["created_at"],
+                "expires_at": row["expires_at"],
+            }
+            for row in rows
+        ]
+
+        return datasets, total or 0
