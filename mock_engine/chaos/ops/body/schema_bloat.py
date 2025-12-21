@@ -47,24 +47,17 @@ class SchemaBloatOp(BaseChaosOp):
         s = (strategy or "insert").strip().lower()
         self.strategy = s if s in {"insert", "repeat"} else "insert"
 
+    _BYTE_TO_ASCII = bytes(range(256)).translate(bytes((i % 95) + 32 for i in range(256)))
+
     @staticmethod
     def _rand_chars(rng: random.Random, n: int) -> str:
-        pool = string.ascii_letters + string.digits + string.punctuation + " "
-        L = len(pool)
-        return "".join(pool[int(rng.random() * L)] for _ in range(n))
-
-    def _inflate_insert(self, s: str, need: int, rng: random.Random) -> tuple[str, int]:
-        if need <= 0:
-            return s, 0
-        chunk = min(max(8, need // 4), need)
-        ins = self._rand_chars(rng, chunk)
-        pos = int(rng.random() * (len(s) + 1))
-        out = s[:pos] + ins + s[pos:]
-        return out, len(ins)
+        random_bytes = rng.randbytes(n)
+        return random_bytes.translate(SchemaBloatOp._BYTE_TO_ASCII).decode('latin-1')
 
     def _inflate_repeat(self, s: str, need: int, rng: random.Random) -> tuple[str, int]:
         if not s:
-            return self._inflate_insert(s, need, rng)
+            ins = self._rand_chars(rng, need)
+            return ins, len(ins)
         token = s
         parts = s.split()
         if parts:
@@ -88,45 +81,44 @@ class SchemaBloatOp(BaseChaosOp):
         if not isinstance(body, (dict, list)):
             return ApplyResult(body=body, descriptions=[])
 
-        slots = list(iter_leaf_refs(body, predicate=lambda v: isinstance(v, str)))
-        if not slots:
+        # Early termination 10
+        MAX_CANDIDATES = 10
+        candidates = []
+        for ref in iter_leaf_refs(body, predicate=lambda v: isinstance(v, str)):
+            candidates.append(ref)
+            if len(candidates) >= MAX_CANDIDATES:
+                break
+
+        if not candidates:
             return ApplyResult(body=body, descriptions=[])
 
-        rng.shuffle(slots)
-        node_ref = slots[0]
+        node_ref = rng.choice(candidates)
         parent, key, path = node_ref.parent, node_ref.key, node_ref.path
 
         extra_bytes = self.extra_kb * 1024
         if extra_bytes <= 0:
             return ApplyResult(body=body, descriptions=[])
-        to_add_total = extra_bytes
-
-        strat = self.strategy
 
         if parent is None or key is None:
             return ApplyResult(body=body, descriptions=[])
+
         cur = parent[key]
         if not isinstance(cur, str):
             return ApplyResult(body=body, descriptions=[])
 
-        bytes_added = 0
-        for _ in range(256):
-            remaining = to_add_total - bytes_added
-            if remaining <= 0:
-                break
-            if strat == "insert":
-                new_val, inc = self._inflate_insert(cur, remaining, rng)
-            else:  # "repeat"
-                new_val, inc = self._inflate_repeat(cur, remaining, rng)
-            if inc <= 0:
-                break
-            parent[key] = new_val
-            cur = new_val
-            bytes_added += inc
+        if self.strategy == "insert":
+            ins = self._rand_chars(rng, extra_bytes)
+            pos = int(rng.random() * (len(cur) + 1))
+            new_val = cur[:pos] + ins + cur[pos:]
+            bytes_added = len(ins)
+        else:  # "repeat"
+            new_val, bytes_added = self._inflate_repeat(cur, extra_bytes, rng)
+
+        parent[key] = new_val
 
         return ApplyResult(
             body=body,
             descriptions=[
-                f"schema_bloat(path={path},+{bytes_added} bytes,strat={strat})"
+                f"schema_bloat(path={path},+{bytes_added} bytes,strat={self.strategy})"
             ],
         )

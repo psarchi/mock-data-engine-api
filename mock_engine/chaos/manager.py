@@ -9,6 +9,8 @@ from mock_engine.chaos.ops.base import ApplyResult, BaseChaosOp
 from mock_engine.context import GenContext
 from pydantic import BaseModel
 
+STATEFUL_OPS = frozenset({"burst"})
+
 
 class ChaosManager:
     """Orchestrate chaos operations for request/response pairs.
@@ -42,6 +44,86 @@ class ChaosManager:
             self.rng = ctx
         else:
             self.rng = random.Random()
+
+        self._selection_min_ops = 0
+        self._selection_max_ops = 0
+        self._candidate_ops: List[Tuple[str, float, float]] = []
+        self._op_params_by_name: Dict[str, Dict[str, Any]] = {}
+        self._op_instances: Dict[str, BaseChaosOp] = {}  # Cache stateless ops
+        self._build_selection_cache()
+        self._build_ops_caches()
+
+    def _build_selection_cache(self) -> None:
+        selection_cfg = getattr(self.cfg, "selection", None)
+        ensure_one = bool(
+            getattr(selection_cfg, "ensure_at_least_one_when_any_enabled", False)
+        )
+        min_ops = getattr(selection_cfg, "min_ops", 0)
+        max_ops = getattr(selection_cfg, "max_ops", 0)
+        try:
+            min_ops_int = int(min_ops)
+        except Exception:
+            min_ops_int = 0
+        try:
+            max_ops_int = int(max_ops)
+        except Exception:
+            max_ops_int = 0
+
+        if ensure_one and min_ops_int < 1:
+            min_ops_int = 1
+
+        self._selection_min_ops = min_ops_int
+        self._selection_max_ops = max_ops_int
+
+    def _build_ops_caches(self) -> None:
+        ops_cfg = getattr(self.cfg, "ops", None)
+        if ops_cfg is None:
+            return
+
+        candidates: List[Tuple[str, float, float]] = []
+        params_by_name: Dict[str, Dict[str, Any]] = {}
+
+        for op_name in self.registry.keys():
+            op_cfg = getattr(ops_cfg, op_name, None)
+            if not op_cfg:
+                continue
+
+            try:
+                params_by_name[op_name] = op_cfg.model_dump()
+            except Exception:
+                continue
+
+            enabled = getattr(op_cfg, "enabled", False)
+            probability = getattr(op_cfg, "p", 0)
+            if not enabled:
+                continue
+            try:
+                p_value = float(probability)
+            except Exception:
+                continue
+            if p_value <= 0:
+                continue
+
+            weight = getattr(op_cfg, "weight", 1.0)
+            try:
+                weight_value = float(weight)
+            except Exception:
+                weight_value = 1.0
+
+            candidates.append((op_name, p_value, weight_value))
+
+        self._candidate_ops = candidates
+        self._op_params_by_name = params_by_name
+
+        for op_name, params in params_by_name.items():
+            if op_name in STATEFUL_OPS:
+                continue  # Skip stateful ops
+            op_cls = self.registry.get(op_name)
+            if op_cls:
+                try:
+                    self._op_instances[op_name] = op_cls(**dict(params))
+                except Exception:
+                    pass
 
     def apply(
         self,
@@ -101,14 +183,8 @@ class ChaosManager:
         if forced_activation:
             return [k for k in forced_activation if k in self.registry]
 
-        selection_cfg = getattr(self.cfg, "selection", None)
-        ensure_one = bool(
-            getattr(selection_cfg, "ensure_at_least_one_when_any_enabled", False)
-        )
-        min_ops = getattr(selection_cfg, "min_ops", 0)
-        if ensure_one and min_ops < 1:
-            min_ops = 1
-        max_ops = getattr(selection_cfg, "max_ops", 0)
+        min_ops = self._selection_min_ops
+        max_ops = self._selection_max_ops
 
         if max_ops == 0 or min_ops > max_ops:
             return []
@@ -116,20 +192,10 @@ class ChaosManager:
         eligible_ops: List[str] = []
         op_weights: List[float] = []
 
-        for op_name in self.registry.keys():
-            op_cfg = getattr(ops_cfg, op_name, None)
-            if not op_cfg:
-                continue
-
-            enabled = getattr(op_cfg, "enabled", False)
-            probability = getattr(op_cfg, "p", 0)
-
-            if not (enabled and probability > 0):
-                continue
-
+        for op_name, probability, weight in self._candidate_ops:
             if self.rng.random() < probability:
                 eligible_ops.append(op_name)
-                op_weights.append(getattr(op_cfg, "weight", 1.0))
+                op_weights.append(weight)
 
         if not eligible_ops:
             return []
@@ -217,30 +283,47 @@ class ChaosManager:
             if not op_cls:
                 continue
 
-            op_cfg = getattr(ops_cfg, op_key, None)
-            if not op_cfg:
-                continue
+            params = self._op_params_by_name.get(op_key)
+            if params is None:
+                op_cfg = getattr(ops_cfg, op_key, None)
+                if not op_cfg:
+                    continue
+                params = op_cfg.model_dump()
 
-            params = op_cfg.model_dump()
-
-            op_instance = op_cls(**params)
-            op_result = op_instance.apply(
-                request=None,
-                response=resp_obj,
-                body=result.body,
-                rng=self.rng,
-            )
-
-            result.body = op_result.body
-
-            if op_result.descriptions:
-                if result.descriptions:
-                    result.descriptions.extend(op_result.descriptions)
+            try:
+                # Use cached instance for stateless ops, create new for stateful ops
+                if op_key in self._op_instances:
+                    op_instance = self._op_instances[op_key]
                 else:
-                    result.descriptions = op_result.descriptions
+                    op_instance = op_cls(**dict(params))
 
-            if op_result.status:
-                resp_obj.status = op_result.status
+                op_result = op_instance.apply(
+                    request=None,
+                    response=resp_obj,
+                    body=result.body,
+                    rng=self.rng,
+                )
+
+                result.body = op_result.body
+
+                if op_result.descriptions:
+                    if result.descriptions:
+                        result.descriptions.extend(op_result.descriptions)
+                    else:
+                        result.descriptions = op_result.descriptions
+
+                if op_result.status:
+                    resp_obj.status = op_result.status
+            except Exception as e:
+                # Log which operation failed and skip it
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(
+                    f"chaos_op_failed: operation='{op_key}' error='{type(e).__name__}: {e}' "
+                    f"schema='{schema_name or 'unknown'}'"
+                )
+                # Continue with other operations
+                continue
 
             if op_result.headers_delta:
                 for k, v in op_result.headers_delta.items():
