@@ -123,31 +123,3 @@ class TestBurstOp:
         """Test burst op has correct type token."""
         op = BurstOp(enabled=True)
         assert op.type_token == "burst"
-
-    @pytest.mark.skip(reason="Requires running WebSocket server with rate limiter")
-    def test_burst_integration_with_rate_limiter(self):
-        """Integration test: burst metadata activates rate limiter.
-
-        TODO: Test should verify:
-        1. Burst chaos op returns metadata with burst_active=True
-        2. Streaming endpoint reads burst metadata
-        3. Rate limiter.activate_burst() called with correct params
-        4. Throughput increases during burst period
-        5. Rate limiter returns to base rate after burst expires
-        6. Cache validation prevents burst if insufficient items
-        """
-        pass
-
-    @pytest.mark.skip(reason="Requires running pre-generation worker")
-    def test_burst_with_pregen_cache_validation(self):
-        """Integration test: burst validates cache before activation.
-
-        TODO: Test should verify:
-        1. Burst requires 100K items (burst_rate * duration)
-        2. Cache has only 50K items
-        3. Burst blocked with warning logged
-        4. Cache grows to 100K+ items
-        5. Burst activates successfully
-        6. Throughput increases as expected
-        """
-        pass

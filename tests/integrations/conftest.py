@@ -216,6 +216,7 @@ def ws_chaos(ws_fetch):
 
 CHAOS_OPS = [
     "auth_fault",
+    "burst",
     "data_drift",
     "duplicate_items",
     "encoding_corrupt",
