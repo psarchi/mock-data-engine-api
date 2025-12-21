@@ -7,6 +7,7 @@ generators. Behavior is intentionally minimal; subclasses implement
 
 from __future__ import annotations
 
+import os
 import time
 from collections.abc import Mapping
 from typing import Any, TYPE_CHECKING
@@ -23,8 +24,8 @@ if TYPE_CHECKING:  # import only for typing to avoid cycles
     from mock_engine.types import JsonValue  # noqa: F401
 
 
-def _generator_metrics_disabled() -> bool:
-    """Return True when per-generator metrics should be disabled."""
+def _check_metrics_disabled() -> bool:
+    """Check if per-generator metrics should be disabled (called once at module load)."""
     try:
         from mock_engine.config import get_config_manager
 
@@ -32,11 +33,20 @@ def _generator_metrics_disabled() -> bool:
         observability_cfg = getattr(cfg, "observability", None)  # type: ignore[attr-defined]
         if not observability_cfg:
             return True
+        # `metrics_enabled` is the global kill switch for Prometheus metrics. If it's
+        # off, skip per-generator instrumentation to avoid hot-path overhead.
+        if not bool(getattr(observability_cfg, "metrics_enabled", True)):
+            return True
         if not bool(getattr(observability_cfg, "enabled", True)):
             return True
         return bool(getattr(observability_cfg, "disable_generator_metrics", False))
     except Exception:
-        return False
+        # Fallback to environment variable if config fails
+        return bool(os.getenv("DISABLE_GENERATOR_METRICS"))
+
+
+# Cache the result at module load time (checked once, not 1.3M times!)
+_METRICS_DISABLED = _check_metrics_disabled()
 
 
 class BaseGenerator:
@@ -66,7 +76,7 @@ class BaseGenerator:
             Exception: Subclasses should document specific errors.
         """
         # Skip per-generator metrics if disabled (40% performance boost in pre-gen)
-        if _generator_metrics_disabled():
+        if _METRICS_DISABLED:
             return self._generate_impl(ctx)
 
         gen_type = self.__class__.__name__

@@ -155,6 +155,9 @@ class OneOfGenerator(BaseGenerator):
     def _pick_index(self, rng):
         """Select index using uniform or weighted distribution.
 
+        Note: Does not use utils._pick_index because this implementation is optimized
+        with precomputed cumulative weights, and uses 'choices' instead of 'values'.
+
         Args:
             rng: Random number generator instance.
 

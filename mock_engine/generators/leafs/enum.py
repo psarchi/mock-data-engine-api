@@ -9,9 +9,7 @@ from mock_engine.generators.errors import (
     InvalidParameterError,
     MissingChildError,
 )
-
-# TODO: Consider moving _pick_index to utils to share with OneOfGenerator
-
+from mock_engine.generators.utils import _pick_index
 from mock_engine.registry import Registry
 
 
@@ -150,20 +148,6 @@ class EnumGenerator(BaseGenerator):
             self.weights = list(weights)
         return self
 
-    # TODO: Consider moving to utils.py
-    #       to share with OneOfGenerator and avoid duplication.
-    def _pick_index(self, rng):
-        if not self.weights:
-            return rng.randint(0, len(self.values) - 1)
-        total = float(sum(self.weights))
-        r = rng.random() * total
-        acc = 0.0
-        for idx, w in enumerate(self.weights):
-            acc += float(w)
-            if r <= acc:
-                return idx
-        return len(self.values) - 1
-
     def _generate_impl(self, ctx: GenContext) -> "JsonValue":
         """Produce a value according to the configuration.
 
@@ -174,5 +158,5 @@ class EnumGenerator(BaseGenerator):
             JsonValue: One item from ``values`` (weighted if ``weights`` is provided).
         """
         self._sanity_check(ctx)
-        index = self._pick_index(ctx.rng)
+        index = _pick_index(self, ctx.rng)
         return self.values[index]
