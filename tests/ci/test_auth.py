@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 class TestTokenAuth:
     """Test token authentication middleware."""
 
+    @pytest.mark.integration
     def test_auth_disabled_allows_unauthenticated(self):
         """Test that requests succeed when auth is disabled (default config)."""
         from server.app import create_app
