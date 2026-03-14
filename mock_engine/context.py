@@ -75,6 +75,7 @@ class GenContext:
         "schema_version",
         "temporal_tracker",
         "_depends_on",
+        "_correlation_client",
     )
 
     def __init__(
@@ -125,6 +126,7 @@ class GenContext:
         self.schema_version = "unknown"
         self.temporal_tracker: Any = None
         self._depends_on: Any = None
+        self._correlation_client: Any = None
 
     @property
     def faker(self) -> faker.Faker:

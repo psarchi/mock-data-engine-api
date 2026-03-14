@@ -19,3 +19,7 @@ class StringGeneratorSpec(ContractModel):
     max_length: Optional[int] = None
     string_type: Optional[str] = None  # e.g., city, state, url, uuid4, word
     n_type: Optional[str] = None  # e.g., numeric templating helper
+    bound_to: Optional[str] = None
+    linked_to: Optional[str] = None
+    bound_to_schema: Optional[str] = None
+    bound_to_revision: Optional[int] = None

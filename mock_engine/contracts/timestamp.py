@@ -15,6 +15,10 @@ class TimestampGeneratorSpec(ContractModel):
     start: Optional[datetime] = None
     end: Optional[datetime] = None
     depends_on: Optional[str] = None
+    bound_to: Optional[str] = None
+    linked_to: Optional[str] = None
+    bound_to_schema: Optional[str] = None
+    bound_to_revision: Optional[int] = None
 
     def to_spec(self, name: str, adapt):
         def enc(x):
@@ -33,4 +37,10 @@ class TimestampGeneratorSpec(ContractModel):
             out["end"] = enc(self.end)
         if self.depends_on is not None:
             out["depends_on"] = self.depends_on
+        if self.bound_to is not None:
+            out["bound_to"] = self.bound_to
+        if self.bound_to_schema is not None:
+            out["bound_to_schema"] = self.bound_to_schema
+        if self.bound_to_revision is not None:
+            out["bound_to_revision"] = self.bound_to_revision
         return out

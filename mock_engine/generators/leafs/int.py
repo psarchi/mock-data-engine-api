@@ -30,11 +30,11 @@ class IntGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"max": "max", "min": "min", "step": "step"},
+        "aliases": {"max": "max", "min": "min", "step": "step", "bound_to": "bound_to", "linked_to": "bound_to", "bound_to_schema": "bound_to_schema", "bound_to_revision": "bound_to_revision"},
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("min", "max", "step")
+    __slots__ = ("min", "max", "step", "bound_to", "bound_to_schema", "bound_to_revision")
     __aliases__ = ("int",)
 
     # TODO(defaults): Allow overriding the default bounds via global config.
@@ -44,6 +44,9 @@ class IntGenerator(BaseGenerator):
         min: int | None = None,
         max: int | None = None,
         step: int | None = None,
+        bound_to: str | None = None,
+        bound_to_schema: str | None = None,
+        bound_to_revision: int | None = None,
     ) -> None:
         """Initialize bounds and step.
 
@@ -51,10 +54,14 @@ class IntGenerator(BaseGenerator):
             min (int | None): Minimum value (inclusive). If ``None``, defaults to ``0``.
             max (int | None): Maximum value (inclusive). If ``None``, defaults to ``100``.
             step (int | None): Step size between values. If ``None``, defaults to ``1``.
+            bound_to (str | None): Anchor field name for entity correlation.
         """
         self.min: int = 0 if min is None else int(min)
         self.max: int = 100 if max is None else int(max)
         self.step: int = 1 if step is None else int(step)
+        self.bound_to = bound_to
+        self.bound_to_schema = bound_to_schema
+        self.bound_to_revision = bound_to_revision
 
     @classmethod
     def from_spec(
@@ -71,7 +78,7 @@ class IntGenerator(BaseGenerator):
         Returns:
             IntGenerator: Configured instance.
         """
-        return cls(min=spec.get("min"), max=spec.get("max"), step=spec.get("step"))
+        return cls(min=spec.get("min"), max=spec.get("max"), step=spec.get("step"), bound_to=spec.get("bound_to") or spec.get("linked_to"), bound_to_schema=spec.get("bound_to_schema"), bound_to_revision=spec.get("bound_to_revision"))
 
     def _sanity_check(self, ctx: GenContext) -> None:
         """Validate configuration and context preconditions.

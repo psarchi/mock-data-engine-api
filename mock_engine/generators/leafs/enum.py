@@ -33,11 +33,11 @@ class EnumGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"values": "values", "weights": "weights"},
+        "aliases": {"values": "values", "weights": "weights", "bound_to": "bound_to", "linked_to": "bound_to", "bound_to_schema": "bound_to_schema", "bound_to_revision": "bound_to_revision"},
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("values", "weights")
+    __slots__ = ("values", "weights", "bound_to", "bound_to_schema", "bound_to_revision")
     __aliases__ = ("enum",)
 
     # TODO(validation): Ensure each weight is non-negative and finite (no NaN/inf).
@@ -46,17 +46,24 @@ class EnumGenerator(BaseGenerator):
         self,
         values: Sequence[Any] | None = None,
         weights: Sequence[float] | None = None,
+        bound_to: str | None = None,
+        bound_to_schema: str | None = None,
+        bound_to_revision: int | None = None,
     ) -> None:
         """Initialize with optional values and weights.
 
         Args:
             values (Sequence[Any] | None): Candidate values; empty list if ``None``.
             weights (Sequence[float] | None): Relative weights; ``None`` means uniform.
+            bound_to (str | None): Anchor field name for entity correlation.
         """
         self.values: list[Any] = list(values) if values else []
         self.weights: list[float] | None = (
             list(weights) if weights is not None else None
         )
+        self.bound_to = bound_to
+        self.bound_to_schema = bound_to_schema
+        self.bound_to_revision = bound_to_revision
 
     @classmethod
     def from_spec(
@@ -93,7 +100,7 @@ class EnumGenerator(BaseGenerator):
                     continue
             values.append(v)
 
-        return cls(values=values, weights=spec.get("weights"))
+        return cls(values=values, weights=spec.get("weights"), bound_to=spec.get("bound_to") or spec.get("linked_to"), bound_to_schema=spec.get("bound_to_schema"), bound_to_revision=spec.get("bound_to_revision"))
 
     def _sanity_check(self, ctx: GenContext) -> None:
         """Validate configuration and context preconditions.

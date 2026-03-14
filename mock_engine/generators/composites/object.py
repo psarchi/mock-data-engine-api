@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+import json
+import logging
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
+logger = logging.getLogger(__name__)
+
 from mock_engine.context import GenContext
+from mock_engine.schema.registry import SchemaRegistry
 from mock_engine.errors import ContextError
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.generators.errors import (
     InvalidParameterError,
     MissingChildError,
+    InvalidSchemaNameError
 )
 from mock_engine.registry import Registry
 
@@ -30,7 +36,7 @@ class ObjectGenerator(BaseGenerator):
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("_built", "_meta", "_field_configs")
+    __slots__ = ("_built", "_meta", "_field_configs", "_anchor_map")
     __aliases__ = ("object",)
 
     def __init__(self, fields: dict[str, BaseGenerator] | None = None) -> None:
@@ -40,6 +46,8 @@ class ObjectGenerator(BaseGenerator):
         self._meta: dict[str, dict[str, Any]] = {}
         # Cached field configurations for fast lookup during generation
         self._field_configs: dict[str, dict[str, Any]] = {}
+        # anchor_field → [correlated_field_names], built at scan time
+        self._anchor_map: dict[str, list[str]] = {}
 
     # TODO(arch): depend on a builder/factory *protocol* instead of a concrete object
     @classmethod
@@ -128,14 +136,23 @@ class ObjectGenerator(BaseGenerator):
     def _build_field_configs(self) -> None:
         """Precompute field configurations for fast lookup during generation."""
         self._field_configs = {}
+        self._anchor_map = {}
         for field_name, child_gen in self._built.items():
             field_meta = self._meta.get(field_name, {})
+            bound_to = getattr(child_gen, "bound_to", None)
+            bound_to_schema = getattr(child_gen, "bound_to_schema", None)
+            bound_to_revision = getattr(child_gen, "bound_to_revision", None)
             self._field_configs[field_name] = {
                 "is_required": bool(field_meta.get("required")),
                 "default_value": field_meta.get("default", None),
                 "depends": getattr(child_gen, "depends_on", None),
+                "bound_to": bound_to,
+                "bound_to_schema": bound_to_schema,
+                "bound_to_revision": bound_to_revision,
                 "child_gen": child_gen,
             }
+            if bound_to and bound_to_schema is None:
+                self._anchor_map.setdefault(bound_to, []).append(field_name)
 
     def _value_checker(self, value, default_value, is_required, field_name):
         """Check and apply defaults/required validation for a field value."""
@@ -164,15 +181,57 @@ class ObjectGenerator(BaseGenerator):
         self._sanity_check(ctx)
         output: dict[str, Any] = {}
         depends_on = []
+        # corr_data: {anchor_field: {field_name: cached_value}} fetched from Redis
+        corr_data: dict[str, dict[str, Any]] = {}
+        # track which anchors were a MISS so we write them after generation
+        corr_miss: set[str] = set()
+
+        correlation_client = getattr(ctx, "_correlation_client", None)
+        _schema_name = getattr(ctx, "schema_name", None)
+        if not _schema_name:
+            raise InvalidSchemaNameError
+        _schema_ver = (
+            SchemaRegistry.get_revision(SchemaRegistry.get_latest_name(_schema_name))
+            if correlation_client is not None
+            else None
+        )
 
         # Use cached field configs for fast lookup
         for field_name, config in self._field_configs.items():
             depends = config["depends"]
+            bound_to = config["bound_to"]
+
             if depends and depends not in output:
                 depends_on.append(field_name)
                 continue
             if depends and depends in output:
                 ctx._depends_on = output[depends]
+
+            # After generating an anchor field, fetch its correlated values from Redis
+            if field_name in self._anchor_map and correlation_client is not None:
+                value = config["child_gen"].generate(ctx)
+                value = self._value_checker(
+                    value, config["default_value"], config["is_required"], field_name
+                )
+                output[field_name] = value
+                key = f"corr:{_schema_name}:{_schema_ver}:{field_name}:{value}"
+                try:
+                    raw = correlation_client.get(key)
+                    if raw:
+                        corr_data[field_name] = json.loads(raw)
+                    else:
+                        corr_miss.add(field_name)
+                except Exception:
+                    logger.warning("correlation Redis GET failed for key %s", key)
+                continue
+
+            # If this field is intra-schema correlated, use cached value if available
+            if bound_to and not config["bound_to_schema"] and bound_to in corr_data:
+                cached_val = corr_data[bound_to].get(field_name)
+                if cached_val is not None:
+                    output[field_name] = cached_val
+                    continue
+
             value = config["child_gen"].generate(ctx)
             value = self._value_checker(
                 value, config["default_value"], config["is_required"], field_name
@@ -204,5 +263,55 @@ class ObjectGenerator(BaseGenerator):
                 raise InvalidParameterError(
                     f"Cannot resolve dependencies: {', '.join(depends_on)}"
                 )
+
+        # Cross-schema correlation lookup — read from source schema's cache, override if hit
+        if correlation_client is not None:
+            for field_name, config in self._field_configs.items():
+                bound_to_schema = config["bound_to_schema"]
+                if not bound_to_schema:
+                    continue
+                bound_to = config["bound_to"]
+                if not bound_to or bound_to not in output:
+                    continue
+                anchor_val = output[bound_to]
+                pinned_rev = config["bound_to_revision"]
+                try:
+                    if pinned_rev is not None:
+                        src_rev = pinned_rev
+                    else:
+                        src_rev = SchemaRegistry.get_revision(
+                            SchemaRegistry.get_latest_name(bound_to_schema)
+                        )
+                    key = f"corr:{bound_to_schema}:{src_rev}:{bound_to}:{anchor_val}"
+                    raw = correlation_client.get(key)
+                    if raw:
+                        cached = json.loads(raw)
+                        if field_name in cached:
+                            output[field_name] = cached[field_name]
+                    else:
+                        logger.warning(
+                            "cross-schema corr miss: schema=%s field=%s anchor=%s=%s",
+                            bound_to_schema, field_name, bound_to, anchor_val,
+                        )
+                except Exception:
+                    logger.warning(
+                        "cross-schema corr Redis GET failed: schema=%s field=%s",
+                        bound_to_schema, field_name,
+                    )
+
+        # Write new correlated entries to Redis (SET NX — only if not exists)
+        if corr_miss and correlation_client is not None:
+            for anchor_field in corr_miss:
+                if anchor_field not in output:
+                    continue
+                anchor_val = output[anchor_field]
+                corr_fields = self._anchor_map.get(anchor_field, [])
+                new_data = {f: output[f] for f in corr_fields if f in output}
+                if new_data:
+                    key = f"corr:{_schema_name}:{_schema_ver}:{anchor_field}:{anchor_val}"
+                    try:
+                        correlation_client.set(key, json.dumps(new_data), nx=True)
+                    except Exception:
+                        logger.warning("correlation Redis SET NX failed for key %s", key)
 
         return output

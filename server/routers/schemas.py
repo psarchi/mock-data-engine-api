@@ -16,7 +16,7 @@ from mock_engine.observability import (
     get_count_bucket,
 )
 from server.auth import RequireAuth
-from server.deps import get_generator, get_redis, _SCHEMAS_DIR
+from server.deps import get_generator, get_redis, get_correlation_redis, _SCHEMAS_DIR
 from server.logging import get_logger
 from server.metadata import build_response_with_metadata
 
@@ -46,6 +46,7 @@ async def generate_schema(
     name: str,
     request: Request,
     redis=Depends(get_redis),
+    correlation_redis=Depends(get_correlation_redis),
     count: int = Query(1, ge=1, le=1000),
     seed: int | None = Query(None),
     chaos_ops: str | None = Query(
@@ -85,6 +86,7 @@ async def generate_schema(
     items = []
     ctx = GenContext(seed=seed)
     ctx.schema_name = name
+    ctx._correlation_client = correlation_redis
     gen_duration = 0
 
     if pregen_enabled and seed is None:

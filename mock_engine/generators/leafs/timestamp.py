@@ -34,11 +34,11 @@ class TimestampGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"end": "end", "start": "start", "depends_on": "depends_on"},
+        "aliases": {"end": "end", "start": "start", "depends_on": "depends_on", "bound_to": "bound_to", "linked_to": "bound_to", "bound_to_schema": "bound_to_schema", "bound_to_revision": "bound_to_revision"},
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("start", "end", "depends_on")
+    __slots__ = ("start", "end", "depends_on", "bound_to", "bound_to_schema", "bound_to_revision")
     __aliases__ = ("timestamp",)
 
     # TODO(defaults): Make the fallback window configurable (currently last 365 days).
@@ -48,6 +48,9 @@ class TimestampGenerator(BaseGenerator):
         start: int | float | str | None = None,
         end: int | float | str | None = None,
         depends_on: str | None = None,
+        bound_to: str | None = None,
+        bound_to_schema: str | None = None,
+        bound_to_revision: int | None = None,
     ) -> None:
         """Initialize bounds.
 
@@ -55,10 +58,14 @@ class TimestampGenerator(BaseGenerator):
             start (int | float | str | None): Start moment as ISO8601 string or epoch.
             end (int | float | str | None): End moment as ISO8601 string or epoch.
             depends_on (str | None): Field name to derive from (e.g., "event_date").
+            bound_to (str | None): Anchor field name for entity correlation.
         """
         self.start = start
         self.end = end
         self.depends_on = depends_on
+        self.bound_to = bound_to
+        self.bound_to_schema = bound_to_schema
+        self.bound_to_revision = bound_to_revision
 
     @classmethod
     def from_spec(
@@ -79,6 +86,9 @@ class TimestampGenerator(BaseGenerator):
             start=spec.get("start"),
             end=spec.get("end"),
             depends_on=spec.get("depends_on"),
+            bound_to=spec.get("bound_to") or spec.get("linked_to"),
+            bound_to_schema=spec.get("bound_to_schema"),
+            bound_to_revision=spec.get("bound_to_revision"),
         )
 
     # TODO(move): Move to utils

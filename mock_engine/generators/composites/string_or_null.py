@@ -28,21 +28,23 @@ class StringOrNullGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"of": "of", "weights": "weights"},
+        "aliases": {"of": "of", "weights": "weights", "bound_to": "bound_to", "linked_to": "bound_to"},
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("child", "weights")
+    __slots__ = ("child", "weights", "bound_to")
     __aliases__ = ("string_or_null",)
 
     def __init__(
         self,
         child: BaseGenerator | None = None,
         weights: Sequence[float] | None = None,
+        bound_to: str | None = None,
     ) -> None:
         """Initialize with optional child and weights."""
         self.child = child
         self.weights = weights
+        self.bound_to = bound_to
 
     # TODO(arch): depend on a builder/factory protocol instead of a concrete object
     @classmethod
@@ -70,7 +72,7 @@ class StringOrNullGenerator(BaseGenerator):
         if of_spec is None:
             raise MissingChildError("string_or_null requires an 'of' child spec")
         child = builder.build(of_spec)
-        return cls(child=child, weights=spec.get("weights"))  # type: ignore[arg-type]
+        return cls(child=child, weights=spec.get("weights"), bound_to=spec.get("bound_to") or spec.get("linked_to"))  # type: ignore[arg-type]
 
     def _sanity_check(self, ctx: GenContext) -> None:
         """Validate context and configuration invariants.

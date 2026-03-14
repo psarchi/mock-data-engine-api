@@ -33,19 +33,15 @@ def _check_metrics_disabled() -> bool:
         observability_cfg = getattr(cfg, "observability", None)  # type: ignore[attr-defined]
         if not observability_cfg:
             return True
-        # `metrics_enabled` is the global kill switch for Prometheus metrics. If it's
-        # off, skip per-generator instrumentation to avoid hot-path overhead.
         if not bool(getattr(observability_cfg, "metrics_enabled", True)):
             return True
         if not bool(getattr(observability_cfg, "enabled", True)):
             return True
         return bool(getattr(observability_cfg, "disable_generator_metrics", False))
     except Exception:
-        # Fallback to environment variable if config fails
         return bool(os.getenv("DISABLE_GENERATOR_METRICS"))
 
 
-# Cache the result at module load time (checked once, not 1.3M times!)
 _METRICS_DISABLED = _check_metrics_disabled()
 
 

@@ -43,12 +43,16 @@ class DateTimeGenerator(BaseGenerator):
             "time_start": "time_start",
             "tz": "tz",
             "depends_on": "depends_on",
+            "bound_to": "bound_to",
+            "linked_to": "bound_to",
+            "bound_to_schema": "bound_to_schema",
+            "bound_to_revision": "bound_to_revision",
         },
         "deprecations": [],
         "rules": [],
         # TODO(versioning): introduce per-generator semver once contracts stabilize.
     }
-    __slots__ = ("start", "end", "format", "time_start", "time_end", "tz", "depends_on")
+    __slots__ = ("start", "end", "format", "time_start", "time_end", "tz", "depends_on", "bound_to", "bound_to_schema", "bound_to_revision")
     __aliases__ = ("datetime",)
 
     def __init__(
@@ -60,6 +64,9 @@ class DateTimeGenerator(BaseGenerator):
         time_end: Optional[str] = None,
         tz: Optional[str] = None,
         depends_on: Optional[str] = None,
+        bound_to: Optional[str] = None,
+        bound_to_schema: str | None = None,
+        bound_to_revision: int | None = None,
     ) -> None:
         """Initialize the generator.
 
@@ -71,6 +78,7 @@ class DateTimeGenerator(BaseGenerator):
             time_end (str | None): Upper time-of-day bound ("HH:MM" or "HH:MM:SS").
             tz (str | None): Fixed offset like "+04:00"; if ``None``, UTC is used.
             depends_on (str | None): Field name to derive from (e.g., "event_timestamp").
+            bound_to (str | None): Anchor field name for entity correlation.
         """
         self.start = start
         self.end = end
@@ -79,6 +87,9 @@ class DateTimeGenerator(BaseGenerator):
         self.time_end = time_end
         self.tz = tz
         self.depends_on = depends_on
+        self.bound_to = bound_to
+        self.bound_to_schema = bound_to_schema
+        self.bound_to_revision = bound_to_revision
 
     @classmethod
     def from_spec(cls, builder: Any, spec: Mapping[str, Any]) -> "DateTimeGenerator":
@@ -99,6 +110,9 @@ class DateTimeGenerator(BaseGenerator):
             time_end=spec.get("time_end"),
             tz=spec.get("tz"),
             depends_on=spec.get("depends_on"),
+            bound_to=spec.get("bound_to") or spec.get("linked_to"),
+            bound_to_schema=spec.get("bound_to_schema"),
+            bound_to_revision=spec.get("bound_to_revision"),
         )
 
     def _infer_div(self, epoch_value: float) -> float:

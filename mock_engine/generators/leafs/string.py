@@ -48,6 +48,10 @@ class StringGenerator(BaseGenerator):
             "regex": "regex",
             "string_type": "string_type",
             "template": "template",
+            "bound_to": "bound_to",
+            "linked_to": "bound_to",
+            "bound_to_schema": "bound_to_schema",
+            "bound_to_revision": "bound_to_revision",
         },
         "deprecations": [],
         "rules": [],
@@ -61,6 +65,9 @@ class StringGenerator(BaseGenerator):
         "charset",
         "n_type",
         "n_charset",
+        "bound_to",
+        "bound_to_schema",
+        "bound_to_revision",
     )
     __aliases__ = ("string", "str")
 
@@ -74,6 +81,9 @@ class StringGenerator(BaseGenerator):
         charset: Optional[str] = None,
         n_type: Optional[str] = None,
         n_charset: Optional[str] = None,
+        bound_to: Optional[str] = None,
+        bound_to_schema: str | None = None,
+        bound_to_revision: int | None = None,
     ) -> None:
         """Initialize configuration for string generation.
 
@@ -97,6 +107,9 @@ class StringGenerator(BaseGenerator):
         self.charset = n_charset if charset is None else charset
         self.n_type = n_type
         self.n_charset = n_charset
+        self.bound_to = bound_to
+        self.bound_to_schema = bound_to_schema
+        self.bound_to_revision = bound_to_revision
 
     def _resolve_faker_provider(self, name: str, ctx: GenContext) -> Callable[[], Any]:
         """Resolve a Faker provider or attribute callable from ``ctx``.
@@ -150,6 +163,9 @@ class StringGenerator(BaseGenerator):
             charset=spec.get("charset"),
             n_type=spec.get("n_type"),
             n_charset=spec.get("n_charset"),
+            bound_to=spec.get("bound_to") or spec.get("linked_to"),
+            bound_to_schema=spec.get("bound_to_schema"),
+            bound_to_revision=spec.get("bound_to_revision"),
         )
 
     def _sanity_check(self, ctx: GenContext) -> None:

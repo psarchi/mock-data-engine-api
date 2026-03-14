@@ -30,21 +30,23 @@ class ObjectOrNullGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"child": "child", "p_null": "p_null"},
+        "aliases": {"child": "child", "p_null": "p_null", "bound_to": "bound_to", "linked_to": "bound_to"},
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("child", "p_null")
+    __slots__ = ("child", "p_null", "bound_to")
     __aliases__ = ("object_or_null",)
 
     def __init__(
         self,
         child: BaseGenerator | None = None,
         p_null: float | None = None,
+        bound_to: str | None = None,
     ) -> None:
         """Initialize with optional child and null probability."""
         self.child = child
         self.p_null = 0.1 if p_null is None else p_null
+        self.bound_to = bound_to
 
     # TODO(arch): depend on a builder/factory protocol instead of a concrete object
     @classmethod
@@ -76,7 +78,7 @@ class ObjectOrNullGenerator(BaseGenerator):
         if of_spec is None:
             of_spec = {"kind": "object", "fields": fields_block}
         child = builder.build(of_spec)
-        return cls(child=child, p_null=spec.get("p_null"))
+        return cls(child=child, p_null=spec.get("p_null"), bound_to=spec.get("bound_to") or spec.get("linked_to"))
 
     def _sanity_check(self, ctx: GenContext) -> None:
         """Validate context and configuration invariants.

@@ -1,0 +1,33 @@
+type: object
+fields:
+  # Anchor field — same user_id as in smoke_correlation schema
+  user_id:
+    type: string
+    template: "user_{nnn}"
+    n_type: numeric
+
+  # Cross-schema: reuse full_name cached by smoke_correlation for same user_id
+  full_name:
+    type: string
+    string_type: name
+    bound_to: user_id
+    bound_to_schema: smoke_correlation
+
+  # Cross-schema: reuse tier cached by smoke_correlation (latest revision)
+  tier:
+    type: enum
+    values: [free, pro, enterprise]
+    bound_to: user_id
+    bound_to_schema: smoke_correlation
+
+  # Not correlated — independent per record
+  order_id:
+    type: string
+    template: "order_{nnnnnnn}"
+    n_type: numeric
+
+  amount:
+    type: float
+    min: 1.0
+    max: 999.99
+    precision: 2

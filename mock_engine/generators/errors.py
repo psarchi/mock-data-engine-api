@@ -64,3 +64,6 @@ class MissingFieldsError(ObjectConfigError):
 
 class InvalidFieldTypeError(ObjectConfigError):
     """A field entry has an invalid type/value for an object generator."""
+
+class InvalidSchemaNameError(ObjectConfigError):
+    """Couldn't Find Schema Name"""

@@ -27,21 +27,23 @@ class MaybeGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"child": "child", "p_null": "p_null"},
+        "aliases": {"child": "child", "p_null": "p_null", "bound_to": "bound_to", "linked_to": "bound_to"},
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("child", "p_null")
+    __slots__ = ("child", "p_null", "bound_to")
     __aliases__ = ("maybe",)
 
     def __init__(
         self,
         child: BaseGenerator | None = None,
         p_null: float | None = None,
+        bound_to: str | None = None,
     ) -> None:
         """Initialize the generator with optional child and null probability."""
         self.child = child
         self.p_null = 0.1 if p_null is None else p_null
+        self.bound_to = bound_to
 
     # TODO(arch): depend on a builder/factory protocol instead of a concrete object
     @classmethod
@@ -70,7 +72,7 @@ class MaybeGenerator(BaseGenerator):
             raise MissingChildError("maybe generator requires 'of' or 'child'")
         child = builder.build(child_spec)
         p_null_value = spec.get("p_null")
-        return cls(child=child, p_null=p_null_value)  # type: ignore[arg-type]
+        return cls(child=child, p_null=p_null_value, bound_to=spec.get("bound_to") or spec.get("linked_to"))  # type: ignore[arg-type]
 
     def _sanity_check(self, ctx: GenContext) -> None:
         """Validate context and configuration invariants.

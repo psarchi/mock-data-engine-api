@@ -27,22 +27,24 @@ class OneOfGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"choices": "choices", "of": "choices"},
+        "aliases": {"choices": "choices", "of": "choices", "bound_to": "bound_to", "linked_to": "bound_to"},
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("choices", "weights", "_cumulative_weights")
+    __slots__ = ("choices", "weights", "_cumulative_weights", "bound_to")
     __aliases__ = ("one_of",)
 
     def __init__(
         self,
         choices: list[BaseGenerator] | None = None,
         weights: Sequence[float] | None = None,
+        bound_to: str | None = None,
     ) -> None:
         """Initialize the generator with optional child list and weights."""
         self.choices: list[BaseGenerator] = choices or []
         self.weights: Sequence[float] | None = weights
         self._cumulative_weights: list[float] | None = None
+        self.bound_to = bound_to
         if weights:
             self._cumulative_weights = self._build_cumulative_weights()
 
@@ -80,7 +82,7 @@ class OneOfGenerator(BaseGenerator):
             built.append(builder.build(child_spec))
 
         weights = spec.get("weights")
-        return cls(choices=built, weights=weights)  # type: ignore[arg-type]
+        return cls(choices=built, weights=weights, bound_to=spec.get("bound_to") or spec.get("linked_to"))  # type: ignore[arg-type]
 
     def _sanity_check(self, ctx: GenContext) -> None:
         """Validate context and configuration invariants.

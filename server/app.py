@@ -65,11 +65,17 @@ async def lifespan(app: FastAPI):
 
     # Initialize shared Redis client (API only writes to Redis)
     from mock_engine.persistence import RedisClient
+    import redis as redis_sync
 
     # Use bytes responses for streaming/pregen queue hot path (avoids per-item UTF-8 decode in redis-py).
     redis = RedisClient(redis_url, decode_responses=False)
     await redis.connect()
     app.state.redis = redis
+
+    # Sync Redis client for entity correlation lookups during generation
+    app.state.correlation_redis = redis_sync.Redis.from_url(
+        redis_url or "redis://localhost:6379", decode_responses=True
+    )
 
     metrics_collector = None
     collector_task = None
@@ -103,6 +109,7 @@ async def lifespan(app: FastAPI):
     await shutdown_publishers()
 
     await redis.close()
+    app.state.correlation_redis.close()
 
 
 def create_app() -> FastAPI:

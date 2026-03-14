@@ -13,3 +13,7 @@ class DateTimeGeneratorSpec(ContractModel):
 
     format: Optional[str] = None
     depends_on: Optional[str] = None
+    bound_to: Optional[str] = None
+    linked_to: Optional[str] = None
+    bound_to_schema: Optional[str] = None
+    bound_to_revision: Optional[int] = None

@@ -29,11 +29,11 @@ class FloatGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"max": "max", "min": "min", "precision": "precision"},
+        "aliases": {"max": "max", "min": "min", "precision": "precision", "bound_to": "bound_to", "linked_to": "bound_to", "bound_to_schema": "bound_to_schema", "bound_to_revision": "bound_to_revision"},
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("min", "max", "precision")
+    __slots__ = ("min", "max", "precision", "bound_to", "bound_to_schema", "bound_to_revision")
     __aliases__ = ("float",)
 
     # TODO(validation): Ensure bounds and precision are finite (no NaN/inf) once global validation utilities are in place.
@@ -43,6 +43,9 @@ class FloatGenerator(BaseGenerator):
         min: float | None = None,
         max: float | None = None,
         precision: int | None = None,
+        bound_to: str | None = None,
+        bound_to_schema: str | None = None,
+        bound_to_revision: int | None = None,
     ) -> None:
         """Initialize the generator with bounds and precision.
 
@@ -50,10 +53,14 @@ class FloatGenerator(BaseGenerator):
             min (float | None): Minimum value (inclusive). If ``None``, defaults to ``0.0``.
             max (float | None): Maximum value (inclusive). If ``None``, defaults to ``1.0``.
             precision (int | None): Decimal places for rounding; ``None`` leaves raw value.
+            bound_to (str | None): Anchor field name for entity correlation.
         """
         self.min: float = 0.0 if min is None else float(min)
         self.max: float = 1.0 if max is None else float(max)
         self.precision: int | None = None if precision is None else int(precision)
+        self.bound_to = bound_to
+        self.bound_to_schema = bound_to_schema
+        self.bound_to_revision = bound_to_revision
 
     @classmethod
     def from_spec(
@@ -77,6 +84,9 @@ class FloatGenerator(BaseGenerator):
             min=spec.get("min"),
             max=spec.get("max"),
             precision=spec.get("precision"),
+            bound_to=spec.get("bound_to") or spec.get("linked_to"),
+            bound_to_schema=spec.get("bound_to_schema"),
+            bound_to_revision=spec.get("bound_to_revision"),
         )
 
     def _sanity_check(self, ctx: GenContext) -> None:

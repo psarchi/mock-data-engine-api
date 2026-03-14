@@ -88,6 +88,33 @@ class RedisClient:
         except Exception as e:
             raise RedisWriteError(f"Failed to write to Redis key {id}: {e}") from e
 
+    async def set_nx(self, key: str, data: dict[str, Any]) -> bool:
+        """Store data in Redis only if the key does not already exist.
+
+        Args:
+            key: Full Redis key (no prefix applied)
+            data: Data to store
+
+        Returns:
+            True if stored, False if key already existed
+        """
+        if not self._client:
+            await self.connect()
+
+        if not self._client:
+            raise RedisConnectionError("Redis client not initialized")
+
+        try:
+            value = json.dumps(data)
+            result = await self._client.set(key, value, nx=True)
+            return result is not None
+        except (TypeError, ValueError) as e:
+            raise DataSerializationError(
+                f"Failed to serialize data for {key}: {e}"
+            ) from e
+        except Exception as e:
+            raise RedisWriteError(f"Failed to set_nx Redis key {key}: {e}") from e
+
     async def get(self, id: str) -> dict[str, Any] | None:
         """Retrieve dataset from Redis.
 

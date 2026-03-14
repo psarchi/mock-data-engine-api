@@ -13,6 +13,10 @@ class MaybeGeneratorSpec(ContractModel):
 
     child: Optional[Any] = None
     p_null: Optional[float] = None
+    bound_to: Optional[str] = None
+    linked_to: Optional[str] = None
+    bound_to_schema: Optional[str] = None
+    bound_to_revision: Optional[int] = None
 
     def to_spec(self, name: str, adapt):  # <- REQUIRED
         out = {"type": "maybe"}
@@ -20,4 +24,10 @@ class MaybeGeneratorSpec(ContractModel):
             out["child"] = adapt(f"{name}.?", self.child)  # (or "of" if you prefer)
         if self.p_null is not None:
             out["p_null"] = self.p_null
+        if self.bound_to is not None:
+            out["bound_to"] = self.bound_to
+        if self.bound_to_schema is not None:
+            out["bound_to_schema"] = self.bound_to_schema
+        if self.bound_to_revision is not None:
+            out["bound_to_revision"] = self.bound_to_revision
         return out

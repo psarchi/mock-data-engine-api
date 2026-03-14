@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from mock_engine.context import GenContext
 from server.auth import RequireAuth
-from server.deps import get_generator
+from server.deps import get_generator, get_correlation_redis
 
 router = APIRouter(prefix="/v1/admin/generators", tags=["admin-generators"])
 
@@ -48,6 +48,7 @@ def list_generators(_token: RequireAuth = None) -> dict[str, Any]:
 def invoke_generator(
     schema: str,
     request: GenerateRequest,
+    http_request: Request,
     _token: RequireAuth = None,
 ) -> dict[str, Any]:
     """Invoke a specific generator with schema context.
@@ -70,6 +71,7 @@ def invoke_generator(
 
     ctx = GenContext(seed=request.seed)
     ctx.schema_name = schema
+    ctx._correlation_client = get_correlation_redis(http_request)
 
     try:
         items = [gen.generate(ctx) for _ in range(request.count)]

@@ -14,3 +14,7 @@ class IntGeneratorSpec(BaseModel):
     min: Optional[int] = None
     max: Optional[int] = None
     step: Optional[int] = None
+    bound_to: Optional[str] = None
+    linked_to: Optional[str] = None
+    bound_to_schema: Optional[str] = None
+    bound_to_revision: Optional[int] = None

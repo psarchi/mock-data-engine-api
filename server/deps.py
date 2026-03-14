@@ -89,3 +89,8 @@ def get_settings():
 async def get_redis(request: Request):
     """Get the shared Redis client from app state."""
     return request.app.state.redis
+
+
+def get_correlation_redis(request: Request):
+    """Get the sync Redis client for entity correlation lookups."""
+    return getattr(request.app.state, "correlation_redis", None)
