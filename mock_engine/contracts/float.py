@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Optional, ClassVar
+from typing import List, Optional, ClassVar, Union
 from pydantic import BaseModel, ConfigDict
 
 
@@ -18,5 +18,5 @@ class FloatGeneratorSpec(BaseModel):
     linked_to: Optional[str] = None
     bound_to_schema: Optional[str] = None
     bound_to_revision: Optional[int] = None
-    pool: Optional[List[str]] = None
+    pool: Optional[Union[List[str], bool]] = None
     depends_on_pool: Optional[str] = None

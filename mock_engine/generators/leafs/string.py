@@ -88,7 +88,7 @@ class StringGenerator(BaseGenerator):
         bound_to: Optional[str] = None,
         bound_to_schema: str | None = None,
         bound_to_revision: int | None = None,
-        pool: List[str] | None = None,
+        pool: List[str] | bool | None = None,
         depends_on_pool: str | None = None,
     ) -> None:
         """Initialize configuration for string generation.

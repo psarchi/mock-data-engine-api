@@ -166,7 +166,10 @@ class ObjectGenerator(BaseGenerator):
             pool_cfg = getattr(child_gen, "pool", None)
             if pool_cfg is not None:
                 self._pool_anchor = field_name
-                self._pool_siblings = list(pool_cfg)
+                if pool_cfg is True:
+                    self._pool_siblings = []
+                else:
+                    self._pool_siblings = list(pool_cfg)
 
             source = getattr(child_gen, "depends_on_pool", None)
             if source:

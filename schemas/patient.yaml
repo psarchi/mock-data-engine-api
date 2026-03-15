@@ -1,0 +1,50 @@
+type: object
+fields:
+  patient_id:
+    type: string
+    template: "PAT-{nnnnnn}"
+    n_type: numeric
+    pool: true   # pushes patient_id into pool:patient — downstream schemas sample from here
+
+  first_name:
+    type: string
+    string_type: "first_name"
+    bound_to: patient_id   # same patient_id always gets the same first_name (Redis cache)
+
+  last_name:
+    type: string
+    string_type: "last_name"
+    bound_to: patient_id
+
+  date_of_birth:
+    type: datetime
+    start: "1940-01-01T00:00:00Z"
+    end: "2005-12-31T00:00:00Z"
+    format: "%Y-%m-%d"
+    bound_to: patient_id
+
+  gender:
+    type: enum
+    values: [male, female, other]
+    bound_to: patient_id
+
+  blood_type:
+    type: enum
+    values: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+    bound_to: patient_id
+
+  insurance_provider:
+    type: enum
+    values: [Allianz, AXA, Generali, VitalMed, uninsured]
+    weights: [25, 25, 20, 20, 10]
+    bound_to: patient_id
+
+  phone:
+    type: string
+    string_type: "phone_number"
+    bound_to: patient_id
+
+  email:
+    type: string
+    string_type: "email"
+    bound_to: patient_id

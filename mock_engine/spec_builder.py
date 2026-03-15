@@ -66,8 +66,15 @@ class SpecBuilder:
                 if key == "type":
                     normalized[key] = value
                 elif key == "pool":
-                    # pool is a list of field name strings, not generator specs — don't normalize
-                    normalized[key] = value
+                    # pool: true  → anchor only, no siblings (internal: [])
+                    # pool: [...]  → anchor + sibling field names
+                    # pool: false/None → not a pool source, skip
+                    if value is True:
+                        normalized[key] = []
+                    elif value is False or value is None:
+                        pass  # not a pool source
+                    else:
+                        normalized[key] = value
                 elif isinstance(value, (dict, list)):
                     next_path = f"{path}.{key}"
                     normalized[key] = self._normalize(value, path=next_path)

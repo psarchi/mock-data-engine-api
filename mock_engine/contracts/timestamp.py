@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import ClassVar, List, Set, Optional
+from typing import ClassVar, List, Set, Optional, Union
 from datetime import datetime
 from pydantic import ConfigDict
 from mock_engine.contracts.base import ContractModel
@@ -19,7 +19,7 @@ class TimestampGeneratorSpec(ContractModel):
     linked_to: Optional[str] = None
     bound_to_schema: Optional[str] = None
     bound_to_revision: Optional[int] = None
-    pool: Optional[List[str]] = None
+    pool: Optional[Union[List[str], bool]] = None
     depends_on_pool: Optional[str] = None
 
     def to_spec(self, name: str, adapt):
