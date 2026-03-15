@@ -1,6 +1,28 @@
+from __future__ import annotations
+
+from typing import Any, Dict
+
 import pytest
 
 from mock_engine.chaos.ops.network.burst import BurstOp
+
+
+def test_burst_rest(
+    baseline_items: list[Dict[str, Any]],
+    chaos_items: list[Dict[str, Any]],
+    chaos_applied: list[str],
+) -> tuple[bool, Dict[str, Any]]:
+    """Test burst for REST endpoint."""
+    pytest.skip("burst affects throughput/rate, not verifiable from a single REST response in CI")
+
+
+def test_burst_streaming(
+    baseline_items: list[Dict[str, Any]],
+    chaos_items: list[Dict[str, Any]],
+    chaos_applied: list[str],
+) -> tuple[bool, Dict[str, Any]]:
+    """Test burst for streaming endpoint."""
+    pytest.skip("burst affects throughput/rate, not verifiable from a single streaming response in CI")
 
 
 @pytest.mark.ci
