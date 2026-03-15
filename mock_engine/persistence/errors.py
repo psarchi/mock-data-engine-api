@@ -6,7 +6,7 @@ High-level persistence errors are defined here for Redis, PostgreSQL,
 storage operations, and batch synchronization.
 """
 
-from mock_engine.errors import PersistenceError as BasePersistenceError
+from mock_engine.errors import PersistenceError as BasePersistenceError  # noqa: E402
 
 PersistenceError = BasePersistenceError
 

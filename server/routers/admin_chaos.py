@@ -68,9 +68,9 @@ def chaos_test(_token: RequireAuth = None):
     _ = get_config_manager().get_root("chaos")
 
     mgr = get_chaos_manager(ctx)
-    out_resp, _meta = mgr.apply(response=payload, meta_enabled=False, names=list_of_ops)
-    body = out_resp.get("body")
-    headers = out_resp.get("headers") or {
+    out_resp, _meta = mgr.apply(response=payload, meta_enabled=False, names=list_of_ops)  # type: ignore[call-arg]
+    body = out_resp.get("body")  # type: ignore[attr-defined]
+    out_resp.get("headers") or {  # type: ignore[attr-defined]
         "Content-Type": "application/json; charset=utf-8"
     }
     return JSONResponse(content=body, status_code=200)
@@ -87,7 +87,7 @@ def chaos_ops(_token: RequireAuth = None):
     registry = mgr.registry.items()
     cfg_dict = dict(cfg) if cfg else {}
     cfg_dict.pop("ops_registry", None)
-    registry = {k: v.__module__ + "." + v.__name__ for k, v in mgr.registry.items()}
+    registry = {k: v.__module__ + "." + v.__name__ for k, v in mgr.registry.items()}  # type: ignore[assignment]
     return {"config": cfg_dict, "registry": registry}
 
 
@@ -111,7 +111,7 @@ def reload_chaos_config(_token: RequireAuth = None):
     reload_config()
 
     # Reset chaos manager singleton
-    chaos_access._manager = None
+    chaos_access._manager = None  # type: ignore[attr-defined]
 
     return {"status": "ok", "message": "Chaos config reloaded and manager reset"}
 

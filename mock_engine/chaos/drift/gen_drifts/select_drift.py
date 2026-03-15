@@ -39,10 +39,10 @@ class SelectDataDrift(DriftSpec):
             if pick_delta > 0:
                 delta = rng.randint(-pick_delta, pick_delta)
                 if delta != 0:
-                    new_pick = max(1, min(max_pick, spec.pick + delta))
+                    new_pick = max(1, min(max_pick, spec.pick + delta))  # type: ignore[operator]
                     if new_pick != spec.pick:
                         tweaks.append(f"pick:{spec.pick}->{new_pick}")
-                        spec.pick = new_pick
+                        spec.pick = new_pick  # type: ignore[assignment]
 
         if budget > 1:
             child_cfg = cfg.get("child")

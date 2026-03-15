@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Optional, ClassVar, Set
+from typing import List, Optional, ClassVar
 from pydantic import BaseModel, ConfigDict
 
 
@@ -8,7 +8,7 @@ class IntGeneratorSpec(BaseModel):
 
     # type aliasing
     type_token: ClassVar[str] = "int"
-    type_aliases: ClassVar[Set[str]] = ["integer"]
+    type_aliases: ClassVar[List[str]] = ["integer"]
     model_config = ConfigDict(extra="forbid")
 
     min: Optional[int] = None

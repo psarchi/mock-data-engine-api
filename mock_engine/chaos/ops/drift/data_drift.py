@@ -244,7 +244,7 @@ class DataDriftOp(BaseChaosOp):
         latest_name = SchemaRegistry.get_latest_name(schema_name)
         doc = SchemaRegistry.get(latest_name)
         try:
-            clone = doc.model_copy(deep=True)  # type: ignore[attr-defined]
+            clone = doc.model_copy(deep=True)
         except AttributeError:
             clone = copy.deepcopy(doc)
 

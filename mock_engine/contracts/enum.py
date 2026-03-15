@@ -29,5 +29,5 @@ class EnumGeneratorSpec(ContractModel):
         if self.bound_to_schema is not None:
             payload["bound_to_schema"] = self.bound_to_schema
         if self.bound_to_revision is not None:
-            payload["bound_to_revision"] = self.bound_to_revision
+            payload["bound_to_revision"] = self.bound_to_revision  # type: ignore[assignment]
         return payload

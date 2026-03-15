@@ -24,11 +24,11 @@ class OneOfGeneratorSpec(ContractModel):
         ]
         out = {"type": "one_of", "choices": choices}
         if self.weights:
-            out["weights"] = list(self.weights)
+            out["weights"] = list(self.weights)  # type: ignore[arg-type]
         if self.bound_to is not None:
             out["bound_to"] = self.bound_to
         if self.bound_to_schema is not None:
             out["bound_to_schema"] = self.bound_to_schema
         if self.bound_to_revision is not None:
-            out["bound_to_revision"] = self.bound_to_revision
+            out["bound_to_revision"] = self.bound_to_revision  # type: ignore[assignment]
         return out

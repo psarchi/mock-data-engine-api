@@ -20,7 +20,7 @@ class ArrayGeneratorSpec(ContractModel):
         if self.child is not None:
             out["child"] = adapt(f"{name}[]", self.child)
         if self.min_items is not None:
-            out["min_items"] = int(self.min_items)
+            out["min_items"] = int(self.min_items)  # type: ignore[assignment]
         if self.max_items is not None:
-            out["max_items"] = int(self.max_items)
+            out["max_items"] = int(self.max_items)  # type: ignore[assignment]
         return out

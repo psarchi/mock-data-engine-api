@@ -50,7 +50,7 @@ async def _ensure_stateful_meta(
     meta_key = meta_key_template.format(schema=schema)
     raw = await redis.get(meta_key)
     if not raw:
-        empty_meta = {"fields": [], "worker_start_time_seconds": None}
+        empty_meta: dict = {"fields": [], "worker_start_time_seconds": None}
         _STATEFUL_META[schema] = {**empty_meta, "cached_at": time.time()}
         return empty_meta
 
@@ -251,8 +251,8 @@ async def _apply_chaos_to_batch(
     ctx.schema_name = schema
     mgr = get_chaos_manager(ctx)
 
-    out_items = []
-    all_descriptions = set()
+    out_items: list = []
+    all_descriptions: set[str] = set()
     merged_meta = {}
 
     if forced_chaos:
@@ -263,7 +263,7 @@ async def _apply_chaos_to_batch(
         result_body = getattr(result, "body", {})
 
         if isinstance(result_body, str):
-            body_items = [result_body]
+            body_items: list = [result_body]
         elif isinstance(result_body, dict):
             body_items = result_body.get("items", items)
         else:
@@ -589,7 +589,6 @@ async def stream_schema(
                 continue
 
             raw_items: list[dict[str, Any]] = []
-            used_live_generation = False
 
             if pregen_enabled:
                 try:
@@ -619,13 +618,11 @@ async def stream_schema(
                     elif fallback_to_live:
                         logger.info("cache_empty_fallback_to_live", schema=schema, pop_size=pop_size)
                         raw_items = _generate_live_batch(schema, pop_size)
-                        used_live_generation = True
                     else:
                         await asyncio.sleep(0.01)
                         continue
             else:
                 raw_items = _generate_live_batch(schema, pop_size)
-                used_live_generation = True
 
             if not raw_items:
                 await asyncio.sleep(0.01)
@@ -643,7 +640,7 @@ async def stream_schema(
                         batch_items,
                         chaos_descriptions,
                         chaos_meta,
-                    ) = await _apply_chaos_to_batch(
+                    ) = await _apply_chaos_to_batch(  # type: ignore[assignment]
                         batch_items, schema, forced_chaos=forced_chaos_list
                     )
 

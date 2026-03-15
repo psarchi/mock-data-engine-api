@@ -19,7 +19,7 @@ if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
 
 
-@Registry.register(BaseGenerator)
+@Registry.register(BaseGenerator)  # type: ignore[type-abstract]
 class BoolGenerator(BaseGenerator):
     """Generate boolean values based on a Bernoulli parameter.
 
@@ -78,12 +78,12 @@ class BoolGenerator(BaseGenerator):
             BoolGenerator: Configured instance.
         """
         return cls(
-            p_true=spec.get("p_true"),
-            bound_to=spec.get("bound_to") or spec.get("linked_to"),
-            bound_to_schema=spec.get("bound_to_schema"),
-            bound_to_revision=spec.get("bound_to_revision"),
-            pool=spec.get("pool"),
-            depends_on_pool=spec.get("depends_on_pool"),
+            p_true=spec.get("p_true"),  # type: ignore[arg-type]
+            bound_to=spec.get("bound_to") or spec.get("linked_to"),  # type: ignore[arg-type]
+            bound_to_schema=spec.get("bound_to_schema"),  # type: ignore[arg-type]
+            bound_to_revision=spec.get("bound_to_revision"),  # type: ignore[arg-type]
+            pool=spec.get("pool"),  # type: ignore[arg-type]
+            depends_on_pool=spec.get("depends_on_pool"),  # type: ignore[arg-type]
         )
 
     def _sanity_check(self, ctx: GenContext) -> None:

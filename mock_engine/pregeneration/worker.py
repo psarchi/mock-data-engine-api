@@ -127,7 +127,7 @@ def _load_runtime_settings() -> tuple[list[str], str, int, int]:
     server_cfg = cm.get_root("server")
     persistence_cfg = (
         getattr(server_cfg, "persistence", None) if server_cfg else None
-    )  # type: ignore[attr-defined]
+    )
     if persistence_cfg:
         redis_cfg = getattr(persistence_cfg, "redis", None)
         if redis_cfg:
@@ -186,7 +186,7 @@ async def generate_and_push(
     ctx.schema_name = schema_name
     chaos_mgr = get_chaos_manager(ctx, pre_gen=True)
 
-    batch = []
+    batch: list = []
     batch_count = 0
     generated_total = 0
 

@@ -143,7 +143,7 @@ def _contract_to_spec(name: str, contract: object) -> dict:
 
     tok = token_for_instance(contract) or "string"
     try:
-        d = contract.model_dump(exclude_none=True)
+        d = contract.model_dump(exclude_none=True)  # type: ignore[attr-defined]
     except Exception:
         d = {}
     d["type"] = tok

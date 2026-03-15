@@ -18,7 +18,7 @@ if TYPE_CHECKING:  # keep annotations strict without import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa: F401
 
 
-@Registry.register(BaseGenerator)
+@Registry.register(BaseGenerator)  # type: ignore[type-abstract]
 class ArrayGenerator(BaseGenerator):
     """Generate an array of items produced by a child generator.
 
@@ -74,8 +74,8 @@ class ArrayGenerator(BaseGenerator):
             raise MissingChildError("Array spec requires 'child' or 'of'")
         child = builder.build(child_spec)
         return cls(
-            min_items=spec.get("min_items"),
-            max_items=spec.get("max_items"),
+            min_items=spec.get("min_items"),  # type: ignore[arg-type]
+            max_items=spec.get("max_items"),  # type: ignore[arg-type]
             child=child,
         )
 
@@ -146,4 +146,4 @@ class ArrayGenerator(BaseGenerator):
         max_count = self.max_items if self.max_items is not None else min_count
         count = ctx.rng.randint(min_count, max_count)
         # mypy: self.child is guaranteed by _sanity_check
-        return [self.child.generate(ctx) for _ in range(count)]  # type: ignore[union-attr]
+        return [self.child.generate(ctx) for _ in range(count)]

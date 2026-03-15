@@ -17,7 +17,7 @@ r_tz = r"([+-])(\d{2}):(\d{2})"
 # TODO(refractor): unify with TimestampGenerator maybe?
 
 
-@Registry.register(BaseGenerator)
+@Registry.register(BaseGenerator)  # type: ignore[type-abstract]
 class DateTimeGenerator(BaseGenerator):
     """Generate formatted datetimes within optional bounds and timezone.
 

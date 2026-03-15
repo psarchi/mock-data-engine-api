@@ -14,7 +14,7 @@ from mock_engine.chaos.drift.gen_drifts.utils import (
 
 
 class IntDataDrift(DriftSpec):
-    spec_cls = IntGeneratorSpec
+    spec_cls = IntGeneratorSpec  # type: ignore[assignment]
     handlers = {"data": "handle_data"}
 
     @staticmethod

@@ -17,7 +17,7 @@ if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
 
 
-@Registry.register(BaseGenerator)
+@Registry.register(BaseGenerator)  # type: ignore[type-abstract]
 class ObjectOrNullGenerator(BaseGenerator):
     """Object-or-null composite generator.
 
@@ -78,7 +78,7 @@ class ObjectOrNullGenerator(BaseGenerator):
         if of_spec is None:
             of_spec = {"kind": "object", "fields": fields_block}
         child = builder.build(of_spec)
-        return cls(child=child, p_null=spec.get("p_null"), bound_to=spec.get("bound_to") or spec.get("linked_to"))
+        return cls(child=child, p_null=spec.get("p_null"), bound_to=spec.get("bound_to") or spec.get("linked_to"))  # type: ignore[arg-type]
 
     def _sanity_check(self, ctx: GenContext) -> None:
         """Validate context and configuration invariants.
@@ -139,7 +139,7 @@ class ObjectOrNullGenerator(BaseGenerator):
             JsonValue: JSON-compatible value or ``None``.
         """
         self._sanity_check(ctx)
-        if ctx.rng.random() < float(self.p_null):  # type: ignore[arg-type]
+        if ctx.rng.random() < float(self.p_null):
             return None
         # mypy: self.child is validated in _sanity_check
-        return self.child.generate(ctx)  # type: ignore[union-attr]
+        return self.child.generate(ctx)

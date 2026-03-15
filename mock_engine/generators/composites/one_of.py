@@ -17,7 +17,7 @@ if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
 
 
-@Registry.register(BaseGenerator)
+@Registry.register(BaseGenerator)  # type: ignore[type-abstract]
 class OneOfGenerator(BaseGenerator):
     """Generate a value by choosing one child (uniformly or by weights).
 
@@ -149,7 +149,7 @@ class OneOfGenerator(BaseGenerator):
         """
         cumsum = []
         acc = 0.0
-        for w in self.weights:  # type: ignore[union-attr]
+        for w in self.weights:
             acc += float(w)
             cumsum.append(acc)
         return cumsum

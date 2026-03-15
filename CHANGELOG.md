@@ -12,6 +12,15 @@ Anchor a field and any number of sibling fields to it — same anchor value alwa
 - Cross-schema correlation: `bound_to_schema` + optional `bound_to_revision` to pin a specific schema version
 - Correlated values survive restarts — cached until Redis is flushed
 
+### CI / code quality
+
+- Fixed all lint errors (ruff): unused imports, bare `except`, f-strings without placeholders, module-level imports after `sys.path` manipulation
+- Fixed all mypy errors: corrected `# type: ignore` error codes, added missing annotations across generators, chaos ops, persistence, and server layers
+- Added `httpx` and `websocket-client` to `requirements.txt` (were missing, broke integration test collection)
+- Smoke tests now gracefully skip pool-consumer schemas when Redis is unavailable (`PoolEmptyError` -> `pytest.skip`)
+- Fixed `schema_bloat`: `need = max(8, need)` was a bare expression (result discarded); corrected to assignment
+- Fixed `truncate`: renamed shadowed `desc` variable to `desc_roots` in the root-items branch
+
 ### Referential integrity (`pool` / `depends_on_pool`)
 
 Make foreign keys point to real records. Source schemas push generated IDs (plus any sibling fields) into a Redis SET; downstream schemas sample from that set.

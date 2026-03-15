@@ -10,8 +10,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import pytest
-from tests.core.generators.utils import get_all_registered_generators
+import pytest  # noqa: E402
+from tests.core.generators.utils import get_all_registered_generators  # noqa: E402
 
 pytestmark = pytest.mark.skip(reason="Aggregator script; run manually if needed")
 

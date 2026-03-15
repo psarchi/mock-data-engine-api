@@ -23,11 +23,11 @@ class MaybeGeneratorSpec(ContractModel):
         if self.child is not None:
             out["child"] = adapt(f"{name}.?", self.child)  # (or "of" if you prefer)
         if self.p_null is not None:
-            out["p_null"] = self.p_null
+            out["p_null"] = self.p_null  # type: ignore[assignment]
         if self.bound_to is not None:
             out["bound_to"] = self.bound_to
         if self.bound_to_schema is not None:
             out["bound_to_schema"] = self.bound_to_schema
         if self.bound_to_revision is not None:
-            out["bound_to_revision"] = self.bound_to_revision
+            out["bound_to_revision"] = self.bound_to_revision  # type: ignore[assignment]
         return out

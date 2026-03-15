@@ -32,9 +32,11 @@ class EnumDataDrift(DriftSpec):
             if spec.weights and len(spec.weights) == len(values):
                 zipped = list(zip(values, spec.weights))
                 rng_shuffle(rng, zipped)
-                values, weights = zip(*zipped)
-                spec.values = list(values)
-                spec.weights = list(weights)
+                _v, _w = zip(*zipped)
+                values = list(_v)
+                weights_unpack: list[float] = list(_w)
+                spec.values = values
+                spec.weights = weights_unpack
             else:
                 rng_shuffle(rng, values)
                 spec.values = values

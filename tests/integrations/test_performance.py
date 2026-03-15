@@ -70,7 +70,7 @@ def test_rest_throughput(base_url, schema_name, timeout):
     latencies = [r["latency"] for r in successful]
     p50, p95, p99 = calculate_percentiles(latencies)
 
-    print(f"\n=== REST Throughput Test ===")
+    print("\n=== REST Throughput Test ===")
     print(f"Duration: {total_time:.2f}s")
     print(f"Total requests: {len(results)}")
     print(f"Successful: {len(successful)}")
@@ -132,7 +132,7 @@ def test_ws_throughput(ws_url, schema_name, timeout):
     total_items = sum(item_counts)
     throughput = total_items / total_time
 
-    print(f"\n=== WebSocket Throughput Test ===")
+    print("\n=== WebSocket Throughput Test ===")
     print(f"Duration: {total_time:.2f}s")
     print(f"Connections: {connections}")
     print(f"Total items: {total_items}")
@@ -163,7 +163,7 @@ def test_rest_latency(base_url, schema_name, timeout):
 
     p50, p95, p99 = calculate_percentiles(latencies)
 
-    print(f"\n=== REST Latency Test ===")
+    print("\n=== REST Latency Test ===")
     print(f"Requests: {len(latencies)}")
     print(f"Latency p50: {p50*1000:.2f}ms")
     print(f"Latency p95: {p95*1000:.2f}ms")
@@ -202,7 +202,7 @@ def test_chaos_performance_impact(base_url, schema_name, timeout):
         return successful / elapsed if elapsed > 0 else 0
 
     baseline_throughput = measure_throughput(chaos_ops=None)
-    print(f"\n=== Chaos Performance Impact ===")
+    print("\n=== Chaos Performance Impact ===")
     print(f"Baseline throughput: {baseline_throughput:.2f} req/s")
 
     # Test fast chaos ops (should have minimal impact)
@@ -267,7 +267,7 @@ def test_sustained_load(base_url, schema_name, timeout):
     avg_latency_first = statistics.mean(first_half) if first_half else 0
     avg_latency_second = statistics.mean(second_half) if second_half else 0
 
-    print(f"\n=== Sustained Load Test ===")
+    print("\n=== Sustained Load Test ===")
     print(f"Duration: {total_time:.2f}s")
     print(f"Total requests: {len(results)}")
     print(f"Successful: {len(successful)}")
@@ -292,7 +292,6 @@ def test_concurrent_connections(ws_url, schema_name, timeout):
 
     Opens increasing numbers of concurrent connections to find limits.
     """
-    max_connections = 50  # Start with reasonable limit
     count_per_msg = 5
 
     def open_connection():
@@ -303,13 +302,13 @@ def test_concurrent_connections(ws_url, schema_name, timeout):
             import json
 
             msg = ws.recv()
-            data = json.loads(msg) if msg else {}
+            json.loads(msg) if msg else {}
             ws.close()
             return True
         except Exception:
             return False
 
-    print(f"\n=== Concurrent Connections Test ===")
+    print("\n=== Concurrent Connections Test ===")
 
     for num_connections in [10, 20, 30, 40, 50]:
         start = time.time()
@@ -343,7 +342,7 @@ def test_burst_load(base_url, schema_name, timeout):
     endpoint = f"{base_url}/v1/schemas/{schema_name}/generate"
 
     # Normal load: 10 req/s for 10 seconds
-    print(f"\n=== Burst Load Test ===")
+    print("\n=== Burst Load Test ===")
     print("Phase 1: Normal load (10 req/s for 10s)...")
     normal_results = []
     for _ in range(100):
@@ -410,7 +409,7 @@ def test_generator_performance(base_url, schema_name, timeout):
     batch_size = 100
     num_batches = total_items // batch_size
 
-    print(f"\n=== Generator Performance Test ===")
+    print("\n=== Generator Performance Test ===")
     start = time.time()
 
     items_generated = 0
@@ -469,7 +468,7 @@ def test_observability_overhead(base_url, schema_name, timeout):
         avg_latency = statistics.mean(latencies) if latencies else 0
         return throughput, avg_latency
 
-    print(f"\n=== Observability Overhead Test ===")
+    print("\n=== Observability Overhead Test ===")
 
     # Get original config
     try:
@@ -509,7 +508,7 @@ def test_observability_overhead(base_url, schema_name, timeout):
 
         # Measure baseline
         baseline_throughput, baseline_latency = measure_throughput()
-        print(f"Baseline (observability off):")
+        print("Baseline (observability off):")
         print(f"  Throughput: {baseline_throughput:.2f} req/s")
         print(f"  Avg latency: {baseline_latency*1000:.2f}ms")
 
@@ -531,7 +530,7 @@ def test_observability_overhead(base_url, schema_name, timeout):
 
         # Measure with observability
         observability_throughput, observability_latency = measure_throughput()
-        print(f"\nWith observability (metrics + logging):")
+        print("\nWith observability (metrics + logging):")
         print(f"  Throughput: {observability_throughput:.2f} req/s")
         print(f"  Avg latency: {observability_latency*1000:.2f}ms")
 
@@ -550,7 +549,7 @@ def test_observability_overhead(base_url, schema_name, timeout):
         else:
             latency_overhead = 0
 
-        print(f"\n=== Overhead Summary ===")
+        print("\n=== Overhead Summary ===")
         print(f"Throughput degradation: {throughput_overhead:.1f}%")
         print(f"Latency increase: {latency_overhead:.1f}%")
 
@@ -620,7 +619,7 @@ def test_observability_overhead_websocket(ws_url, schema_name, timeout):
         throughput = items_received / elapsed if elapsed > 0 else 0
         return throughput, elapsed
 
-    print(f"\n=== WebSocket Observability Overhead Test ===")
+    print("\n=== WebSocket Observability Overhead Test ===")
 
     # Get original config
     try:
@@ -668,7 +667,7 @@ def test_observability_overhead_websocket(ws_url, schema_name, timeout):
 
         # Measure baseline
         baseline_throughput, baseline_duration = measure_throughput_ws()
-        print(f"Baseline (observability off):")
+        print("Baseline (observability off):")
         print(f"  Throughput: {baseline_throughput:.2f} items/s")
         print(f"  Duration: {baseline_duration:.2f}s")
 
@@ -697,7 +696,7 @@ def test_observability_overhead_websocket(ws_url, schema_name, timeout):
 
         # Measure with observability
         observability_throughput, observability_duration = measure_throughput_ws()
-        print(f"\nWith observability (metrics + logging):")
+        print("\nWith observability (metrics + logging):")
         print(f"  Throughput: {observability_throughput:.2f} items/s")
         print(f"  Duration: {observability_duration:.2f}s")
 
@@ -709,7 +708,7 @@ def test_observability_overhead_websocket(ws_url, schema_name, timeout):
         else:
             throughput_overhead = 0
 
-        print(f"\n=== Overhead Summary (WebSocket) ===")
+        print("\n=== Overhead Summary (WebSocket) ===")
         print(f"Throughput degradation: {throughput_overhead:.1f}%")
 
         # Verify overhead is acceptable (less than 30%)

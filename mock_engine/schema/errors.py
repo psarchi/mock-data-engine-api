@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Schema-level error types."""
 
-from mock_engine.errors import MockEngineError
+from mock_engine.errors import MockEngineError  # noqa: E402
 
 
 class SchemaError(MockEngineError):

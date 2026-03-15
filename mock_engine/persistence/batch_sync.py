@@ -201,7 +201,7 @@ async def main():
 
     try:
         cm = get_config_manager()
-        cfg = cm.get_root("server").persistence.batch_sync  # type: ignore
+        cfg = cm.get_root("server").persistence.batch_sync
 
         metrics_port = int(
             os.getenv("METRICS_PORT", getattr(cfg, "metrics_port", 8001))
@@ -211,7 +211,7 @@ async def main():
         )
         batch_limit = int(os.getenv("BATCH_LIMIT", getattr(cfg, "batch_limit", 1000)))
 
-        persistence_cfg = cm.get_root("server").persistence  # type: ignore
+        persistence_cfg = cm.get_root("server").persistence
         redis_url = os.getenv("REDIS_URL", getattr(persistence_cfg.redis, "url", None))
         postgres_url = os.getenv(
             "DATABASE_URL", getattr(persistence_cfg.postgres, "url", None)

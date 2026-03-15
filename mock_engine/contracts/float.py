@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Optional, ClassVar, Set
+from typing import List, Optional, ClassVar
 from pydantic import BaseModel, ConfigDict
 
 
@@ -8,7 +8,7 @@ class FloatGeneratorSpec(BaseModel):
 
     # type aliasing
     type_token: ClassVar[str] = "float"
-    type_aliases: ClassVar[Set[str]] = ["double", "number"]
+    type_aliases: ClassVar[List[str]] = ["double", "number"]
     model_config = ConfigDict(extra="forbid")
 
     min: Optional[float] = None

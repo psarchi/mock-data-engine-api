@@ -6,7 +6,7 @@ from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, List, Optional
 
 try:
-    import exrex  # type: ignore
+    import exrex
 except Exception as _e:  # noqa: BLE001 - preserved behavior
     exrex = None
 
@@ -22,7 +22,7 @@ if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
 
 
-@Registry.register(BaseGenerator)
+@Registry.register(BaseGenerator)  # type: ignore[type-abstract]
 class StringGenerator(BaseGenerator):
     """Produces strings using one of: plain synthesis, template expansion, regex
         (exrex), or Faker provider resolution.
@@ -144,7 +144,7 @@ class StringGenerator(BaseGenerator):
                 raise InvalidParameterError(f"Faker attribute '{name}' not found")
             attr = getattr(attr, part)
         if callable(attr):
-            return attr  # type: ignore[return-value]
+            return attr
         return lambda: attr
 
     @classmethod

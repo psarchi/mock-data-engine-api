@@ -62,8 +62,8 @@ def get_chaos_manager(ctx=None, pre_gen: bool = False) -> ChaosManager:
 
     if ctx is not None:
         try:
-            target_manager.ctx = ctx  # type: ignore[attr-defined]
+            target_manager.ctx = ctx
             target_manager.rng = getattr(ctx, "rng", ctx)
         except Exception:
-            setattr(target_manager, "ctx", ctx)  # type: ignore[attr-defined]
-    return target_manager  # type: ignore[return-value]
+            setattr(target_manager, "ctx", ctx)
+    return target_manager

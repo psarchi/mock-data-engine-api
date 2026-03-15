@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Drift-specific error types."""
 
-from mock_engine.chaos.errors import ChaosError
+from mock_engine.chaos.errors import ChaosError  # noqa: E402
 
 
 class DriftError(ChaosError):

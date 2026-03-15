@@ -87,7 +87,7 @@ async def generate_schema(
     ctx = GenContext(seed=seed)
     ctx.schema_name = name
     ctx._correlation_client = correlation_redis
-    gen_duration = 0
+    gen_duration: float = 0.0
 
     if pregen_enabled and seed is None:
         queue_key = f"pregen:{name}:queue"

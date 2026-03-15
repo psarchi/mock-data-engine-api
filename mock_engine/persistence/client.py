@@ -315,7 +315,7 @@ class RedisClient:
             raise RedisConnectionError("Redis client not initialized")
 
         try:
-            await self._client.hset(key, mapping=mapping)
+            await self._client.hset(key, mapping=mapping)  # type: ignore[arg-type]
             return True
         except Exception as e:
             raise RedisWriteError(f"Failed to hset Redis key {key}: {e}") from e

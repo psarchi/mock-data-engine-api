@@ -5,8 +5,6 @@ import logging
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
-logger = logging.getLogger(__name__)
-
 from mock_engine.context import GenContext
 from mock_engine.schema.registry import SchemaRegistry
 from mock_engine.errors import ContextError, PoolEmptyError, SchemaConfigError
@@ -18,12 +16,14 @@ from mock_engine.generators.errors import (
 )
 from mock_engine.registry import Registry
 
+logger = logging.getLogger(__name__)
+
 
 if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
 
 
-@Registry.register(BaseGenerator)
+@Registry.register(BaseGenerator)  # type: ignore[type-abstract]
 class ObjectGenerator(BaseGenerator):
     """Generate an object with fields produced by child generators.
 
@@ -81,8 +81,8 @@ class ObjectGenerator(BaseGenerator):
         """
         fields_block = spec.get("fields") or spec.get("properties")
         if not fields_block or not isinstance(fields_block, dict):
-            built = {}
-            meta = {}
+            built: dict[str, Any] = {}
+            meta: dict[str, Any] = {}
         else:
             built = {}
             meta = {}

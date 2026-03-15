@@ -152,9 +152,9 @@ def _scalar_type(meta: MetaNode) -> Any:
     base_py = pytype_for_declared(meta.declared_type or "string")
     if meta.choices:
         try:
-            lit = _Literal[tuple(meta.choices)]  # type: ignore[index]
+            lit = _Literal[tuple(meta.choices)]  # type: ignore[valid-type]
         except TypeError:
-            lit = _Literal[tuple(str(x) for x in meta.choices)]  # type: ignore[index]
+            lit = _Literal[tuple(str(x) for x in meta.choices)]
         base_py = lit
     field_kwargs = {}
     if meta.constraints:
@@ -162,7 +162,7 @@ def _scalar_type(meta: MetaNode) -> Any:
             if k in meta.constraints:
                 field_kwargs[k] = meta.constraints[k]
     if field_kwargs:
-        base_py = Annotated[base_py, Field(**field_kwargs)]  # type: ignore[index]
+        base_py = Annotated[base_py, Field(**field_kwargs)]  # type: ignore[arg-type]
     return base_py
 
 
@@ -179,7 +179,7 @@ def _array_type(meta: MetaNode) -> Any:
     item_t = _dispatch_type(item_meta)
     from typing import List as _List
 
-    return _List[item_t]  # type: ignore[index]
+    return _List[item_t]  # type: ignore[valid-type]
 
 
 def _object_type(meta: MetaNode) -> Any:
@@ -210,7 +210,7 @@ def _object_type(meta: MetaNode) -> Any:
             else:
                 fields[fname] = (ftype, default)
     model_name = "Obj_" + hex(id(meta))[-6:]
-    model = create_model(
+    model = create_model(  # type: ignore[call-overload]
         model_name,
         __config__=ConfigDict(
             populate_by_name=True, extra="forbid", validate_assignment=True
@@ -246,7 +246,7 @@ def _build_group_model(meta: MetaNode, *, model_name: str) -> Type[BaseModel]:
                 (ftype, Field(default, alias=alias)) if alias else (ftype, default)
             )
 
-    return create_model(
+    return create_model(  # type: ignore[call-overload]
         model_name,
         __config__=ConfigDict(
             populate_by_name=True, extra="forbid", validate_assignment=True
@@ -296,7 +296,7 @@ def _runtime_default_from_meta(meta: MetaNode) -> Any:
     if meta.kind == "group":
         model = _dispatch_type(meta)
         try:
-            return model()  # type: ignore[call-arg]
+            return model()
         except Exception:
             return None
     return None

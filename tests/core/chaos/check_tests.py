@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tests.core.chaos.utils import get_all_registered_chaos_ops
+from tests.core.chaos.utils import get_all_registered_chaos_ops  # noqa: E402
 
 
 def main():

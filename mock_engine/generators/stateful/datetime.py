@@ -21,7 +21,7 @@ UTC = timezone.utc
 ISO_DEFAULT = "%Y-%m-%dT%H:%M:%S%z"
 
 
-@Registry.register(BaseGenerator)
+@Registry.register(BaseGenerator)  # type: ignore[type-abstract]
 class StatefulDateTimeGenerator(BaseGenerator):
     """Generate incrementing formatted datetime strings.
 

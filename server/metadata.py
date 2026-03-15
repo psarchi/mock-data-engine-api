@@ -30,7 +30,7 @@ def build_response_with_metadata(
         >>> response.keys()
         dict_keys(['items', '_metadata'])
     """
-    response = {"items": items}
+    response: dict[str, Any] = {"items": items}
 
     if include_metadata:
         metadata = context.build_meta()

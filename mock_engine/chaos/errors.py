@@ -6,7 +6,7 @@ High-level chaos errors are defined here. Submodules can add their own
 specializations in local error.py files, but should inherit from these bases.
 """
 
-from mock_engine.errors import ChaosError as BaseChaosError
+from mock_engine.errors import ChaosError as BaseChaosError  # noqa: E402
 
 # Re-export the shared chaos base for convenience.
 ChaosError = BaseChaosError

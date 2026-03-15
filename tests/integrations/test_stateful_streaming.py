@@ -9,13 +9,13 @@ These tests verify:
 
 All tests require running API server, Redis, and pre-generation worker.
 """
+import asyncio
 import json
 import os
 import time
 
 import pytest
 import redis.asyncio as aioredis
-import requests
 import websocket
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
@@ -109,7 +109,7 @@ async def test_batch_retention_on_disconnect():
         queue_key = f"pregen:{schema}:queue"
 
         # Get initial queue length
-        initial_len = await redis_client.llen(queue_key)
+        await redis_client.llen(queue_key)
 
         # Connect WebSocket
         ws_url = f"{WS_URL}/v1/schemas/{schema}/stream"
@@ -124,7 +124,7 @@ async def test_batch_retention_on_disconnect():
             for _ in range(3):
                 try:
                     ws.recv()
-                except:
+                except Exception:
                     break
 
             # Close connection immediately (simulates disconnect during send)
@@ -142,7 +142,7 @@ async def test_batch_retention_on_disconnect():
         finally:
             try:
                 ws.close()
-            except:
+            except Exception:
                 pass
 
     finally:
@@ -407,5 +407,3 @@ def test_burst_integration_with_rate_limiter():
         ws.close()
 
 
-# Import asyncio for async tests
-import asyncio

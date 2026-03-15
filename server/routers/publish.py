@@ -36,7 +36,7 @@ class PublishResponse(BaseModel):
     """Response for publish operations."""
 
     success: bool
-    schema: str
+    schema: str  # type: ignore[assignment]
     topic: str
     provider: str
     generated: int
@@ -276,7 +276,7 @@ async def health_check(_token: RequireAuth = None) -> dict[str, Any]:
 
         if cm.get_value("server.publishing.pubsub.enabled", False):
             try:
-                publisher = get_pubsub_publisher()
+                publisher = get_pubsub_publisher()  # type: ignore[assignment]
                 health["pubsub"] = publisher.health_check()
             except Exception as e:
                 health["pubsub"] = {"error": str(e)}

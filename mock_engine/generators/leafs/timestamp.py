@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # import only for typing to avoid cycles
 UTC = timezone.utc
 
 
-@Registry.register(BaseGenerator)
+@Registry.register(BaseGenerator)  # type: ignore[type-abstract]
 class TimestampGenerator(BaseGenerator):
     """Generate a Unix timestamp (microseconds) within a time window.
 

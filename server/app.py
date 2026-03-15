@@ -48,14 +48,14 @@ async def lifespan(app: FastAPI):
     cm = get_settings()
 
     try:
-        server_cfg = cm.get_root("server")  # type: ignore
-        metrics_enabled = bool(server_cfg.observability.metrics_enabled)  # type: ignore
+        server_cfg = cm.get_root("server")
+        metrics_enabled = bool(server_cfg.observability.metrics_enabled)
     except (AttributeError, TypeError):
         metrics_enabled = False
 
     # Read persistence config
     try:
-        persistence_cfg = cm.get_root("server").persistence  # type: ignore
+        persistence_cfg = cm.get_root("server").persistence
         redis_url = getattr(persistence_cfg.redis, "url", None)
         metrics_interval = getattr(
             persistence_cfg.metrics_collector, "interval_seconds", 30

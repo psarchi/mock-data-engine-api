@@ -17,7 +17,7 @@ if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
 
 
-@Registry.register(BaseGenerator)
+@Registry.register(BaseGenerator)  # type: ignore[type-abstract]
 class StatefulTimestampGenerator(BaseGenerator):
     """Generate incrementing Unix timestamps (microseconds).
 

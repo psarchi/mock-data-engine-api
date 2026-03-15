@@ -14,7 +14,7 @@ if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
 
 
-@Registry.register(BaseGenerator)
+@Registry.register(BaseGenerator)  # type: ignore[type-abstract]
 class StringOrNullGenerator(BaseGenerator):
     """String-or-null composite generator.
         Delegates to a child generator that should return a string, or returns ``None``.
@@ -142,13 +142,13 @@ class StringOrNullGenerator(BaseGenerator):
 
         # TODO(behavior): if weights are missing, current policy is 50/50; consider making configurable
         if self.weights is None:
-            return None if ctx.rng.random() < 0.5 else self.child.generate(ctx)  # type: ignore[union-attr]
+            return None if ctx.rng.random() < 0.5 else self.child.generate(ctx)
 
         string_w = float(self.weights[0])  # guaranteed by _sanity_check
         null_w = float(self.weights[1])
         threshold = string_w / (string_w + null_w)
         return (
-            self.child.generate(ctx)  # type: ignore[union-attr]
+            self.child.generate(ctx)
             if ctx.rng.random() < threshold
             else None
         )

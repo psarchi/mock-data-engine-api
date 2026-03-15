@@ -61,7 +61,7 @@ class BurstOp(BaseChaosOp):
             return True
 
         # Try to activate new burst
-        if random.random() < self.probability:
+        if random.random() < self.probability:  # type: ignore[attr-defined]
             self.burst_active = True
             self.burst_start = time.time()
             return True

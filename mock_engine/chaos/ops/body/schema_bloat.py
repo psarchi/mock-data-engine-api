@@ -1,7 +1,6 @@
 from __future__ import annotations
 import random
 from typing import Any
-import string
 from mock_engine.chaos.ops.base import BaseChaosOp, ApplyResult
 from mock_engine.chaos.ops.utils import iter_leaf_refs
 from mock_engine.registry import Registry
@@ -65,7 +64,7 @@ class SchemaBloatOp(BaseChaosOp):
         # ensure token non-empty
         if not token:
             token = s
-        max_chunk = max(8, need)
+        need = max(8, need)
         reps = max(
             1, min(need // max(1, len(token)), 64)
         )  # cap reps to avoid huge loops

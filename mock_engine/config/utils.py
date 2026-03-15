@@ -349,15 +349,15 @@ def _safe_field_name(
 
     if is_valid_identifier(name, ascii_only=ascii_only):
         return name, None
-    safe = []
+    safe_chars: list[str] = []
     for ch in name:
         if ch == "_":
-            safe.append("_")
+            safe_chars.append("_")
         elif ch.isalnum() and (not ascii_only or ord(ch) < 128):
-            safe.append(ch)
+            safe_chars.append(ch)
         else:
-            safe.append("_")
-    safe = "".join(safe)
+            safe_chars.append("_")
+    safe: str = "".join(safe_chars)
 
     if not safe or not (safe[0].isalpha() or safe[0] == "_"):
         safe = f"f_{safe or 'field'}"

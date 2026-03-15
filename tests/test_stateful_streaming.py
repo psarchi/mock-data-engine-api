@@ -17,7 +17,7 @@ except ImportError:
     import orjson
 
 try:
-    import redis.asyncio
+    import redis.asyncio  # noqa: F401
 except ImportError:
     redis_mod = types.ModuleType("redis")
     redis_asyncio = types.ModuleType("redis.asyncio")

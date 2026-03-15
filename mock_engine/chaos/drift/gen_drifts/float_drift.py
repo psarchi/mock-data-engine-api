@@ -14,7 +14,7 @@ from mock_engine.chaos.drift.gen_drifts.utils import (
 
 
 class FloatDataDrift(DriftSpec):
-    spec_cls = FloatGeneratorSpec
+    spec_cls = FloatGeneratorSpec  # type: ignore[assignment]
     handlers = {"data": "handle_data"}
 
     @staticmethod

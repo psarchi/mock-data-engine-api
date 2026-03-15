@@ -30,7 +30,7 @@ def _check_metrics_disabled() -> bool:
         from mock_engine.config import get_config_manager
 
         cfg = get_config_manager().get_root("server")
-        observability_cfg = getattr(cfg, "observability", None)  # type: ignore[attr-defined]
+        observability_cfg = getattr(cfg, "observability", None)
         if not observability_cfg:
             return True
         if not bool(getattr(observability_cfg, "metrics_enabled", True)):
@@ -148,7 +148,7 @@ class BaseGenerator:
         for name in init_names:
             if name in spec:
                 init_kwargs[name] = spec[name]
-        inst = cls(**init_kwargs)  # type: ignore[misc]
+        inst = cls(**init_kwargs)
         remaining = {k: v for k, v in spec.items() if k not in init_names}
         if remaining:
             inst.configure(**remaining)

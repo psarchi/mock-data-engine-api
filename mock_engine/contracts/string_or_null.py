@@ -24,11 +24,11 @@ class StringOrNullGeneratorSpec(ContractModel):
             # Prefer generator-friendly key while keeping nested adaptation
             out["of"] = adapt(f"{name}.?", self.child)
         if self.weights is not None:
-            out["weights"] = self.weights
+            out["weights"] = self.weights  # type: ignore[assignment]
         if self.bound_to is not None:
             out["bound_to"] = self.bound_to
         if self.bound_to_schema is not None:
             out["bound_to_schema"] = self.bound_to_schema
         if self.bound_to_revision is not None:
-            out["bound_to_revision"] = self.bound_to_revision
+            out["bound_to_revision"] = self.bound_to_revision  # type: ignore[assignment]
         return out

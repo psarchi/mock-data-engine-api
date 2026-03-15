@@ -34,7 +34,7 @@ def list_schemas(_token: RequireAuth = None) -> dict[str, Any]:
                 else 0,
             }
         except Exception as e:
-            registered[name] = {"error": str(e)}
+            registered[name] = {"error": str(e)}  # type: ignore[dict-item]
 
     disk_schemas = []
     for p in sorted(_SCHEMAS_DIR.glob("*.yml")) + sorted(_SCHEMAS_DIR.glob("*.yaml")):

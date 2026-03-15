@@ -82,13 +82,13 @@ Notes:
 
                     roots = [j for j in picked if candidates[j][1] is None]
                     if roots:
-                        desc: list[str] = []
+                        desc_roots: list[str] = []
                         for j in sorted(roots):
                             item_idx, parent, key, path, node = candidates[j]
                             frag, cut, total = _trunc_text(_to_bytes(node))
                             items[item_idx] = frag
-                            desc.append(f"truncate(items[{item_idx}]:{cut}/{total})")
-                        return ApplyResult(body=body, descriptions=desc)
+                            desc_roots.append(f"truncate(items[{item_idx}]:{cut}/{total})")
+                        return ApplyResult(body=body, descriptions=desc_roots)
 
                     desc: list[str] = []
                     for j in sorted(picked):

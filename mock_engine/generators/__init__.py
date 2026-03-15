@@ -8,7 +8,7 @@ from mock_engine.registry import Registry
 from mock_engine.generators.base import BaseGenerator
 
 
-for _, name, _ in pkgutil.walk_packages(__path__, prefix=__name__ + "."):
+for _finder, name, _ispkg in pkgutil.walk_packages(__path__, prefix=__name__ + "."):
     if not name.split(".")[-1].startswith("_"):
         try:
             importlib.import_module(name)

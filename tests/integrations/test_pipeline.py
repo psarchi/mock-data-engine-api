@@ -228,5 +228,5 @@ def test_end_to_end_pipeline(base_url, schema_name, timeout):
     print("\n=== End-to-End Pipeline Test ===")
     print(f"✓ Generated {len(data['items'])} items with metadata")
     print(f"✓ Chaos ops applied: {len(metadata.get('chaos_applied', []))}")
-    print(f"✓ Metrics endpoint responding")
-    print(f"✓ Config system functional")
+    print("✓ Metrics endpoint responding")
+    print("✓ Config system functional")

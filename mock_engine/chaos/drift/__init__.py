@@ -14,12 +14,8 @@ from mock_engine.chaos.drift.gen_drifts import array_drift as _array_drift  # no
 from mock_engine.chaos.drift.gen_drifts import select_drift as _select_drift  # noqa: F401
 from mock_engine.chaos.drift.gen_drifts import maybe_drift as _maybe_drift  # noqa: F401
 from mock_engine.chaos.drift.gen_drifts import string_drift as _string_drift  # noqa: F401
-from mock_engine.chaos.drift.gen_drifts import (
-    string_or_null_drift as _string_or_null_drift,
-)  # noqa: F401
-from mock_engine.chaos.drift.gen_drifts import (
-    object_or_null_drift as _object_or_null_drift,
-)  # noqa: F401
+from mock_engine.chaos.drift.gen_drifts import string_or_null_drift as _string_or_null_drift  # noqa: F401
+from mock_engine.chaos.drift.gen_drifts import object_or_null_drift as _object_or_null_drift  # noqa: F401
 from mock_engine.chaos.drift.gen_drifts import timestamp_drift as _timestamp_drift  # noqa: F401
 from mock_engine.chaos.drift.gen_drifts import one_of_drift as _one_of_drift  # noqa: F401
 

@@ -103,9 +103,9 @@ class SpecBuilder:
         if not isinstance(type_name, str):
             raise InvalidSpecStructureError("'type' must be string", path=path)
 
-        gen_cls = Registry.get(BaseGenerator, type_name)
+        gen_cls = Registry.get(BaseGenerator, type_name)  # type: ignore[type-abstract]
         if gen_cls is None:
-            available = list(Registry.get_all(BaseGenerator).keys())
+            available = list(Registry.get_all(BaseGenerator).keys())  # type: ignore[type-abstract]
             raise UnknownTypeError(
                 f"unknown generator '{type_name}'. available: {', '.join(sorted(available))}",
                 path=path,

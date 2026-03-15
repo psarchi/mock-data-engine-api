@@ -42,9 +42,9 @@ class GeneratorFactory:
             MissingConfigureMethodError: The resolved generator instance has no
                 callable ``configure`` method.
         """
-        cls = Registry.get(BaseGenerator, name)
+        cls = Registry.get(BaseGenerator, name)  # type: ignore[type-abstract]
         if cls is None:
-            available = list(Registry.get_all(BaseGenerator).keys())
+            available = list(Registry.get_all(BaseGenerator).keys())  # type: ignore[type-abstract]
             raise UnknownGeneratorError(
                 f"unknown generator '{name}'. available: {', '.join(sorted(available))}"
             )

@@ -15,7 +15,7 @@ if TYPE_CHECKING:  # avoid import cycles at runtime
     from mock_engine.contracts.types import JsonValue  # noqa : F401
 
 
-@Registry.register(BaseGenerator)
+@Registry.register(BaseGenerator)  # type: ignore[type-abstract]
 class SelectGenerator(BaseGenerator):
     """Generate a mapping by selecting some of the configured options.
 
@@ -85,7 +85,7 @@ class SelectGenerator(BaseGenerator):
                 "default": conf.get("default", None),
             }
 
-        pick = dict(spec.get("pick") or {})
+        pick = dict(spec.get("pick") or {})  # type: ignore[call-overload]
         mode = pick.get("mode", "any")
         if mode not in ("any", "at_least_one", "exact", "range"):
             raise InvalidParameterError(

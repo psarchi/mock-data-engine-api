@@ -21,7 +21,7 @@ class SchemaEntry:
         """Return a clone of this entry under ``new_name``."""
         if deep:
             try:
-                doc_copy = self.doc.model_copy(deep=True)  # type: ignore[attr-defined]
+                doc_copy = self.doc.model_copy(deep=True)
             except AttributeError:
                 doc_copy = copy.deepcopy(self.doc)
         else:
@@ -218,7 +218,7 @@ class SchemaRegistry:
 
     @classmethod
     def _refresh_entry(cls, entry: SchemaEntry) -> None:
-        from mock_engine.schema.builder import (  # type: ignore[attr-defined]
+        from mock_engine.schema.builder import (
             _preflight_sample,
             _synthesize_root_spec,
         )
