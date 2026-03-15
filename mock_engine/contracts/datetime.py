@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import ClassVar, Set, Optional
+from typing import ClassVar, List, Set, Optional
 from pydantic import ConfigDict
 from mock_engine.contracts.base import ContractModel
 
@@ -17,3 +17,5 @@ class DateTimeGeneratorSpec(ContractModel):
     linked_to: Optional[str] = None
     bound_to_schema: Optional[str] = None
     bound_to_revision: Optional[int] = None
+    pool: Optional[List[str]] = None
+    depends_on_pool: Optional[str] = None

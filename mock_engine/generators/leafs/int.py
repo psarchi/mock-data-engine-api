@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, List, Self
 
 from mock_engine.context import GenContext
 from mock_engine.errors import ContextError
@@ -30,11 +30,21 @@ class IntGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"max": "max", "min": "min", "step": "step", "bound_to": "bound_to", "linked_to": "bound_to", "bound_to_schema": "bound_to_schema", "bound_to_revision": "bound_to_revision"},
+        "aliases": {
+            "max": "max",
+            "min": "min",
+            "step": "step",
+            "bound_to": "bound_to",
+            "linked_to": "bound_to",
+            "bound_to_schema": "bound_to_schema",
+            "bound_to_revision": "bound_to_revision",
+            "pool": "pool",
+            "depends_on_pool": "depends_on_pool",
+        },
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("min", "max", "step", "bound_to", "bound_to_schema", "bound_to_revision")
+    __slots__ = ("min", "max", "step", "bound_to", "bound_to_schema", "bound_to_revision", "pool", "depends_on_pool")
     __aliases__ = ("int",)
 
     # TODO(defaults): Allow overriding the default bounds via global config.
@@ -47,6 +57,8 @@ class IntGenerator(BaseGenerator):
         bound_to: str | None = None,
         bound_to_schema: str | None = None,
         bound_to_revision: int | None = None,
+        pool: List[str] | None = None,
+        depends_on_pool: str | None = None,
     ) -> None:
         """Initialize bounds and step.
 
@@ -62,6 +74,8 @@ class IntGenerator(BaseGenerator):
         self.bound_to = bound_to
         self.bound_to_schema = bound_to_schema
         self.bound_to_revision = bound_to_revision
+        self.pool = pool
+        self.depends_on_pool = depends_on_pool
 
     @classmethod
     def from_spec(
@@ -78,7 +92,16 @@ class IntGenerator(BaseGenerator):
         Returns:
             IntGenerator: Configured instance.
         """
-        return cls(min=spec.get("min"), max=spec.get("max"), step=spec.get("step"), bound_to=spec.get("bound_to") or spec.get("linked_to"), bound_to_schema=spec.get("bound_to_schema"), bound_to_revision=spec.get("bound_to_revision"))
+        return cls(
+            min=spec.get("min"),
+            max=spec.get("max"),
+            step=spec.get("step"),
+            bound_to=spec.get("bound_to") or spec.get("linked_to"),
+            bound_to_schema=spec.get("bound_to_schema"),
+            bound_to_revision=spec.get("bound_to_revision"),
+            pool=spec.get("pool"),
+            depends_on_pool=spec.get("depends_on_pool"),
+        )
 
     def _sanity_check(self, ctx: GenContext) -> None:
         """Validate configuration and context preconditions.

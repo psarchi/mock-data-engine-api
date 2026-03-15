@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 from mock_engine.context import GenContext
 from mock_engine.schema.registry import SchemaRegistry
-from mock_engine.errors import ContextError
+from mock_engine.errors import ContextError, PoolEmptyError, SchemaConfigError
 from mock_engine.generators.base import BaseGenerator
 from mock_engine.generators.errors import (
     InvalidParameterError,
@@ -36,7 +36,7 @@ class ObjectGenerator(BaseGenerator):
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("_built", "_meta", "_field_configs", "_anchor_map")
+    __slots__ = ("_built", "_meta", "_field_configs", "_anchor_map", "_pool_anchor", "_pool_siblings", "_depends_on_pool_map")
     __aliases__ = ("object",)
 
     def __init__(self, fields: dict[str, BaseGenerator] | None = None) -> None:
@@ -48,6 +48,12 @@ class ObjectGenerator(BaseGenerator):
         self._field_configs: dict[str, dict[str, Any]] = {}
         # anchor_field → [correlated_field_names], built at scan time
         self._anchor_map: dict[str, list[str]] = {}
+        # pool anchor field name (or None if this schema doesn't feed a pool)
+        self._pool_anchor: str | None = None
+        # sibling field names to store alongside the anchor in the pool record
+        self._pool_siblings: list[str] = []
+        # field_name → source_schema_name for fields that read from an external pool
+        self._depends_on_pool_map: dict[str, str] = {}
 
     # TODO(arch): depend on a builder/factory *protocol* instead of a concrete object
     @classmethod
@@ -137,6 +143,9 @@ class ObjectGenerator(BaseGenerator):
         """Precompute field configurations for fast lookup during generation."""
         self._field_configs = {}
         self._anchor_map = {}
+        self._pool_anchor = None
+        self._pool_siblings = []
+        self._depends_on_pool_map = {}
         for field_name, child_gen in self._built.items():
             field_meta = self._meta.get(field_name, {})
             bound_to = getattr(child_gen, "bound_to", None)
@@ -153,6 +162,15 @@ class ObjectGenerator(BaseGenerator):
             }
             if bound_to and bound_to_schema is None:
                 self._anchor_map.setdefault(bound_to, []).append(field_name)
+
+            pool_cfg = getattr(child_gen, "pool", None)
+            if pool_cfg is not None:
+                self._pool_anchor = field_name
+                self._pool_siblings = list(pool_cfg)
+
+            source = getattr(child_gen, "depends_on_pool", None)
+            if source:
+                self._depends_on_pool_map[field_name] = source
 
     def _value_checker(self, value, default_value, is_required, field_name):
         """Check and apply defaults/required validation for a field value."""
@@ -179,6 +197,8 @@ class ObjectGenerator(BaseGenerator):
             InvalidParameterError: A required field generated ``None`` and no default was provided.
         """
         self._sanity_check(ctx)
+        # Reset per-record pool cache so each record independently samples the pool
+        ctx._pool_cache = {}
         output: dict[str, Any] = {}
         depends_on = []
         # corr_data: {anchor_field: {field_name: cached_value}} fetched from Redis
@@ -188,7 +208,7 @@ class ObjectGenerator(BaseGenerator):
 
         correlation_client = getattr(ctx, "_correlation_client", None)
         _schema_name = getattr(ctx, "schema_name", None)
-        if not _schema_name:
+        if not _schema_name and correlation_client is not None:
             raise InvalidSchemaNameError
         _schema_ver = (
             SchemaRegistry.get_revision(SchemaRegistry.get_latest_name(_schema_name))
@@ -200,6 +220,27 @@ class ObjectGenerator(BaseGenerator):
         for field_name, config in self._field_configs.items():
             depends = config["depends"]
             bound_to = config["bound_to"]
+
+            # Pool consumer: field value comes from an external pool record
+            if field_name in self._depends_on_pool_map:
+                source_schema = self._depends_on_pool_map[field_name]
+                if source_schema not in ctx._pool_cache:
+                    pool_key = f"pool:{source_schema}"
+                    raw = correlation_client.srandmember(pool_key) if correlation_client else None
+                    if raw is None:
+                        raise PoolEmptyError(
+                            f"Pool '{pool_key}' is empty. "
+                            f"Generate '{source_schema}' records before '{ctx.schema_name}'."
+                        )
+                    ctx._pool_cache[source_schema] = json.loads(raw)
+                record = ctx._pool_cache[source_schema]
+                if field_name not in record:
+                    raise SchemaConfigError(
+                        f"Field '{field_name}' not found in pool record for '{source_schema}'. "
+                        f"Add '{field_name}' to pool list in {source_schema}.yaml."
+                    )
+                output[field_name] = record[field_name]
+                continue
 
             if depends and depends not in output:
                 depends_on.append(field_name)
@@ -313,5 +354,19 @@ class ObjectGenerator(BaseGenerator):
                         correlation_client.set(key, json.dumps(new_data), nx=True)
                     except Exception:
                         logger.warning("correlation Redis SET NX failed for key %s", key)
+
+        # Pool write: push anchor + siblings into Redis SET for downstream schemas
+        if self._pool_anchor and correlation_client is not None:
+            anchor_val = output.get(self._pool_anchor)
+            if anchor_val is not None:
+                pool_record = {self._pool_anchor: anchor_val}
+                for sibling in self._pool_siblings:
+                    if sibling in output:
+                        pool_record[sibling] = output[sibling]
+                pool_key = f"pool:{_schema_name}"
+                try:
+                    correlation_client.sadd(pool_key, json.dumps(pool_record))
+                except Exception:
+                    logger.warning("pool Redis SADD failed for key %s", pool_key)
 
         return output

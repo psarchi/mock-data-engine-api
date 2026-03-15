@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from string import ascii_lowercase, ascii_uppercase, digits
 from collections.abc import Callable, Mapping
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 try:
     import exrex  # type: ignore
@@ -52,6 +52,8 @@ class StringGenerator(BaseGenerator):
             "linked_to": "bound_to",
             "bound_to_schema": "bound_to_schema",
             "bound_to_revision": "bound_to_revision",
+            "pool": "pool",
+            "depends_on_pool": "depends_on_pool",
         },
         "deprecations": [],
         "rules": [],
@@ -68,6 +70,8 @@ class StringGenerator(BaseGenerator):
         "bound_to",
         "bound_to_schema",
         "bound_to_revision",
+        "pool",
+        "depends_on_pool",
     )
     __aliases__ = ("string", "str")
 
@@ -84,6 +88,8 @@ class StringGenerator(BaseGenerator):
         bound_to: Optional[str] = None,
         bound_to_schema: str | None = None,
         bound_to_revision: int | None = None,
+        pool: List[str] | None = None,
+        depends_on_pool: str | None = None,
     ) -> None:
         """Initialize configuration for string generation.
 
@@ -110,6 +116,8 @@ class StringGenerator(BaseGenerator):
         self.bound_to = bound_to
         self.bound_to_schema = bound_to_schema
         self.bound_to_revision = bound_to_revision
+        self.pool = pool
+        self.depends_on_pool = depends_on_pool
 
     def _resolve_faker_provider(self, name: str, ctx: GenContext) -> Callable[[], Any]:
         """Resolve a Faker provider or attribute callable from ``ctx``.
@@ -166,6 +174,8 @@ class StringGenerator(BaseGenerator):
             bound_to=spec.get("bound_to") or spec.get("linked_to"),
             bound_to_schema=spec.get("bound_to_schema"),
             bound_to_revision=spec.get("bound_to_revision"),
+            pool=spec.get("pool"),
+            depends_on_pool=spec.get("depends_on_pool"),
         )
 
     def _sanity_check(self, ctx: GenContext) -> None:

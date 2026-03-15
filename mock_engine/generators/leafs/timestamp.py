@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, List
 
 from mock_engine.context import GenContext
 from mock_engine.errors import ContextError
@@ -34,11 +34,21 @@ class TimestampGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"end": "end", "start": "start", "depends_on": "depends_on", "bound_to": "bound_to", "linked_to": "bound_to", "bound_to_schema": "bound_to_schema", "bound_to_revision": "bound_to_revision"},
+        "aliases": {
+            "end": "end",
+            "start": "start",
+            "depends_on": "depends_on",
+            "bound_to": "bound_to",
+            "linked_to": "bound_to",
+            "bound_to_schema": "bound_to_schema",
+            "bound_to_revision": "bound_to_revision",
+            "pool": "pool",
+            "depends_on_pool": "depends_on_pool",
+        },
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("start", "end", "depends_on", "bound_to", "bound_to_schema", "bound_to_revision")
+    __slots__ = ("start", "end", "depends_on", "bound_to", "bound_to_schema", "bound_to_revision", "pool", "depends_on_pool")
     __aliases__ = ("timestamp",)
 
     # TODO(defaults): Make the fallback window configurable (currently last 365 days).
@@ -51,6 +61,8 @@ class TimestampGenerator(BaseGenerator):
         bound_to: str | None = None,
         bound_to_schema: str | None = None,
         bound_to_revision: int | None = None,
+        pool: List[str] | None = None,
+        depends_on_pool: str | None = None,
     ) -> None:
         """Initialize bounds.
 
@@ -66,6 +78,8 @@ class TimestampGenerator(BaseGenerator):
         self.bound_to = bound_to
         self.bound_to_schema = bound_to_schema
         self.bound_to_revision = bound_to_revision
+        self.pool = pool
+        self.depends_on_pool = depends_on_pool
 
     @classmethod
     def from_spec(
@@ -89,6 +103,8 @@ class TimestampGenerator(BaseGenerator):
             bound_to=spec.get("bound_to") or spec.get("linked_to"),
             bound_to_schema=spec.get("bound_to_schema"),
             bound_to_revision=spec.get("bound_to_revision"),
+            pool=spec.get("pool"),
+            depends_on_pool=spec.get("depends_on_pool"),
         )
 
     # TODO(move): Move to utils

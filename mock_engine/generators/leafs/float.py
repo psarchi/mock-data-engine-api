@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Mapping, Self
+from typing import TYPE_CHECKING, Any, List, Mapping, Self
 
 from mock_engine.context import GenContext
 from mock_engine.errors import ContextError
@@ -29,11 +29,21 @@ class FloatGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"max": "max", "min": "min", "precision": "precision", "bound_to": "bound_to", "linked_to": "bound_to", "bound_to_schema": "bound_to_schema", "bound_to_revision": "bound_to_revision"},
+        "aliases": {
+            "max": "max",
+            "min": "min",
+            "precision": "precision",
+            "bound_to": "bound_to",
+            "linked_to": "bound_to",
+            "bound_to_schema": "bound_to_schema",
+            "bound_to_revision": "bound_to_revision",
+            "pool": "pool",
+            "depends_on_pool": "depends_on_pool",
+        },
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("min", "max", "precision", "bound_to", "bound_to_schema", "bound_to_revision")
+    __slots__ = ("min", "max", "precision", "bound_to", "bound_to_schema", "bound_to_revision", "pool", "depends_on_pool")
     __aliases__ = ("float",)
 
     # TODO(validation): Ensure bounds and precision are finite (no NaN/inf) once global validation utilities are in place.
@@ -46,6 +56,8 @@ class FloatGenerator(BaseGenerator):
         bound_to: str | None = None,
         bound_to_schema: str | None = None,
         bound_to_revision: int | None = None,
+        pool: List[str] | None = None,
+        depends_on_pool: str | None = None,
     ) -> None:
         """Initialize the generator with bounds and precision.
 
@@ -61,6 +73,8 @@ class FloatGenerator(BaseGenerator):
         self.bound_to = bound_to
         self.bound_to_schema = bound_to_schema
         self.bound_to_revision = bound_to_revision
+        self.pool = pool
+        self.depends_on_pool = depends_on_pool
 
     @classmethod
     def from_spec(
@@ -87,6 +101,8 @@ class FloatGenerator(BaseGenerator):
             bound_to=spec.get("bound_to") or spec.get("linked_to"),
             bound_to_schema=spec.get("bound_to_schema"),
             bound_to_revision=spec.get("bound_to_revision"),
+            pool=spec.get("pool"),
+            depends_on_pool=spec.get("depends_on_pool"),
         )
 
     def _sanity_check(self, ctx: GenContext) -> None:

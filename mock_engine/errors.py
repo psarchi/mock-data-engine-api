@@ -114,3 +114,11 @@ class PersistenceError(MockEngineError):
 
 class StreamingError(MockEngineError):
     """Streaming subsystem failures."""
+
+
+class PoolEmptyError(RuntimeError):
+    """Pool has no records. Source schema must be generated first."""
+
+
+class SchemaConfigError(ValueError):
+    """Schema references a pool field that wasn't included in the pool definition."""

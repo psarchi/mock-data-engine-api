@@ -16,6 +16,7 @@ from server.routers import (
     admin_chaos,
     admin_schemas,
     admin_generators,
+    admin_pools,
     meta,
     schemas,
     data,
@@ -27,7 +28,7 @@ from server.errors import build_error_response, build_unhandled_response
 from server.logging import setup_logging
 from server.middleware.correlation import CorrelationMiddleware
 from server.middleware.metrics import MetricsMiddleware
-from mock_engine.errors import MockEngineError
+from mock_engine.errors import MockEngineError, PoolEmptyError, SchemaConfigError
 from mock_engine.observability import get_metrics_app
 
 __all__ = ["create_app", "app"]
@@ -147,6 +148,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_chaos.router)
     app.include_router(admin_schemas.router)
     app.include_router(admin_generators.router)
+    app.include_router(admin_pools.router)
     app.include_router(meta.router)
     app.include_router(schemas.router)
     app.include_router(data.router)
@@ -159,6 +161,14 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(MockEngineError)
     async def handle_engine_error(request, exc: MockEngineError):
+        return build_error_response(exc, request)
+
+    @app.exception_handler(PoolEmptyError)
+    async def handle_pool_empty_error(request, exc: PoolEmptyError):
+        return build_error_response(exc, request)
+
+    @app.exception_handler(SchemaConfigError)
+    async def handle_schema_config_error(request, exc: SchemaConfigError):
         return build_error_response(exc, request)
 
     @app.exception_handler(Exception)

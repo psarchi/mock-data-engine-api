@@ -4,7 +4,7 @@ from typing import Any, Iterable, Tuple, Type
 
 from fastapi.responses import JSONResponse
 
-from mock_engine.errors import MockEngineError
+from mock_engine.errors import MockEngineError, PoolEmptyError, SchemaConfigError
 from mock_engine.chaos.errors import (
     ChaosConfigError,
     ChaosOpError,
@@ -27,6 +27,8 @@ from mock_engine.schema.errors import (
 
 
 ERROR_MAP: Iterable[Tuple[Type[BaseException], str, int]] = (
+    (PoolEmptyError, "ERR_POOL_EMPTY", 422),
+    (SchemaConfigError, "ERR_SCHEMA_CONFIG", 422),
     (ChaosOpNotFoundError, "ERR_CHAOS_OP_NOT_FOUND", 404),
     (ChaosRegistryError, "ERR_CHAOS_REGISTRY", 400),
     (ChaosConfigError, "ERR_CHAOS_CONFIG", 400),

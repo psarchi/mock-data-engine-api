@@ -65,6 +65,9 @@ class SpecBuilder:
             for key, value in spec.items():
                 if key == "type":
                     normalized[key] = value
+                elif key == "pool":
+                    # pool is a list of field name strings, not generator specs — don't normalize
+                    normalized[key] = value
                 elif isinstance(value, (dict, list)):
                     next_path = f"{path}.{key}"
                     normalized[key] = self._normalize(value, path=next_path)

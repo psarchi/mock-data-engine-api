@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import re
-from typing import Any, Mapping, Optional, Tuple
+from typing import Any, List, Mapping, Optional, Tuple
 
 from mock_engine.generators.errors import InvalidParameterError
 from mock_engine.generators.base import BaseGenerator
@@ -47,12 +47,18 @@ class DateTimeGenerator(BaseGenerator):
             "linked_to": "bound_to",
             "bound_to_schema": "bound_to_schema",
             "bound_to_revision": "bound_to_revision",
+            "pool": "pool",
+            "depends_on_pool": "depends_on_pool",
         },
         "deprecations": [],
         "rules": [],
         # TODO(versioning): introduce per-generator semver once contracts stabilize.
     }
-    __slots__ = ("start", "end", "format", "time_start", "time_end", "tz", "depends_on", "bound_to", "bound_to_schema", "bound_to_revision")
+    __slots__ = (
+        "start", "end", "format", "time_start", "time_end", "tz",
+        "depends_on", "bound_to", "bound_to_schema", "bound_to_revision",
+        "pool", "depends_on_pool",
+    )
     __aliases__ = ("datetime",)
 
     def __init__(
@@ -67,6 +73,8 @@ class DateTimeGenerator(BaseGenerator):
         bound_to: Optional[str] = None,
         bound_to_schema: str | None = None,
         bound_to_revision: int | None = None,
+        pool: List[str] | None = None,
+        depends_on_pool: str | None = None,
     ) -> None:
         """Initialize the generator.
 
@@ -90,6 +98,8 @@ class DateTimeGenerator(BaseGenerator):
         self.bound_to = bound_to
         self.bound_to_schema = bound_to_schema
         self.bound_to_revision = bound_to_revision
+        self.pool = pool
+        self.depends_on_pool = depends_on_pool
 
     @classmethod
     def from_spec(cls, builder: Any, spec: Mapping[str, Any]) -> "DateTimeGenerator":
@@ -113,6 +123,8 @@ class DateTimeGenerator(BaseGenerator):
             bound_to=spec.get("bound_to") or spec.get("linked_to"),
             bound_to_schema=spec.get("bound_to_schema"),
             bound_to_revision=spec.get("bound_to_revision"),
+            pool=spec.get("pool"),
+            depends_on_pool=spec.get("depends_on_pool"),
         )
 
     def _infer_div(self, epoch_value: float) -> float:

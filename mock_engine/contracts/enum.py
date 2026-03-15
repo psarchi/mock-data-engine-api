@@ -17,6 +17,8 @@ class EnumGeneratorSpec(ContractModel):
     linked_to: Optional[str] = None
     bound_to_schema: Optional[str] = None
     bound_to_revision: Optional[int] = None
+    pool: Optional[List[str]] = None
+    depends_on_pool: Optional[str] = None
 
     def to_spec(self, name: str, adapt):
         payload = {"type": "enum", "values": list(self.values or [])}

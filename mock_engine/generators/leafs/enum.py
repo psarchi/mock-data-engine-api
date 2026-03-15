@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Mapping, Sequence, Self
+from typing import TYPE_CHECKING, Any, List, Mapping, Sequence, Self
 
 from mock_engine.context import GenContext
 from mock_engine.errors import ContextError
@@ -33,11 +33,20 @@ class EnumGenerator(BaseGenerator):
     """
 
     __meta__ = {
-        "aliases": {"values": "values", "weights": "weights", "bound_to": "bound_to", "linked_to": "bound_to", "bound_to_schema": "bound_to_schema", "bound_to_revision": "bound_to_revision"},
+        "aliases": {
+            "values": "values",
+            "weights": "weights",
+            "bound_to": "bound_to",
+            "linked_to": "bound_to",
+            "bound_to_schema": "bound_to_schema",
+            "bound_to_revision": "bound_to_revision",
+            "pool": "pool",
+            "depends_on_pool": "depends_on_pool",
+        },
         "deprecations": [],
         "rules": [],
     }
-    __slots__ = ("values", "weights", "bound_to", "bound_to_schema", "bound_to_revision")
+    __slots__ = ("values", "weights", "bound_to", "bound_to_schema", "bound_to_revision", "pool", "depends_on_pool")
     __aliases__ = ("enum",)
 
     # TODO(validation): Ensure each weight is non-negative and finite (no NaN/inf).
@@ -49,6 +58,8 @@ class EnumGenerator(BaseGenerator):
         bound_to: str | None = None,
         bound_to_schema: str | None = None,
         bound_to_revision: int | None = None,
+        pool: List[str] | None = None,
+        depends_on_pool: str | None = None,
     ) -> None:
         """Initialize with optional values and weights.
 
@@ -64,6 +75,8 @@ class EnumGenerator(BaseGenerator):
         self.bound_to = bound_to
         self.bound_to_schema = bound_to_schema
         self.bound_to_revision = bound_to_revision
+        self.pool = pool
+        self.depends_on_pool = depends_on_pool
 
     @classmethod
     def from_spec(
@@ -100,7 +113,15 @@ class EnumGenerator(BaseGenerator):
                     continue
             values.append(v)
 
-        return cls(values=values, weights=spec.get("weights"), bound_to=spec.get("bound_to") or spec.get("linked_to"), bound_to_schema=spec.get("bound_to_schema"), bound_to_revision=spec.get("bound_to_revision"))
+        return cls(
+            values=values,
+            weights=spec.get("weights"),
+            bound_to=spec.get("bound_to") or spec.get("linked_to"),
+            bound_to_schema=spec.get("bound_to_schema"),
+            bound_to_revision=spec.get("bound_to_revision"),
+            pool=spec.get("pool"),
+            depends_on_pool=spec.get("depends_on_pool"),
+        )
 
     def _sanity_check(self, ctx: GenContext) -> None:
         """Validate configuration and context preconditions.

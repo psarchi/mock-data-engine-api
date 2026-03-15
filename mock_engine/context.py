@@ -76,6 +76,7 @@ class GenContext:
         "temporal_tracker",
         "_depends_on",
         "_correlation_client",
+        "_pool_cache",
     )
 
     def __init__(
@@ -127,6 +128,7 @@ class GenContext:
         self.temporal_tracker: Any = None
         self._depends_on: Any = None
         self._correlation_client: Any = None
+        self._pool_cache: dict[str, dict] = {}
 
     @property
     def faker(self) -> faker.Faker:

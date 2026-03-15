@@ -1,0 +1,14 @@
+type: object
+fields:
+  user_id:
+    type: string
+    template: "USR-{nnnn}"
+    n_type: numeric
+    pool:
+      - tier
+
+  tier:
+    type: enum
+    values: [free, pro, enterprise]
+    weights: [60, 30, 10]
+    bound_to: user_id

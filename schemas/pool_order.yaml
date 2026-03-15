@@ -1,0 +1,20 @@
+type: object
+fields:
+  order_id:
+    type: string
+    template: "ORD-{nnnnnn}"
+    n_type: numeric
+
+  user_id:
+    type: string
+    depends_on_pool: pool_user
+
+  tier:
+    type: string
+    depends_on_pool: pool_user
+
+  amount:
+    type: float
+    min: 5.00
+    max: 500.00
+    precision: 2

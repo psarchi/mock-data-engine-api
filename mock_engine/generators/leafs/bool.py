@@ -6,7 +6,7 @@ Produces ``True`` with probability ``p_true``; otherwise returns ``False``.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, List
 
 from mock_engine.context import GenContext
 from mock_engine.errors import ContextError
@@ -28,16 +28,38 @@ class BoolGenerator(BaseGenerator):
             Defaults to ``0.5`` when ``None``.
     """
 
-    __meta__ = {"aliases": {"p_true": "p_true", "bound_to": "bound_to", "linked_to": "bound_to", "bound_to_schema": "bound_to_schema", "bound_to_revision": "bound_to_revision"}, "deprecations": [], "rules": []}
-    __slots__ = ("p_true", "bound_to", "bound_to_schema", "bound_to_revision")
+    __meta__ = {
+        "aliases": {
+            "p_true": "p_true",
+            "bound_to": "bound_to",
+            "linked_to": "bound_to",
+            "bound_to_schema": "bound_to_schema",
+            "bound_to_revision": "bound_to_revision",
+            "pool": "pool",
+            "depends_on_pool": "depends_on_pool",
+        },
+        "deprecations": [],
+        "rules": [],
+    }
+    __slots__ = ("p_true", "bound_to", "bound_to_schema", "bound_to_revision", "pool", "depends_on_pool")
     __aliases__ = ("bool",)
 
-    def __init__(self, p_true: float | None = None, bound_to: str | None = None, bound_to_schema: str | None = None, bound_to_revision: int | None = None) -> None:
+    def __init__(
+        self,
+        p_true: float | None = None,
+        bound_to: str | None = None,
+        bound_to_schema: str | None = None,
+        bound_to_revision: int | None = None,
+        pool: List[str] | None = None,
+        depends_on_pool: str | None = None,
+    ) -> None:
         """Initialize with an optional probability."""
         self.p_true: float | None = 0.5 if p_true is None else p_true
         self.bound_to = bound_to
         self.bound_to_schema = bound_to_schema
         self.bound_to_revision = bound_to_revision
+        self.pool = pool
+        self.depends_on_pool = depends_on_pool
 
     # TODO(arch): depend on a builder/factory protocol instead of a concrete object
     @classmethod
@@ -55,7 +77,14 @@ class BoolGenerator(BaseGenerator):
         Returns:
             BoolGenerator: Configured instance.
         """
-        return cls(p_true=spec.get("p_true"), bound_to=spec.get("bound_to") or spec.get("linked_to"), bound_to_schema=spec.get("bound_to_schema"), bound_to_revision=spec.get("bound_to_revision"))
+        return cls(
+            p_true=spec.get("p_true"),
+            bound_to=spec.get("bound_to") or spec.get("linked_to"),
+            bound_to_schema=spec.get("bound_to_schema"),
+            bound_to_revision=spec.get("bound_to_revision"),
+            pool=spec.get("pool"),
+            depends_on_pool=spec.get("depends_on_pool"),
+        )
 
     def _sanity_check(self, ctx: GenContext) -> None:
         """Validate context and configuration invariants.

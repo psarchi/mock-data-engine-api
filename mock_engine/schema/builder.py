@@ -6,7 +6,8 @@ import yaml
 
 from mock_engine.context import GenContext
 from mock_engine.schema.validator import Validator
-from mock_engine.schema.errors import SchemaPreflightError
+from mock_engine.schema.errors import SchemaPreflightError, SchemaValidationError
+from mock_engine.errors import PoolEmptyError
 from mock_engine.schema.models import SchemaDoc, PreflightReport, PreflightFailure
 from mock_engine import api as engine_api
 from mock_engine.contracts import (
@@ -152,6 +153,9 @@ def _preflight_sample(
                 arr = _get_by_path(row, path)
                 if isinstance(arr, list) and len(arr) >= min_needed:
                     report.arrays_materialized += 1
+    except PoolEmptyError:
+        # Schema has depends_on_pool fields — pool not populated at load time, that's fine.
+        pass
     except Exception as e:
         report.failures.append(PreflightFailure(path="<root>", error=str(e)))
         raise
@@ -192,6 +196,32 @@ def build_schema(
     validator = Validator()
     root = validator.read(spec)
     contracts_by_path = _flatten(root)
+
+    # Validate pool configuration
+    pool_anchors = [
+        path for path, c in contracts_by_path.items()
+        if getattr(c, "pool", None) is not None
+    ]
+    if len(pool_anchors) > 1:
+        raise SchemaValidationError(
+            f"Only one field can have 'pool' set. Found: {pool_anchors}"
+        )
+    for path, contract in contracts_by_path.items():
+        source = getattr(contract, "depends_on_pool", None)
+        if source is not None:
+            if not isinstance(source, str) or not source.strip():
+                raise SchemaValidationError(
+                    f"Field '{path}': depends_on_pool must be a schema name string."
+                )
+            if getattr(contract, "pool", None) is not None:
+                raise SchemaValidationError(
+                    f"Field '{path}': cannot have both pool and depends_on_pool set."
+                )
+            if getattr(contract, "bound_to", None) is not None:
+                raise SchemaValidationError(
+                    f"Field '{path}': cannot have both depends_on_pool and bound_to set."
+                )
+
     engine_spec = _synthesize_root_spec(contracts_by_path)
     preflight, _gen = _preflight_sample(name, contracts_by_path, samples=3)
     return SchemaDoc(

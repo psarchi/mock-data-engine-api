@@ -401,6 +401,191 @@ Cache misses fall back to independent generation with a warning in the logs. The
 
 ---
 
+## Referential integrity (pool)
+
+Entity correlation keeps the same user always having the same email. Pool solves a different problem: making sure foreign keys actually point to real records.
+
+Without it, `billing.visit_id` is a random string like `VIS-482761` that probably doesn't exist in the visits table. Joins in your mart produce near-zero rows. Pool makes the FK real.
+
+### How it works
+
+A source schema marks one field as a pool anchor. Every generated record pushes a JSON object into a Redis SET (`pool:{schema_name}`). Downstream schemas sample from that set and pull out whatever fields they need.
+
+One Redis call per pool source per generation call. Everything cached in `GenContext` for the duration of that request.
+
+### Source schema — declaring a pool
+
+Put `pool` on the anchor field (the primary key). List any sibling fields you want to carry along:
+
+```yaml
+# appointment.yaml
+type: object
+fields:
+  appointment_id:
+    type: string
+    template: "APT-{nnnnnn}"
+    n_type: numeric
+    pool:
+      - patient_id    # store these alongside appointment_id in every pool record
+      - doctor_id
+
+  patient_id:
+    type: string
+    depends_on_pool: patient   # real patient from the patient pool
+
+  doctor_id:
+    type: string
+    depends_on_pool: doctor    # real doctor from the doctor pool
+```
+
+Each generated appointment record pushes one JSON object into `pool:appointment`:
+
+```json
+{"appointment_id": "APT-283921", "patient_id": "PAT-0042", "doctor_id": "DOC-0007"}
+```
+
+If `pool` is set but the list is empty (`pool: []`), only the anchor field value is stored.
+
+### Downstream schema — reading from a pool
+
+Put `depends_on_pool` on any field. The value is the source schema name. The field name in the YAML must match the key stored in the pool record:
+
+```yaml
+# visit.yaml
+type: object
+fields:
+  visit_id:
+    type: string
+    template: "VIS-{nnnnnn}"
+    n_type: numeric
+    pool:
+      - appointment_id
+      - patient_id
+      - doctor_id
+
+  appointment_id:
+    type: string
+    depends_on_pool: appointment   # sample one record, extract "appointment_id"
+
+  patient_id:
+    type: string
+    depends_on_pool: appointment   # same sampled record — consistent with appointment
+
+  doctor_id:
+    type: string
+    depends_on_pool: appointment   # same sampled record
+```
+
+Multiple fields referencing the same pool source (`depends_on_pool: appointment`) all read from the same sampled record — the engine samples once and caches it. No additional Redis calls.
+
+### Full healthcare chain
+
+```yaml
+# patient.yaml
+type: object
+fields:
+  patient_id:
+    type: string
+    template: "PAT-{nnnn}"
+    n_type: numeric
+    pool: []   # just the ID, no siblings needed
+
+# doctor.yaml
+type: object
+fields:
+  doctor_id:
+    type: string
+    template: "DOC-{nnn}"
+    n_type: numeric
+    pool: []
+
+# appointment.yaml — pulls from patient + doctor pools, feeds its own pool
+type: object
+fields:
+  appointment_id:
+    type: string
+    template: "APT-{nnnnnn}"
+    n_type: numeric
+    pool:
+      - patient_id
+      - doctor_id
+
+  patient_id:
+    type: string
+    depends_on_pool: patient
+
+  doctor_id:
+    type: string
+    depends_on_pool: doctor
+
+# visit.yaml — pulls from appointment pool (gets patient_id + doctor_id for free)
+type: object
+fields:
+  visit_id:
+    type: string
+    template: "VIS-{nnnnnn}"
+    n_type: numeric
+    pool:
+      - appointment_id
+      - patient_id
+      - doctor_id
+
+  appointment_id:
+    type: string
+    depends_on_pool: appointment
+
+  patient_id:
+    type: string
+    depends_on_pool: appointment   # same pool record — consistent with appointment
+
+  doctor_id:
+    type: string
+    depends_on_pool: appointment
+```
+
+Generate in order: `patient` → `doctor` → `appointment` → `visit`. Every downstream schema gets real FKs that trace back to actual records.
+
+**Rules:**
+- Exactly one field per schema can have `pool` set. Multiple pool anchors is a schema load error.
+- `pool` and `depends_on_pool` can't be on the same field.
+- `depends_on_pool` and `bound_to` can't be on the same field — they're different mechanisms.
+- `stateful_datetime` and `stateful_timestamp` don't support `pool` or `depends_on_pool`.
+- Empty pool = hard error (HTTP 422). If generation fails with `Pool 'pool:appointment' is empty`, you need to generate `appointment` records first.
+- No TTL. Pool data persists until you flush it.
+
+### Managing pools
+
+Flush a single pool when you want to regenerate a schema from scratch:
+
+```bash
+curl -X DELETE http://localhost:8000/v1/admin/pools/appointment
+# {"deleted": true, "key": "pool:appointment", "records_removed": 5000}
+```
+
+Check pool size and inspect a sample record:
+
+```bash
+curl http://localhost:8000/v1/admin/pools/appointment
+# {"key": "pool:appointment", "size": 5000, "sample": {"appointment_id": "APT-283921", ...}}
+```
+
+Flush everything (nuclear option):
+
+```bash
+curl -X DELETE http://localhost:8000/v1/admin/pools/
+# {"deleted": 3, "keys": ["pool:patient", "pool:doctor", "pool:appointment"]}
+```
+
+After flushing, downstream schemas will return 422 until you repopulate. Regenerate in dependency order.
+
+### What pool doesn't solve
+
+Pool gives you referential integrity — FK fields point to real records. It doesn't solve business constraint validation.
+
+Example: doctor availability. You'll get a valid `doctor_id` from the pool, but that doctor might already be booked for that time slot. Enforcing scheduling constraints would require tracking every doctor's schedule and filtering the pool by availability — that's simulation, not data generation. Known limitation of synthetic data.
+
+---
+
 ## JSON to YAML converter
 
 If you already have JSON samples of your data, you can bootstrap a schema from them instead of writing one from scratch.
