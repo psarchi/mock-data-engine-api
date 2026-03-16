@@ -10,6 +10,7 @@ class BoolGeneratorSpec(ContractModel):
     model_config = ConfigDict(extra="forbid")
     type_token: ClassVar[str] = "bool"
     type_aliases: ClassVar[Set[str]] = {"boolean"}
+    p_true: Optional[float] = None
     bound_to: Optional[str] = None
     linked_to: Optional[str] = None
     bound_to_schema: Optional[str] = None

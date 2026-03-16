@@ -11,7 +11,12 @@ class DateTimeGeneratorSpec(ContractModel):
     type_token: ClassVar[str] = "datetime"
     type_aliases: ClassVar[Set[str]] = set()
 
+    start: Optional[str] = None
+    end: Optional[str] = None
     format: Optional[str] = None
+    time_start: Optional[str] = None
+    time_end: Optional[str] = None
+    tz: Optional[str] = None
     depends_on: Optional[str] = None
     bound_to: Optional[str] = None
     linked_to: Optional[str] = None
